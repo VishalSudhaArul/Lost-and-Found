@@ -1,24 +1,57 @@
-# Virtual Environment
+# Virtual environments
 venv/
 env/
 .venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
-# Django
-*.log
-local_settings.py
+# Database
 db.sqlite3
 db.sqlite3-journal
+*.sqlite3
+*.sqlite3-*
 
-# Environment variables
+# Environment variables and secrets
 .env
+.env.*
+*.env
+*.key
+*.pem
+*.cert
+secrets/
+*.secret
+*secrets.json
+*secret.key
+*api_key*
+*apikey*
+passwords.txt
+passwords.json
+tokens.json
+tokens/
+*.token
 
-# IDE / OS files
+# Media and collected static files
+media/
+staticfiles/
+
+# IDE / Editor files
 .vscode/
 .idea/
+*.sublime-workspace
+*.sublime-project
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+
+# Django logs & temp files
+*.log
+local_settings.py
