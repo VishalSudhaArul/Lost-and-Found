@@ -38,11 +38,12 @@ lostfound/
   models/          one file per area; PrivateDetail lives alone in privacy.py
   services/        business rules: matching, verification, claims, custody, disposal, public, analytics, images, crypto
   views/           public, accounts, member, security, administration, errors
-  templates/       Django templates (base layout + partials)
-  static/          app.css, app.js (progressive enhancement only)
+  templates/       base.html + partials/ (sidebar, topbar, site header/footer, messages,
+                   item_card, status_badge, pagination, field, icons) + one folder per area
+  static/          app.css (design system), app.js (progressive enhancement only)
   management/commands/  refresh_matches, check_ageing, seed_demo, rotate_encryption_keys
   migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
-  tests/           96 tests
+  tests/           115 tests
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
 
@@ -112,6 +113,14 @@ Then, as an administrator: add your campus locations (mark the security office a
 
 See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler and cron examples. No Celery/Redis is required.
 
+## Interface
+
+* **Two shells, one template tree.** Visitors get a public site (header with Browse items / How it works / Sign in / Create account, full footer). Signed-in users get the app shell: role-aware sidebar (a drawer on phones), top bar with section title, board search, notifications and profile menu.
+* **Design system** in `static/lostfound/css/app.css`: navy `#14213D`, indigo actions `#4F46E5`, amber accent `#F5B335`, red for lost/urgent, amber for pending, green for returned. Icons are an inline SVG sprite (`partials/icons.html`, `{% icon "name" %}`); items without photos get a category icon placeholder.
+* **Screens:** homepage with search and category chips, board with type/category/location/date-range filters, sort and grid/list views, item detail, lost and found report forms with photo preview and a live review panel, member/security/admin dashboards built from live queries, claim and handover screens with a progress track, password reset, and branded 403/404/500 pages.
+* **No JavaScript required:** filters, view toggle, forms and menus all work as plain HTML; JavaScript only adds live updates, previews and the mobile drawer.
+* Counts on the homepage come from the database. If `seed_demo` sample rows exist, the page says it includes labelled sample data.
+
 ## Testing
 
 ```bash
@@ -119,7 +128,7 @@ python manage.py test lostfound            # against PostgreSQL (recommended)
 set DB_BACKEND=sqlite && python manage.py test lostfound   # fallback; 3 PostgreSQL-only tests skip
 ```
 
-Latest results (Oct 2026): **96 passed on PostgreSQL 16**, 93 passed + 3 skipped on SQLite. GitHub Actions runs the suite against PostgreSQL on every push (`.github/workflows/ci.yml`).
+Latest results (Oct 2026): 115 tests. **All 115 pass on PostgreSQL 16** in GitHub Actions (commit `25bfefa`); locally on SQLite 112 pass and the 3 PostgreSQL-only tests skip. The workflow runs on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 
@@ -141,7 +150,8 @@ Set `DJANGO_DEBUG=False`, a long `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `D
 
 * No SSO/ERP, email or SMS integration yet (in-app notifications only; Django's email backend is configured for a future step).
 * Image similarity matching is not implemented (the PDF marks it optional).
-* The UI was verified by automated rendering tests, not yet by manual browser/device testing.
+* The UI was checked in a desktop browser and a 375 px phone viewport (Chrome engine); not yet on physical phones, Safari or with a screen reader.
+* Password reset emails use `EMAIL_BACKEND` (console in development); configure SMTP to deliver them for real.
 * Rate limiting uses the local-memory cache by default (per process).
 
 ## Screenshots
