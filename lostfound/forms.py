@@ -161,6 +161,11 @@ class PrivateDetailForm(forms.Form):
     match_mode = forms.ChoiceField(choices=PrivateDetail.MatchMode.choices, initial=PrivateDetail.MatchMode.KEYWORDS,
                                    label="How strictly to compare")
 
+    def has_changed(self):
+        # Selects always submit a value; a row only counts as filled in when
+        # the finder typed a question or an answer.
+        return any((self.data.get(self.add_prefix(n)) or "").strip() for n in ("question", "answer"))
+
     def clean(self):
         cleaned = super().clean()
         q, a = (cleaned.get("question") or "").lower(), (cleaned.get("answer") or "").lower()
