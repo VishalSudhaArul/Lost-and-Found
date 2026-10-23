@@ -55,3 +55,9 @@ Thumbs.db
 # Django logs & temp files
 *.log
 local_settings.py
+
+# Private uploads (proof photos, signatures, disposal evidence)
+private_media/
+# Test/coverage artefacts
+.coverage
+htmlcov/
