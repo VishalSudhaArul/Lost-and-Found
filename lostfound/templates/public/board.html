@@ -1,23 +1,30 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}Lost &amp; found board{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Lost &amp; found board</h1><p>Public listing. Identifying details stay private for ownership checks.</p></div>
-  {% if user.is_authenticated %}<div class="btn-row"><a class="btn btn-lost btn-small" href="{% url 'report_item' 'lost' %}">Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">Report found</a></div>{% endif %}
+  <div><h1>Lost &amp; found board</h1><p>Everything reported on campus. Identifying details stay private so only the owner can prove an item is theirs.</p></div>
+  <div class="btn-row"><a class="btn btn-primary btn-small" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found</a></div>
 </div>
-<form class="panel filters" id="board-filters" method="get" action="{% url 'board' %}" role="search">
-  <div class="field wide"><label for="q">Search</label><input type="search" id="q" name="q" value="{{ params.q }}" placeholder="e.g. blue water bottle"></div>
+<form class="panel filters" id="board-filters" method="get" action="{% url 'board' %}" role="search" aria-label="Filter the board">
+  <div class="field wide"><label for="q">Search</label><div class="input-icon">{% icon "search" %}<input type="search" id="q" name="q" value="{{ params.q }}" placeholder="e.g. blue water bottle" maxlength="100"></div></div>
   <div class="field"><label for="type">Type</label>
     <select id="type" name="type"><option value="">Lost and found</option><option value="found" {% if params.type == "found" %}selected{% endif %}>Found items</option><option value="lost" {% if params.type == "lost" %}selected{% endif %}>Lost reports</option></select></div>
   <div class="field"><label for="category">Category</label>
-    <select id="category" name="category"><option value="">All</option>{% for c in categories %}<option value="{{ c.pk }}" {% if params.category == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>{% for s in c.children.all %}<option value="{{ s.pk }}" {% if params.category == s.pk|stringformat:"d" %}selected{% endif %}>— {{ s.name }}</option>{% endfor %}{% endfor %}</select></div>
+    <select id="category" name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if params.category == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>{% for s in c.children.all %}<option value="{{ s.pk }}" {% if params.category == s.pk|stringformat:"d" %}selected{% endif %}>— {{ s.name }}</option>{% endfor %}{% endfor %}</select></div>
   <div class="field"><label for="location">Location</label>
-    <select id="location" name="location"><option value="">Anywhere</option>{% for l in locations %}<option value="{{ l.pk }}" {% if params.location == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}</select></div>
-  <div class="field"><label for="sort">Sort</label>
-    <select id="sort" name="sort"><option value="newest">Newest reports</option><option value="occurred" {% if params.sort == "occurred" %}selected{% endif %}>Most recent date lost/found</option><option value="relevance" {% if params.sort == "relevance" %}selected{% endif %}>Best match to search</option><option value="oldest" {% if params.sort == "oldest" %}selected{% endif %}>Oldest first</option></select></div>
+    <select id="location" name="location"><option value="">Anywhere on campus</option>{% for l in locations %}<option value="{{ l.pk }}" {% if params.location == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}</select></div>
   <div class="field"><label for="from">From</label><input type="date" id="from" name="from" value="{{ params.from }}"></div>
-  <noscript><button class="btn" type="submit">Apply</button></noscript>
+  <div class="field"><label for="to">To</label><input type="date" id="to" name="to" value="{{ params.to }}"></div>
+  <div class="field"><label for="sort">Sort by</label>
+    <select id="sort" name="sort"><option value="newest">Newest reports</option><option value="relevance" {% if params.sort == "relevance" %}selected{% endif %}>Best match to search</option><option value="occurred" {% if params.sort == "occurred" %}selected{% endif %}>Date lost/found</option><option value="oldest" {% if params.sort == "oldest" %}selected{% endif %}>Oldest first</option></select></div>
+  <noscript><button class="btn btn-primary" type="submit">Apply filters</button></noscript>
+  <div class="toolbar" style="grid-column:1/-1;margin:0">
+    <p class="small muted">{% icon "info" %} Search engine: {{ search_backend }}.{% if params.q or params.type or params.category or params.location or params.from or params.to %} <a href="{% url 'board' %}">Clear all filters</a>{% endif %}</p>
+    <div class="segmented" data-view-toggle role="radiogroup" aria-label="Layout">
+      <label><input type="radio" name="view" value="grid" {% if params.view != "list" %}checked{% endif %}>{% icon "grid" %}Grid</label>
+      <label><input type="radio" name="view" value="list" {% if params.view == "list" %}checked{% endif %}>{% icon "list" %}List</label>
+    </div>
+  </div>
 </form>
 <div id="board-results" aria-live="polite">{% include "public/_board_results.html" %}</div>
-<p class="muted small">Search engine: {{ search_backend }}.</p>
 {% endblock %}

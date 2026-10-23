@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Handover {{ handover.receipt_code }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'security_handovers' %}">Handovers</a> / {{ handover.receipt_code }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_handovers' %}">Handovers</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ handover.receipt_code }}</span></nav>
 <div class="page-head"><div><h1>Handover <span class="mono">{{ handover.receipt_code }}</span></h1><p>{{ handover.claim.item.title }} ({{ handover.claim.item.reference }}) to {{ handover.claim.claimant.get_full_name|default:handover.claim.claimant.username }}</p></div>{% badge handover.status handover.get_status_display %}</div>
 <div class="split">
   <div>

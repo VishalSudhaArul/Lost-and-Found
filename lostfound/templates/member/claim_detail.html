@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Claim {{ claim.reference }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'my_claims' %}">My claims</a> / {{ claim.reference }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_claims' %}">My claims</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>For {{ card.title }} ({{ card.reference }})</p></div>{% badge claim.status claim.get_status_display %}</div>
 <div class="split">
   <div>

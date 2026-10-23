@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}{{ item.reference }} (security){% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'security_items' %}">Found items</a> / {{ item.reference }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_items' %}">Found items</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ item.reference }}</span></nav>
 <div class="page-head"><div><h1>{{ item.title }}</h1><p class="mono">{{ item.reference }}</p></div>{% badge item.status item.get_status_display %}</div>
 <div class="split">
   <div>

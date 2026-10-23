@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Review {{ claim.reference }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'security_claims' %}">Verification review</a> / {{ claim.reference }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_claims' %}">Verification review</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>{{ claim.item.title }} (<a href="{% url 'security_item' claim.item.pk %}">{{ claim.item.reference }}</a>), {{ claim.item.get_status_display|lower }}</p></div>
 <div class="btn-row">{% badge claim.verification_status claim.get_verification_status_display %}{% badge claim.status claim.get_status_display %}</div></div>
 <p class="notice warn small">Private details are shown below. This view has been recorded in the audit log.</p>

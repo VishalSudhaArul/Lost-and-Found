@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Claim {{ card.reference }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a> / Claim</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Claim</span></nav>
 <h1>Claim this item</h1>
 <div class="split">
   <form method="post" class="panel" novalidate>{% csrf_token %}

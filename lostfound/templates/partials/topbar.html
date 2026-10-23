@@ -1,0 +1,26 @@
+{% load lf %}
+<header class="topbar">
+  <button class="icon-btn menu-toggle" type="button" data-menu-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">{% icon "menu" %}</button>
+  <div class="topbar-title">{{ section|default:"Campus Lost & Found" }}</div>
+  <form class="topbar-search" method="get" action="{% url 'board' %}" role="search">
+    {% icon "search" %}
+    <label class="visually-hidden" for="topbar-q">Search the board</label>
+    <input type="search" id="topbar-q" name="q" placeholder="Search the board, e.g. black backpack" value="{% if request.resolver_match.url_name == 'board' %}{{ request.GET.q }}{% endif %}">
+  </form>
+  <div class="topbar-actions">
+    <a class="icon-btn" href="{% url 'notifications' %}" aria-label="Notifications{% if unread_count %}, {{ unread_count }} unread{% endif %}">{% icon "bell" %}{% if unread_count %}<span class="dot">{{ unread_count }}</span>{% endif %}</a>
+    <details class="profile" data-dropdown>
+      <summary aria-label="Account menu"><span class="avatar" aria-hidden="true">{{ user|initials }}</span><span class="profile-name">{{ user.get_full_name|default:user.username }}</span>{% icon "chevron-down" %}</summary>
+      <div class="dropdown">
+        <div class="dropdown-head">
+          <strong>{{ user.get_full_name|default:user.username }}</strong>
+          <span class="muted small">{{ user.email|default:user.username }}</span>
+          <div class="role-chips">{% for g in user.groups.all %}<span class="badge">{{ g.name }}</span>{% empty %}<span class="badge">Member</span>{% endfor %}</div>
+        </div>
+        <a href="{% url 'dashboard' %}">{% icon "dashboard" %}My dashboard</a>
+        <a href="{% url 'password_change' %}">{% icon "key" %}Change password</a>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="signout">{% icon "log-out" %}Sign out</button></form>
+      </div>
+    </details>
+  </div>
+</header>

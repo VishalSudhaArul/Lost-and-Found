@@ -1,34 +1,71 @@
-{% extends "base.html" %}
-{% block title %}Welcome{% endblock %}
+{% extends "base.html" %}{% load lf %}
+{% block title %}Lost something on campus?{% endblock %}
 {% block content %}
-<section class="hero">
+<section class="hero" aria-labelledby="hero-title">
   <div>
-    <h1>Lost something on campus? Start here.</h1>
-    <p class="lede">One board for everything handed in to campus security. Finders keep the identifying details private, so only the real owner can prove an item is theirs.</p>
-    <div class="btn-row">
-      <a class="btn btn-lost" href="{% url 'report_item' 'lost' %}">I lost something</a>
-      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">I found something</a>
-      <a class="btn btn-ghost" href="{% url 'board' %}">Browse the board</a>
+    <span class="eyebrow">{% icon "shield" %}Campus lost &amp; found service</span>
+    <h1 id="hero-title">Lost something on campus? <em>Let's get it back to you.</em></h1>
+    <p class="lede">Students and staff report lost and found items in one place. We suggest likely matches, the owner proves the item is theirs, and campus security supervises every return.</p>
+    <form class="hero-search" method="get" action="{% url 'board' %}" role="search">
+      <div class="input-icon">{% icon "search" %}<label class="visually-hidden" for="home-q">Search items</label><input type="search" id="home-q" name="q" placeholder="Try “black backpack” or “water bottle”"></div>
+      <label class="visually-hidden" for="home-cat">Category</label>
+      <select id="home-cat" name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select>
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+    {% if categories %}<div class="chips" aria-label="Browse by category">{% for c in categories|slice:":6" %}<a class="chip" href="{% url 'board' %}?category={{ c.pk }}">{% icon c.name|category_icon %}{{ c.name }}</a>{% endfor %}</div>{% endif %}
+    <div class="btn-row hero-actions">
+      <a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost item</a>
+      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found item</a>
+      <a class="btn btn-quiet" href="{% url 'board' %}">Browse the board {% icon "arrow-right" %}</a>
     </div>
-    <p class="muted small" style="margin-top:1rem">{{ stats.open_found }} found item{{ stats.open_found|pluralize }} waiting for owners, {{ stats.returned }} returned so far</p>
   </div>
-  <div class="hero-tags" aria-hidden="true">
-    {% for item in recent|slice:":2" %}{% include "partials/tag.html" %}{% endfor %}
-  </div>
+  <aside class="hero-panel" aria-labelledby="latest-title">
+    <div class="hero-panel-head"><h2 id="latest-title"><span class="live-dot" aria-hidden="true"></span>Latest on the board</h2><a class="small" href="{% url 'board' %}">View all</a></div>
+    {% if preview %}<ul class="item-rows">{% for item in preview %}{% include "partials/item_row.html" %}{% endfor %}</ul>
+    {% else %}<div class="empty"><span class="empty-icon">{% icon "inbox" "icon-lg" %}</span><p>Nothing has been reported yet.</p></div>{% endif %}
+    <div class="stats-strip small" style="padding:.75rem .2rem .6rem;border-top:1px solid var(--line)">
+      <span><strong>{{ stats.open_found }}</strong>found, awaiting owners</span>
+      <span><strong>{{ stats.open_lost }}</strong>open lost reports</span>
+      <span><strong>{{ stats.returned }}</strong>returned</span>
+    </div>
+    {% if stats.includes_sample %}<p class="mb-0" style="padding:0 .2rem .6rem"><span class="demo-note">{% icon "info" %}Includes labelled sample data</span></p>{% endif %}
+  </aside>
 </section>
 
-<h2>How a return works</h2>
-<ol class="steps" style="margin-bottom:2rem">
-  <li><h3>Report</h3><p class="small">Post what you lost or found with a photo, category, place and time. It takes under a minute on a phone.</p></li>
-  <li><h3>Match</h3><p class="small">We compare lost and found reports by description, category, place and time, and tell you about likely matches.</p></li>
-  <li><h3>Prove it</h3><p class="small">Answer questions about details the finder kept private. Security reviews every claim.</p></li>
-  <li><h3>Collect</h3><p class="small">Pick it up from the security office with your ID and a one-time code. Every handover is recorded.</p></li>
-</ol>
+<section class="trust" id="privacy" aria-label="How your item stays protected">
+  <div class="trust-item"><span class="figure-icon">{% icon "user-check" "icon-lg" %}</span><div><h3>Secure ownership verification</h3><p>Claimants answer questions about details only the owner would know. Attempts are limited.</p></div></div>
+  <div class="trust-item"><span class="figure-icon amber">{% icon "shield" "icon-lg" %}</span><div><h3>Security-supervised handovers</h3><p>Items are released at the security office after an ID check and a one-time code or signature.</p></div></div>
+  <div class="trust-item"><span class="figure-icon green">{% icon "eye-off" "icon-lg" %}</span><div><h3>Identifying details stay private</h3><p>Serial codes, marks and contents are encrypted and never shown on the public board.</p></div></div>
+</section>
 
-<div class="panel-head"><h2>Recently reported</h2><a href="{% url 'board' %}">See all</a></div>
-{% if recent %}
-<div class="tags">{% for item in recent %}{% include "partials/tag.html" %}{% endfor %}</div>
-{% else %}
-<div class="panel empty"><h3>Nothing on the board yet</h3><p>When items are reported they'll appear here.</p></div>
-{% endif %}
+<section class="section" id="how-it-works" aria-labelledby="how-title">
+  <div class="section-head"><div><h2 id="how-title">How it works</h2><p>Four steps from “I lost it” to “I've got it back”.</p></div></div>
+  <ol class="steps">
+    <li><span class="figure-icon">{% icon "file" "icon-lg" %}</span><h3>Report an item</h3><p>Post what you lost or found with a category, place and time. A photo helps. It takes under a minute.</p></li>
+    <li><span class="figure-icon">{% icon "link" "icon-lg" %}</span><h3>Find a potential match</h3><p>Lost and found reports are compared by description, category, place and time. You're notified of likely matches.</p></li>
+    <li><span class="figure-icon">{% icon "clipboard-check" "icon-lg" %}</span><h3>Verify ownership</h3><p>Answer questions about details the finder kept private. A security officer reviews every claim.</p></li>
+    <li><span class="figure-icon">{% icon "key" "icon-lg" %}</span><h3>Collect it securely</h3><p>Pick it up from the security office with photo ID and a one-time code. Every handover is recorded.</p></li>
+  </ol>
+</section>
+
+<section class="section" aria-labelledby="recent-title">
+  <div class="section-head">
+    <div><h2 id="recent-title">Recently reported</h2><p>General descriptions only. Identifying details are kept for ownership checks.</p></div>
+    <a class="btn btn-ghost btn-small" href="{% url 'board' %}">Browse all items {% icon "arrow-right" %}</a>
+  </div>
+  {% if recent %}
+  <div class="tags">{% for item in recent %}{% include "partials/item_card.html" %}{% endfor %}</div>
+  {% else %}
+  <div class="panel empty"><span class="empty-icon">{% icon "inbox" "icon-lg" %}</span><h3>Nothing on the board yet</h3><p>When items are reported they'll appear here.</p></div>
+  {% endif %}
+</section>
+
+<section class="section" id="guidance" aria-labelledby="guidance-title">
+  <div class="section-head"><div><h2 id="guidance-title">Using the board responsibly</h2></div></div>
+  <div class="grid grid-3">
+    <div class="panel mb-0"><h3>{% icon "package" %} Found something?</h3><p class="small muted mb-0">Report it, then hand it to the campus security office. Don't arrange handovers directly with people from the board.</p></div>
+    <div class="panel mb-0"><h3>{% icon "lock" %} Keep proof to yourself</h3><p class="small muted mb-0">Never put serial codes, engravings, stickers or bag contents in a public description. They're how the real owner proves it's theirs.</p></div>
+    <div class="panel mb-0"><h3>{% icon "hourglass" %} Unclaimed items</h3><p class="small muted mb-0">Items are held for a set retention period. After that, security reviews them and an administrator authorises disposal or donation.</p></div>
+  </div>
+</section>
 {% endblock %}

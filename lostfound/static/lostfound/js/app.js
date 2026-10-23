@@ -2,15 +2,99 @@
 (function () {
   "use strict";
 
-  // Mobile navigation
+  // App sidebar as a drawer on small screens (Esc or backdrop closes it)
   var menu = document.querySelector("[data-menu-toggle]");
-  if (menu) {
-    menu.addEventListener("click", function () {
-      var nav = document.getElementById("sidebar");
-      var open = nav.classList.toggle("open");
-      menu.setAttribute("aria-expanded", open ? "true" : "false");
+  var sidebar = document.getElementById("sidebar");
+  var scrim = document.querySelector("[data-scrim]");
+  var setDrawer = function (open) {
+    if (!sidebar || !menu) return;
+    sidebar.classList.toggle("open", open);
+    if (scrim) scrim.classList.toggle("open", open);
+    menu.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) { var first = sidebar.querySelector("a"); if (first) first.focus(); }
+  };
+  if (menu && sidebar) {
+    menu.addEventListener("click", function () { setDrawer(!sidebar.classList.contains("open")); });
+    if (scrim) scrim.addEventListener("click", function () { setDrawer(false); });
+  }
+
+  // Public header menu on small screens
+  var navToggle = document.querySelector("[data-nav-toggle]");
+  var siteNav = document.getElementById("site-nav");
+  if (navToggle && siteNav) {
+    navToggle.addEventListener("click", function () {
+      var open = siteNav.classList.toggle("open");
+      navToggle.setAttribute("aria-expanded", open ? "true" : "false");
     });
   }
+
+  // Dropdowns (<details data-dropdown>): close on outside click or Esc
+  var dropdowns = document.querySelectorAll("details[data-dropdown]");
+  document.addEventListener("click", function (e) {
+    dropdowns.forEach(function (d) { if (d.open && !d.contains(e.target)) d.open = false; });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    dropdowns.forEach(function (d) { if (d.open) { d.open = false; d.querySelector("summary").focus(); } });
+    if (sidebar && sidebar.classList.contains("open")) { setDrawer(false); menu.focus(); }
+    if (siteNav && siteNav.classList.contains("open")) { siteNav.classList.remove("open"); navToggle.setAttribute("aria-expanded", "false"); }
+  });
+
+  // Photo upload preview (local only; nothing is sent until the form is submitted)
+  document.querySelectorAll("[data-upload]").forEach(function (box) {
+    var input = box.querySelector("input[type=file]");
+    var preview = box.querySelector("[data-upload-preview]");
+    if (!input || !preview) return;
+    var original = preview.innerHTML;
+    input.addEventListener("change", function () {
+      var file = input.files && input.files[0];
+      if (!file || !/^image\//.test(file.type)) { preview.innerHTML = original; return; }
+      var img = document.createElement("img");
+      img.alt = "Selected photo preview";
+      img.src = URL.createObjectURL(file);
+      img.onload = function () { URL.revokeObjectURL(img.src); };
+      preview.innerHTML = ""; preview.appendChild(img);
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    ["dragenter", "dragover"].forEach(function (t) { box.addEventListener(t, function () { box.classList.add("dragover"); }); });
+    ["dragleave", "drop"].forEach(function (t) { box.addEventListener(t, function () { box.classList.remove("dragover"); }); });
+  });
+
+  // Live review summary on the report form (public fields only)
+  var review = document.querySelector("[data-review]");
+  if (review) {
+    var form = review.closest("form");
+    var text = function (el) {
+      if (!el) return "";
+      if (el.tagName === "SELECT") { var o = el.options[el.selectedIndex]; return o && o.value ? o.text.replace(/^[—\s]+/, "") : ""; }
+      if (el.type === "file") { return el.files && el.files[0] ? el.files[0].name : ""; }
+      if (el.type === "datetime-local" && el.value) { var d = new Date(el.value); return isNaN(d) ? el.value : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }); }
+      return el.value.trim();
+    };
+    var refresh = function () {
+      review.querySelectorAll("[data-review-field]").forEach(function (slot) {
+        var value = text(form.querySelector("[name='" + slot.getAttribute("data-review-field") + "']"));
+        slot.textContent = value || slot.getAttribute("data-empty") || "Not provided";
+        slot.classList.toggle("empty-val", !value);
+      });
+      var count = form.querySelectorAll("[data-private-question]");
+      var filled = 0;
+      count.forEach(function (q) { if (q.value.trim()) filled += 1; });
+      var slot = review.querySelector("[data-review-private]");
+      if (slot) { slot.textContent = filled ? filled + " recorded (kept private)" : "None yet (at least one needed)"; slot.classList.toggle("empty-val", !filled); }
+    };
+    form.addEventListener("input", refresh);
+    form.addEventListener("change", refresh);
+    refresh();
+  }
+
+  // Board grid/list view toggle
+  document.querySelectorAll("[data-view-toggle] input").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      var list = document.querySelector("#board-results .tags");
+      if (list) list.classList.toggle("as-list", radio.value === "list" && radio.checked);
+    });
+  });
 
   // Confirmation for sensitive actions
   document.addEventListener("submit", function (e) {
@@ -104,7 +188,12 @@
       fetch(url, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
         .then(function (html) { results.innerHTML = html; history.replaceState(null, "", url); })
-        .catch(function () { results.innerHTML = '<div class="empty"><h3>Results could not load</h3><p>Check your connection and try again.</p></div>'; })
+        .catch(function () {
+          results.innerHTML = '<div class="panel empty" role="alert"><h3>Results couldn\'t load</h3><p>Check your connection and try again.</p>' +
+            '<div class="btn-row"><button type="button" class="btn btn-ghost" data-retry>Try again</button></div></div>';
+          var retry = results.querySelector("[data-retry]");
+          if (retry) retry.addEventListener("click", load);
+        })
         .finally(function () { results.classList.remove("loading"); results.removeAttribute("aria-busy"); });
     };
     boardForm.addEventListener("input", function (e) {

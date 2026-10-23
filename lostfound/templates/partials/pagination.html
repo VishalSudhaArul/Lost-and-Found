@@ -1,7 +1,7 @@
-{% if page.paginator.num_pages > 1 %}
+{% load lf %}{% if page.paginator.num_pages > 1 %}
 <nav class="pagination" aria-label="Pages">
-  {% if page.has_previous %}<a class="btn btn-ghost btn-small" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  {% if page.has_previous %}<a class="btn btn-ghost btn-small" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}" rel="prev">{% icon "arrow-left" %}Previous</a>{% endif %}
   <span class="muted small">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a class="btn btn-ghost btn-small" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-ghost btn-small" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}" rel="next">Next{% icon "arrow-right" %}</a>{% endif %}
 </nav>
 {% endif %}

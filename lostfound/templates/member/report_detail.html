@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}{{ item.reference }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'my_reports' %}">My reports</a> / {{ item.reference }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_reports' %}">My reports</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ item.reference }}</span></nav>
 <div class="page-head"><div><h1>{{ item.title }}</h1><p>{{ item.get_report_type_display }} report <span class="mono">{{ item.reference }}</span></p></div>{% badge item.status item.get_status_display %}</div>
 <div class="split">
   <section class="panel">

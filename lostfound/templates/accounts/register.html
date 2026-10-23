@@ -1,17 +1,23 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Create account{% endblock %}
 {% block content %}
-<div class="narrow" style="--w:620px">
-  <h1>Create your account</h1>
-  <form method="post" class="panel" novalidate>{% csrf_token %}
-    {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
-    <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
-    {% field form.email %}
-    <div class="form-row">{% field form.member_type %}{% field form.department %}</div>
-    {% field form.username %}
-    <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
-    <button class="btn" type="submit">Create account</button>
-  </form>
-  <p>Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+<div class="auth-wrap">
+  <div class="auth-card" style="--w:640px">
+    <div class="auth-head">
+      <span class="auth-icon">{% icon "user-plus" "icon-lg" %}</span>
+      <h1>Create your account</h1>
+      <p>Students and staff can report items, receive match alerts and claim belongings.</p>
+    </div>
+    <form method="post" class="panel" novalidate>{% csrf_token %}
+      {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
+      <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
+      {% field form.email %}
+      <div class="form-row">{% field form.member_type %}{% field form.department %}</div>
+      {% field form.username %}
+      <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
+      <button class="btn btn-primary btn-block" type="submit">Create account</button>
+    </form>
+    <p class="auth-alt">Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+  </div>
 </div>
 {% endblock %}

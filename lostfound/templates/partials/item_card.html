@@ -1,0 +1,16 @@
+{% load lf %}{# Renders a PublicItem DTO only (never a model instance), so private data cannot leak. #}
+<a class="tag {{ item.report_type }}" href="{% url 'item_detail' item.id %}" aria-label="{% if item.report_type == 'found' %}Found{% else %}Lost{% endif %}: {{ item.title }}, {{ item.reference }}">
+  <div class="tag-band"><span>{% if item.report_type == "found" %}Found item{% else %}Lost report{% endif %}</span><span class="mono">{{ item.reference }}</span></div>
+  <div class="tag-photo">
+    {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" decoding="async" width="400" height="300">
+    {% else %}<div class="placeholder"><span class="ph-icon">{% icon item.category|category_icon %}</span><span>No photo provided</span></div>{% endif %}
+    {% if item.status == "awaiting_handover" %}<span class="tag-status">{% badge item.status item.status_label %}</span>{% elif item.status == "in_custody" %}<span class="tag-status">{% badge item.status "With security" %}</span>{% endif %}
+  </div>
+  <div class="tag-body">
+    <h3>{{ item.title }}</h3>
+    <div class="tag-meta">{% icon "tag" %}<span>{{ item.category }}</span></div>
+    <div class="tag-meta">{% icon "pin" %}<span>{{ item.location }}</span></div>
+    <div class="tag-meta">{% icon "calendar" %}<span>{{ item.occurred_at|date:"j M Y, H:i" }}</span></div>
+    <span class="tag-cta">View details {% icon "arrow-right" %}</span>
+  </div>
+</a>

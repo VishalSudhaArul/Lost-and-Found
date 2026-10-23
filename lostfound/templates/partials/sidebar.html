@@ -1,0 +1,44 @@
+{% load lf %}
+<nav class="sidebar" id="sidebar" aria-label="Main">
+  <a class="brand" href="{% url 'home' %}"><span class="brand-mark" aria-hidden="true"></span><span>Campus Lost &amp; Found<small>Ownership-verified returns</small></span></a>
+  <div class="sidebar-cta">
+    <a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Lost</a>
+    <a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Found</a>
+  </div>
+  <div class="nav-group nav">
+    <span>Browse</span>
+    <a href="{% url 'home' %}" {% nav_current 'home' %}>{% icon "home" %}Home</a>
+    <a href="{% url 'board' %}" {% nav_current 'board' 'item_detail' %}>{% icon "grid" %}Lost &amp; found board</a>
+  </div>
+  <div class="nav-group nav">
+    <span>My account</span>
+    <a href="{% url 'dashboard' %}" {% nav_current 'dashboard' %}>{% icon "dashboard" %}Dashboard</a>
+    <a href="{% url 'my_reports' %}" {% nav_current 'my_reports' 'report_detail' 'report_matches' 'report_item' %}>{% icon "file" %}My reports</a>
+    <a href="{% url 'my_claims' %}" {% nav_current 'my_claims' 'claim_detail' 'claim_verify' 'claim_create' 'handover_code' %}>{% icon "clipboard-check" %}My claims</a>
+    <a href="{% url 'notifications' %}" {% nav_current 'notifications' %}>{% icon "bell" %}Notifications{% if unread_count %}<span class="count">{{ unread_count }}</span>{% endif %}</a>
+  </div>
+  {% if nav.access_security_dashboard or nav.manage_custody or nav.review_claims %}
+  <div class="nav-group nav">
+    <span>Security office</span>
+    {% if nav.access_security_dashboard %}<a href="{% url 'security_dashboard' %}" {% nav_current 'security_dashboard' %}>{% icon "shield" %}Overview</a>{% endif %}
+    {% if nav.manage_custody or nav.review_claims %}<a href="{% url 'security_items' %}" {% nav_current 'security_items' 'security_item' %}>{% icon "package" %}Custody management</a>{% endif %}
+    {% if nav.review_claims %}<a href="{% url 'security_claims' %}" {% nav_current 'security_claims' 'security_claim' %}>{% icon "user-check" %}Verification review</a>{% endif %}
+    {% if nav.conduct_handover %}<a href="{% url 'security_handovers' %}" {% nav_current 'security_handovers' 'security_handover' %}>{% icon "key" %}Handovers</a>{% endif %}
+    {% if nav.manage_custody %}<a href="{% url 'security_custody' %}" {% nav_current 'security_custody' %}>{% icon "history" %}Custody history</a>{% endif %}
+    {% if nav.review_disposal %}<a href="{% url 'security_ageing' %}" {% nav_current 'security_ageing' %}>{% icon "hourglass" %}Ageing &amp; disposal</a>{% endif %}
+  </div>
+  {% endif %}
+  {% if nav.manage_taxonomy or nav.manage_retention or nav.manage_matching or nav.manage_users or nav.view_analytics or nav.view_audit %}
+  <div class="nav-group nav">
+    <span>Administration</span>
+    <a href="{% url 'admin_overview' %}" {% nav_current 'admin_overview' %}>{% icon "dashboard" %}Admin overview</a>
+    {% if nav.view_analytics %}<a href="{% url 'admin_analytics' %}" {% nav_current 'admin_analytics' %}>{% icon "chart" %}Reports &amp; analytics</a>{% endif %}
+    {% if nav.manage_taxonomy %}<a href="{% url 'admin_categories' %}" {% nav_current 'admin_categories' 'admin_category_edit' %}>{% icon "layers" %}Categories</a>
+    <a href="{% url 'admin_locations' %}" {% nav_current 'admin_locations' 'admin_location_edit' %}>{% icon "map" %}Campus locations</a>{% endif %}
+    {% if nav.manage_retention or nav.manage_matching %}<a href="{% url 'admin_settings' %}" {% nav_current 'admin_settings' %}>{% icon "sliders" %}Policies &amp; settings</a>{% endif %}
+    {% if nav.manage_users %}<a href="{% url 'admin_users' %}" {% nav_current 'admin_users' 'admin_user_edit' %}>{% icon "users" %}Users &amp; roles</a>{% endif %}
+    {% if nav.view_audit %}<a href="{% url 'admin_audit' %}" {% nav_current 'admin_audit' %}>{% icon "clipboard-list" %}Audit log</a>{% endif %}
+  </div>
+  {% endif %}
+  <div class="sidebar-foot">Private details are encrypted and never shown on the public board.</div>
+</nav>

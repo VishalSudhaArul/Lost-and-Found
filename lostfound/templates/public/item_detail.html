@@ -1,41 +1,62 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}{{ item.title }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'board' %}">Board</a> / {{ item.reference }}</p>
+{# Public page: receives only a redacted PublicItem DTO. #}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'board' %}">Board</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ item.reference }}</span></nav>
 <div class="split">
   <article class="panel">
-    <div class="btn-row" style="margin-bottom:.6rem"><span class="badge {% if item.report_type == 'found' %}badge-found{% else %}badge-lost{% endif %}">{% if item.report_type == 'found' %}Found item{% else %}Lost report{% endif %}</span><span class="badge">{{ item.status_label }}</span><span class="mono muted">{{ item.reference }}</span></div>
+    <div class="btn-row mb-1">
+      {% if item.is_found %}{% badge "found" "Found item" %}{% else %}{% badge "lost" "Lost report" %}{% endif %}
+      {% badge item.status item.status_label %}
+      <span class="mono muted small">{{ item.reference }}</span>
+    </div>
     <h1>{{ item.title }}</h1>
-    {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="Photo of {{ item.title }}" style="border-radius:8px;margin:1rem 0;max-height:420px;object-fit:contain;background:var(--canvas);width:100%">{% endif %}
+    <div class="photo-frame mt-1">
+      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="Photo of {{ item.title }}">
+      {% else %}<div class="placeholder"><span class="ph-icon">{% icon item.category|category_icon %}</span><span>No photo provided</span></div>{% endif %}
+    </div>
+    <h2>Description</h2>
     <p>{{ item.description|linebreaksbr }}</p>
-    <dl class="facts">
-      <dt>Category</dt><dd>{{ item.category }}</dd>
-      <dt>{% if item.report_type == 'found' %}Found at{% else %}Lost at{% endif %}</dt><dd>{{ item.location }}</dd>
-      <dt>When</dt><dd>{{ item.occurred_at|date:"l j F Y, H:i" }}</dd>
-      {% for k, v in item.attributes.items %}<dt>{{ k|capfirst }}</dt><dd>{{ v }}</dd>{% endfor %}
-      <dt>Reported</dt><dd>{{ item.created_at|timesince }} ago</dd>
+    <dl class="facts mt-2">
+      <dt>{% icon "tag" %}Category</dt><dd>{{ item.category }}</dd>
+      <dt>{% icon "pin" %}{% if item.is_found %}Found at{% else %}Lost at{% endif %}</dt><dd>{{ item.location }}</dd>
+      <dt>{% icon "calendar" %}When</dt><dd>{{ item.occurred_at|date:"l j F Y, H:i" }}</dd>
+      {% for k, v in item.attributes.items %}<dt>{% icon "info" %}{{ k|capfirst }}</dt><dd>{{ v }}</dd>{% endfor %}
+      <dt>{% icon "clock" %}Reported</dt><dd>{{ item.created_at|timesince }} ago</dd>
     </dl>
   </article>
   <aside>
-    {% if item.report_type == 'found' %}
+    {% if item.is_found %}
     <div class="panel">
       <h2>Is this yours?</h2>
-      <p class="small">You'll answer a few questions about details the finder recorded privately. Campus security reviews every claim before anything is handed over.</p>
-      {% if not user.is_authenticated %}
-        <a class="btn" href="{% url 'login' %}?next={% url 'claim_create' item.id %}">Sign in to claim</a>
+      <p class="small muted">Start a claim and answer a few questions about details the finder recorded privately. Campus security reviews every claim before anything is handed over.</p>
+      {% if item.status == "awaiting_handover" %}
+        <p class="notice warn small">A claim for this item has been approved and it's waiting to be collected.</p>
+      {% elif not user.is_authenticated %}
+        <a class="btn btn-primary btn-block" href="{% url 'login' %}?next={% url 'claim_create' item.id %}">{% icon "log-in" %}Sign in to claim</a>
       {% elif can_claim %}
-        <a class="btn" href="{% url 'claim_create' item.id %}">Start a claim</a>
+        <a class="btn btn-primary btn-block" href="{% url 'claim_create' item.id %}">{% icon "clipboard-check" %}Start a claim</a>
       {% else %}
-        <p class="notice small">{{ claim_reason }}</p>
+        <p class="notice small mb-0">{{ claim_reason }}</p>
       {% endif %}
+    </div>
+    <div class="panel">
+      <h3>How claiming works</h3>
+      <ol class="timeline small">
+        <li><strong>Tell us why it's yours</strong><div class="muted">A short statement, optionally linked to your lost report.</div></li>
+        <li><strong>Answer verification questions</strong><div class="muted">Limited attempts. You won't be told which answer didn't match.</div></li>
+        <li><strong>Security reviews the claim</strong><div class="muted">Passing verification never approves a claim automatically.</div></li>
+        <li><strong>Collect with photo ID</strong><div class="muted">At the security office, with a one-time code or signature.</div></li>
+      </ol>
     </div>
     {% else %}
     <div class="panel">
-      <h2>Found this?</h2>
-      <p class="small">Hand it to the campus security office and report it as found. Don't contact people directly through this board.</p>
-      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">Report a found item</a>
+      <h2>Found this item?</h2>
+      <p class="small muted">Hand it to the campus security office and report it as found. Please don't contact people directly through this board.</p>
+      <a class="btn btn-found btn-block" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report a found item</a>
     </div>
     {% endif %}
+    <div class="panel notice callout small">{% icon "lock" %}<span>Identifying details such as serial codes, marks and contents are never shown here. They're used only to check ownership.</span></div>
   </aside>
 </div>
 {% endblock %}

@@ -3,77 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Report, find and recover lost belongings on campus through a verified, security-supervised process.">
+  <meta name="theme-color" content="#14213d">
   <title>{% block title %}Campus Lost &amp; Found{% endblock %} · Campus Lost &amp; Found</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&family=Public+Sans:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
   <link rel="stylesheet" href="{% static 'lostfound/css/app.css' %}">
   {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% if user.is_authenticated %}is-app{% else %}is-public{% endif %}">
+{% include "partials/icons.html" %}
 <a class="skip" href="#content">Skip to content</a>
-<div class="shell">
-  <header class="topbar">
-    <a class="brand" href="{% url 'home' %}"><span class="brand-mark" aria-hidden="true"></span>Lost &amp; Found</a>
-    <button class="menu-btn" type="button" data-menu-toggle aria-controls="sidebar" aria-expanded="false">Menu{% if unread_count %} ({{ unread_count }}){% endif %}</button>
-  </header>
-  <nav class="sidebar" id="sidebar" aria-label="Main">
-    <a class="brand" href="{% url 'home' %}"><span class="brand-mark" aria-hidden="true"></span>Campus<br>Lost &amp; Found</a>
-    <div class="nav-group nav">
-      <a href="{% url 'board' %}" {% nav_current 'board' 'item_detail' %}>Lost &amp; found board</a>
-      {% if user.is_authenticated %}
-      <a href="{% url 'report_item' 'lost' %}" {% nav_current 'report_item' %}>Report an item</a>
-      {% endif %}
-    </div>
-    {% if user.is_authenticated %}
-    <div class="nav-group nav">
-      <span>My account</span>
-      <a href="{% url 'dashboard' %}" {% nav_current 'dashboard' %}>Dashboard</a>
-      <a href="{% url 'my_reports' %}" {% nav_current 'my_reports' 'report_detail' 'report_matches' %}>My reports</a>
-      <a href="{% url 'my_claims' %}" {% nav_current 'my_claims' 'claim_detail' 'claim_verify' %}>My claims</a>
-      <a href="{% url 'notifications' %}" {% nav_current 'notifications' %}>Notifications {% if unread_count %}<span class="count">{{ unread_count }}</span>{% endif %}</a>
-    </div>
-    {% if nav.access_security_dashboard or nav.manage_custody or nav.review_claims %}
-    <div class="nav-group nav">
-      <span>Security office</span>
-      {% if nav.access_security_dashboard %}<a href="{% url 'security_dashboard' %}" {% nav_current 'security_dashboard' %}>Overview</a>{% endif %}
-      {% if nav.manage_custody or nav.review_claims %}<a href="{% url 'security_items' %}" {% nav_current 'security_items' 'security_item' %}>Found items &amp; custody</a>{% endif %}
-      {% if nav.review_claims %}<a href="{% url 'security_claims' %}" {% nav_current 'security_claims' 'security_claim' %}>Verification review</a>{% endif %}
-      {% if nav.conduct_handover %}<a href="{% url 'security_handovers' %}" {% nav_current 'security_handovers' 'security_handover' %}>Handovers</a>{% endif %}
-      {% if nav.manage_custody %}<a href="{% url 'security_custody' %}" {% nav_current 'security_custody' %}>Custody history</a>{% endif %}
-      {% if nav.review_disposal %}<a href="{% url 'security_ageing' %}" {% nav_current 'security_ageing' %}>Ageing &amp; disposal</a>{% endif %}
-    </div>
-    {% endif %}
-    {% if nav.manage_taxonomy or nav.manage_retention or nav.manage_matching or nav.manage_users or nav.view_analytics or nav.view_audit %}
-    <div class="nav-group nav">
-      <span>Administration</span>
-      <a href="{% url 'admin_overview' %}" {% nav_current 'admin_overview' %}>Overview</a>
-      {% if nav.view_analytics %}<a href="{% url 'admin_analytics' %}" {% nav_current 'admin_analytics' %}>Reports &amp; analytics</a>{% endif %}
-      {% if nav.manage_taxonomy %}<a href="{% url 'admin_categories' %}" {% nav_current 'admin_categories' 'admin_category_edit' %}>Categories</a>
-      <a href="{% url 'admin_locations' %}" {% nav_current 'admin_locations' 'admin_location_edit' %}>Campus locations</a>{% endif %}
-      {% if nav.manage_retention or nav.manage_matching %}<a href="{% url 'admin_settings' %}" {% nav_current 'admin_settings' %}>Policies &amp; settings</a>{% endif %}
-      {% if nav.manage_users %}<a href="{% url 'admin_users' %}" {% nav_current 'admin_users' 'admin_user_edit' %}>Users &amp; roles</a>{% endif %}
-      {% if nav.view_audit %}<a href="{% url 'admin_audit' %}" {% nav_current 'admin_audit' %}>Audit log</a>{% endif %}
-    </div>
-    {% endif %}
-    <div class="nav-group nav">
-      <span>Signed in as {{ user.get_full_name|default:user.username }}</span>
-      <a href="{% url 'password_change' %}">Change password</a>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-small signout" type="submit">Sign out</button></form>
-    </div>
-    {% else %}
-    <div class="nav-group nav">
-      <a href="{% url 'login' %}" {% nav_current 'login' %}>Sign in</a>
-      <a href="{% url 'register' %}" {% nav_current 'register' %}>Create account</a>
-    </div>
-    {% endif %}
-  </nav>
-  <main class="main" id="content">
-    {% if messages %}<ul class="messages" role="status">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-    {% block content %}{% endblock %}
-    <p class="footer">Campus Lost &amp; Found — EduRev P09. Identifying details of found items are never shown publicly.</p>
-  </main>
+{# Signed-in users get the app shell (sidebar + top bar); visitors get the public site header and footer. #}
+{% if user.is_authenticated %}
+<div class="app">
+  {% include "partials/sidebar.html" %}
+  <div class="scrim" data-scrim></div>
+  <div class="app-col">
+    {% include "partials/topbar.html" %}
+    <main class="content" id="content" tabindex="-1">
+{% else %}
+{% include "partials/site_header.html" %}
+<main class="site-main" id="content" tabindex="-1">
+{% endif %}
+      {% include "partials/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+{% if user.is_authenticated %}
+    {% include "partials/app_footer.html" %}
+  </div>
 </div>
+{% else %}
+{% include "partials/site_footer.html" %}
+{% endif %}
 <script src="{% static 'lostfound/js/app.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>

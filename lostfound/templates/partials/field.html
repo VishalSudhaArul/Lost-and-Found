@@ -1,10 +1,10 @@
-<div class="field{% if f.errors %} has-error{% endif %} {{ extra_class }}">
+{% load lf %}<div class="field{% if f.errors %} has-error{% endif %} {{ extra_class }}">
   {% if f.field.widget.input_type == "checkbox" %}
     <label for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label>
   {% else %}
-    <label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required %} <span class="muted small">(optional)</span>{% endif %}</label>
+    <label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required %} <span class="optional">(optional)</span>{% endif %}</label>
     {{ f }}
   {% endif %}
-  {% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}
-  {% for e in f.errors %}<p class="error">{{ e }}</p>{% endfor %}
+  {% if f.help_text %}<div class="help" id="{{ f.auto_id }}_helptext">{{ f.help_text }}</div>{% endif %}
+  {% for e in f.errors %}<p class="error" id="{{ f.auto_id }}_error" role="alert">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
 </div>

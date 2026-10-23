@@ -11,12 +11,17 @@ from ..services import public
 
 @require_GET
 def home(request):
-    recent = public.to_public_items(public.board_queryset({})[:6])
+    recent = public.to_public_items(public.board_queryset({})[:8])
+    # Live counts from the database. Sample rows created by `seed_demo` are labelled
+    # "[Sample]", so the page says when the figures include demo data.
     stats = {
         "open_found": Item.objects.found().publicly_listed().count(),
+        "open_lost": Item.objects.lost().publicly_listed().count(),
         "returned": Item.objects.found().filter(status=Item.Status.RETURNED).count(),
+        "includes_sample": Item.objects.filter(title__startswith="[Sample]").exists(),
     }
-    return render(request, "public/home.html", {"recent": recent, "stats": stats})
+    return render(request, "public/home.html", {
+        "recent": recent, "preview": recent[:4], "stats": stats, **public.filter_options()})
 
 
 def _board_page(request):

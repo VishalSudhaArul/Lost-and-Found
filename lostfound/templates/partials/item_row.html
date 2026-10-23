@@ -1,0 +1,6 @@
+{% load lf %}{# Compact row for a PublicItem DTO. #}
+<li><a class="item-row" href="{% url 'item_detail' item.id %}">
+  <span class="thumb {{ item.report_type }}">{% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" width="46" height="46">{% else %}{% icon item.category|category_icon %}{% endif %}</span>
+  <span class="grow"><strong>{{ item.title }}</strong><small>{{ item.location }} · {{ item.created_at|timesince }} ago</small></span>
+  {% if item.is_found %}{% badge "found" "Found" %}{% else %}{% badge "lost" "Lost" %}{% endif %}
+</a></li>

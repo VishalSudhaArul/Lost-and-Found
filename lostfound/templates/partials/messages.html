@@ -1,0 +1,5 @@
+{% load lf %}{% if messages %}
+<ul class="messages" role="status" aria-live="polite">
+  {% for m in messages %}<li class="{{ m.tags }}">{% if m.tags == "success" %}{% icon "check-circle" %}{% elif m.tags == "error" %}{% icon "x-circle" %}{% elif m.tags == "warning" %}{% icon "alert" %}{% else %}{% icon "info" %}{% endif %}<span>{{ m }}</span></li>{% endfor %}
+</ul>
+{% endif %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ target.username }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'admin_users' %}">Users</a> / {{ target.username }}</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_users' %}">Users</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ target.username }}</span></nav>
 <h1>{{ target.get_full_name|default:target.username }}</h1>
 <form method="post" class="panel" style="max-width:640px">{% csrf_token %}
   <fieldset><legend>Roles</legend><ul class="check-list">{% for choice in form.roles %}<li><label>{{ choice.tag }} <strong>{{ choice.choice_label }}</strong></label>{% for name, d in descriptions.items %}{% if name == choice.data.value %}<div class="muted small" style="margin-left:1.6rem">{{ d }}</div>{% endif %}{% endfor %}</li>{% endfor %}</ul></fieldset>

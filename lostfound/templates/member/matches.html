@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Matches for {{ item.reference }}{% endblock %}
 {% block content %}
-<p class="crumb"><a href="{% url 'report_detail' item.pk %}">{{ item.reference }}</a> / Matches</p>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'report_detail' item.pk %}">{{ item.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Matches</span></nav>
 <div class="page-head"><div><h1>Possible matches</h1><p>Found items that resemble "{{ item.title }}". Scores explain why each was suggested.</p></div></div>
 {% for row in suggestions %}
 <article class="panel">
