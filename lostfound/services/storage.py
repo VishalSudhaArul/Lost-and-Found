@@ -1,26 +1,28 @@
+import os
+
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
-from django.utils.functional import LazyObject
 
 
 class PrivateStorage(FileSystemStorage):
     """Files outside MEDIA_ROOT with no public URL. Served only through
-    permission-checked views (lostfound.views.security.private_file)."""
+    permission-checked views (lostfound.views.security.private_file).
+    The location is read from settings on every access so it follows
+    PRIVATE_MEDIA_ROOT (including test overrides)."""
 
-    def __init__(self, **kwargs):
-        kwargs.setdefault("location", settings.PRIVATE_MEDIA_ROOT)
-        super().__init__(**kwargs)
+    @property
+    def base_location(self):
+        return str(settings.PRIVATE_MEDIA_ROOT)
+
+    @property
+    def location(self):
+        return os.path.abspath(self.base_location)
 
     def url(self, name):
         raise ValueError("Private files have no public URL.")
 
 
-class _LazyPrivate(LazyObject):
-    def _setup(self):
-        self._wrapped = PrivateStorage()
-
-
-private_storage = _LazyPrivate()
+private_storage = PrivateStorage()
 
 
 def private_storage_factory():
