@@ -4,15 +4,21 @@
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_claims' %}">Verification review</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>{{ claim.item.title }} (<a href="{% url 'security_item' claim.item.pk %}">{{ claim.item.reference }}</a>), {{ claim.item.get_status_display|lower }}</p></div>
 <div class="btn-row">{% badge claim.verification_status claim.get_verification_status_display %}{% badge claim.status claim.get_status_display %}</div></div>
-<p class="notice warn small">Private details are shown below. This view has been recorded in the audit log.</p>
+{% with s=claim.status %}<ol class="track" style="--n:4" aria-label="Claim progress">
+  <li class="{% if s == 'pending_verification' %}current{% else %}done{% endif %}">Verification{% if claim.verification_status == "failed" %} (failed){% endif %}</li>
+  <li class="{% if s == 'under_review' %}current{% elif s == 'rejected' or s == 'withdrawn' %}stopped{% elif s != 'pending_verification' %}done{% endif %}">Security decision</li>
+  <li class="{% if s == 'approved' %}current{% elif s == 'completed' %}done{% endif %}">Handover</li>
+  <li class="{% if s == 'completed' %}done{% endif %}">Returned</li>
+</ol>{% endwith %}
+<p class="notice warn small callout">{% icon "eye-off" %}<span><strong>Restricted:</strong> private details are shown below for this review only. This view has been recorded in the audit log.</span></p>
 <div class="split">
   <div>
-    <section class="panel"><h2>Claimant</h2>
+    <section class="panel"><h2>{% icon "user" %} Claimant</h2>
       <dl class="facts"><dt>Name</dt><dd>{{ claim.claimant.get_full_name|default:"—" }}</dd><dt>Account</dt><dd>{{ claim.claimant.username }} ({{ claim.claimant.email }})</dd>
       <dt>Submitted</dt><dd>{{ claim.created_at|date:"j M Y, H:i" }}</dd>{% if claim.lost_report %}<dt>Lost report</dt><dd>{{ claim.lost_report.reference }}: {{ claim.lost_report.title }}, {{ claim.lost_report.location.name }}, {{ claim.lost_report.occurred_at|date:"j M Y" }}</dd>{% endif %}</dl>
       <h3 style="margin-top:1rem">Statement</h3><p>{{ claim.statement|linebreaksbr }}</p>
     </section>
-    <section class="panel"><h2>Verification evidence</h2>
+    <section class="private-box"><h2>{% icon "lock" %}Verification evidence</h2>
       {% if evidence.challenge %}<p class="small">{{ evidence.challenge.attempts_used }} of {{ evidence.challenge.max_attempts }} attempts used; best score {{ evidence.challenge.best_score|pct }}% (pass mark {{ evidence.challenge.pass_threshold|pct }}%).</p>
         {% for a in evidence.attempts %}
         <h3>Attempt {{ forloop.counter }} — {{ a.attempt.score|pct }}% {% if a.attempt.passed %}<span class="badge badge-ok">passed</span>{% else %}<span class="badge badge-bad">failed</span>{% endif %}</h3>

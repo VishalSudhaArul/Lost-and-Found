@@ -1,11 +1,13 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}Notifications{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Notifications</h1></div>
-{% if unread_count %}<form method="post">{% csrf_token %}<button class="btn btn-ghost btn-small" type="submit">Mark all as read</button></form>{% endif %}</div>
+<div class="page-head"><div><h1>Notifications</h1><p>Match alerts, claim decisions and handover times.</p></div>
+{% if unread_count %}<form method="post">{% csrf_token %}<button class="btn btn-ghost btn-small" type="submit">{% icon "check" %}Mark all as read</button></form>{% endif %}</div>
 {% if notifications %}
-<div class="panel"><ul class="rows">{% for n in notifications %}
-  <li><div>{% if not n.is_read %}<span class="badge badge-lost">New</span> {% endif %}<a href="{% url 'notification_open' n.pk %}">{{ n.title }}</a><div class="muted small">{{ n.message }}</div></div><span class="muted small">{{ n.created_at|date:"j M, H:i" }}</span></li>
+<div class="panel"><ul class="feed">{% for n in notifications %}
+  <li><span class="feed-icon"{% if not n.is_read %} style="background:var(--indigo-wash);color:var(--indigo)"{% endif %}>{% if n.kind == "match" %}{% icon "link" %}{% elif n.kind == "claim" or n.kind == "verification" %}{% icon "clipboard-check" %}{% elif n.kind == "handover" %}{% icon "key" %}{% else %}{% icon "bell" %}{% endif %}</span>
+  <div style="flex:1"><p>{% if not n.is_read %}<span class="badge badge-info">New</span> {% endif %}<a href="{% url 'notification_open' n.pk %}"{% if not n.is_read %} style="font-weight:700"{% endif %}>{{ n.title }}</a></p><small>{{ n.message }}</small></div>
+  <small class="nowrap">{{ n.created_at|date:"j M, H:i" }}</small></li>
 {% endfor %}</ul></div>
-{% else %}<div class="panel empty"><h3>You're all caught up</h3><p style="margin-inline:auto">Match alerts, claim decisions and handover times will appear here.</p></div>{% endif %}
+{% else %}<div class="panel empty"><span class="empty-icon">{% icon "bell" "icon-lg" %}</span><h3>You're all caught up</h3><p>Match alerts, claim decisions and handover times will appear here.</p></div>{% endif %}
 {% endblock %}

@@ -1,19 +1,37 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}Administration{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Administration</h1><p>Campus configuration and policy.</p></div></div>
-{% if metrics %}<div class="figures">
-  <div class="figure"><strong>{{ metrics.found_total }}</strong><span>Found reports</span></div>
-  <div class="figure"><strong>{% if metrics.return_rate is not None %}{{ metrics.return_rate }}%{% else %}—{% endif %}</strong><span>Return rate</span></div>
-  <div class="figure"><strong>{{ metrics.in_custody }}</strong><span>Held by security</span></div>
-  <div class="figure"><strong>{{ metrics.outstanding_claims }}</strong><span>Open claims</span></div>
-</div>{% endif %}
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "sliders" %}Administration</span><h1>Campus overview</h1><p>Live figures from the database, plus configuration and policy.</p></div>
+  {% if nav.view_analytics %}<a class="btn btn-ghost" href="{% url 'admin_analytics' %}">{% icon "chart" %}Full analytics</a>{% endif %}
+</div>
+
+{% if metrics %}
+<div class="figures">
+  <div class="figure"><span class="figure-icon red">{% icon "search" "icon-lg" %}</span><div><strong>{{ metrics.lost_total }}</strong><span>Lost reports</span></div></div>
+  <div class="figure"><span class="figure-icon amber">{% icon "package" "icon-lg" %}</span><div><strong>{{ metrics.found_total }}</strong><span>Found reports</span></div></div>
+  <div class="figure"><span class="figure-icon green">{% icon "check-circle" "icon-lg" %}</span><div><strong>{{ metrics.returned }}</strong><span>Returned{% if metrics.return_rate is not None %} · {{ metrics.return_rate }}% return rate{% endif %}</span></div></div>
+  <div class="figure"><span class="figure-icon">{% icon "clock" "icon-lg" %}</span><div><strong>{% if metrics.median_hours_to_return is not None %}{{ metrics.median_hours_to_return }} h{% else %}—{% endif %}</strong><span>Median time to return{% if metrics.median_hours_to_return is None %} (no returns yet){% endif %}</span></div></div>
+  <div class="figure"><span class="figure-icon navy">{% icon "archive" "icon-lg" %}</span><div><strong>{{ metrics.in_custody }}</strong><span>Unclaimed, held by security</span></div></div>
+  <div class="figure"><span class="figure-icon">{% icon "x-circle" "icon-lg" %}</span><div><strong>{% if metrics.verification_failure_rate is not None %}{{ metrics.verification_failure_rate }}%{% else %}—{% endif %}</strong><span>Verification failure rate ({{ metrics.verification_attempts }} attempts)</span></div></div>
+</div>
+
 <div class="grid grid-3">
-  {% if nav.manage_taxonomy %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_categories' %}"><h2>Categories</h2><p class="small muted">{{ category_count }} categories and subcategories, with public attributes and retention overrides.</p></a>
-  <a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_locations' %}"><h2>Campus locations</h2><p class="small muted">{{ location_count }} buildings, floors and spots, including custody points.</p></a>{% endif %}
-  {% if nav.manage_retention or nav.manage_matching %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_settings' %}"><h2>Policies &amp; settings</h2><p class="small muted">Retention {{ cfg.default_retention_days }} days; match threshold {{ cfg.match_threshold }}; {{ cfg.verification_max_attempts }} verification attempts.</p></a>{% endif %}
-  {% if nav.manage_users %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_users' %}"><h2>Users &amp; roles</h2><p class="small muted">{{ user_count }} accounts.</p></a>{% endif %}
-  {% if nav.view_analytics %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_analytics' %}"><h2>Reports &amp; analytics</h2><p class="small muted">Return rate, time to return, hotspots, disposal volume.</p></a>{% endif %}
-  {% if nav.view_audit %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_audit' %}"><h2>Audit log</h2><p class="small muted">Every claim decision, custody change and private-detail access.</p></a>{% endif %}
+  <section class="panel"><div class="panel-head"><h2>{% icon "layers" %}By category</h2></div>{% if metrics.category_bars %}<ul class="bars">{% for b in metrics.category_bars %}<li><span title="{{ b.label }}">{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No reports yet.</p>{% endif %}</section>
+  <section class="panel"><div class="panel-head"><h2>{% icon "pin" %}Loss hotspots</h2></div>{% if metrics.location_bars %}<ul class="bars amber">{% for b in metrics.location_bars %}<li><span title="{{ b.label }}">{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No lost reports yet.</p>{% endif %}</section>
+  <section class="panel"><div class="panel-head"><h2>{% icon "archive" %}Disposal</h2></div><p class="small muted">{{ metrics.disposed }} item{{ metrics.disposed|pluralize }} disposed · {{ metrics.outstanding_claims }} open claim{{ metrics.outstanding_claims|pluralize }} · {{ metrics.outstanding_handovers }} handover{{ metrics.outstanding_handovers|pluralize }} outstanding</p>{% if metrics.disposal_by_method %}<ul class="bars navy">{% for b in metrics.disposal_by_method %}<li><span>{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted small">No disposals recorded.</p>{% endif %}</section>
+</div>
+{% endif %}
+
+<h2 class="mt-1">Manage</h2>
+<div class="grid grid-3 mt-1">
+  {% if nav.manage_taxonomy %}
+  <a class="shortcut" href="{% url 'admin_categories' %}"><span class="figure-icon">{% icon "layers" "icon-lg" %}</span><div><h3>Categories</h3><p>{{ category_count }} categories and subcategories, with public attributes and retention overrides.</p></div></a>
+  <a class="shortcut" href="{% url 'admin_locations' %}"><span class="figure-icon">{% icon "map" "icon-lg" %}</span><div><h3>Campus locations</h3><p>{{ location_count }} buildings, floors and spots, including custody points.</p></div></a>
+  {% endif %}
+  {% if nav.manage_retention or nav.manage_matching %}<a class="shortcut" href="{% url 'admin_settings' %}"><span class="figure-icon amber">{% icon "sliders" "icon-lg" %}</span><div><h3>Policies &amp; settings</h3><p>Retention {{ cfg.default_retention_days }} days · match threshold {{ cfg.match_threshold }} · {{ cfg.verification_max_attempts }} verification attempts.</p></div></a>{% endif %}
+  {% if nav.manage_users %}<a class="shortcut" href="{% url 'admin_users' %}"><span class="figure-icon navy">{% icon "users" "icon-lg" %}</span><div><h3>Users &amp; roles</h3><p>{{ user_count }} accounts. Assign security and administrator roles.</p></div></a>{% endif %}
+  {% if nav.view_analytics %}<a class="shortcut" href="{% url 'admin_analytics' %}"><span class="figure-icon green">{% icon "chart" "icon-lg" %}</span><div><h3>Reports &amp; analytics</h3><p>Return rate, time to return, hotspots by place and hour, disposal volume.</p></div></a>{% endif %}
+  {% if nav.view_audit %}<a class="shortcut" href="{% url 'admin_audit' %}"><span class="figure-icon">{% icon "clipboard-list" "icon-lg" %}</span><div><h3>Audit log</h3><p>Every claim decision, custody change and private-detail access.</p></div></a>{% endif %}
 </div>
 {% endblock %}

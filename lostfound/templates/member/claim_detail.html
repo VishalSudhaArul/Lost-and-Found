@@ -2,53 +2,72 @@
 {% block title %}Claim {{ claim.reference }}{% endblock %}
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_claims' %}">My claims</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
-<div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>For {{ card.title }} ({{ card.reference }})</p></div>{% badge claim.status claim.get_status_display %}</div>
+<div class="page-head">
+  <div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>For {{ card.title }} <span class="mono">({{ card.reference }})</span></p></div>
+  {% badge claim.status claim.get_status_display %}
+</div>
+
+{% with s=claim.status %}
+<ol class="track" style="--n:5" aria-label="Claim progress">
+  <li class="done">Submitted</li>
+  <li class="{% if s == 'pending_verification' %}current{% elif s == 'withdrawn' %}stopped{% else %}done{% endif %}">Verification</li>
+  <li class="{% if s == 'under_review' %}current{% elif s == 'approved' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Security review</li>
+  <li class="{% if s == 'approved' %}current{% elif s == 'completed' %}done{% endif %}">Handover</li>
+  <li class="{% if s == 'completed' %}done{% endif %}">Returned</li>
+</ol>
+{% endwith %}
+
 <div class="split">
   <div>
     {% if claim.status == "pending_verification" %}
       {% if challenge and challenge.status == "open" %}
-      <div class="panel"><h2>Answer the verification questions</h2><p>{{ challenge.attempts_remaining }} attempt{{ challenge.attempts_remaining|pluralize }} remaining.</p><a class="btn" href="{% url 'claim_verify' claim.pk %}">Answer questions</a></div>
+      <div class="panel callout"><span class="figure-icon">{% icon "clipboard-check" "icon-lg" %}</span><div><h2>Next: answer the verification questions</h2><p class="small muted">You have {{ challenge.attempts_remaining }} attempt{{ challenge.attempts_remaining|pluralize }} remaining. You won't be told which answer didn't match.</p><a class="btn btn-primary" href="{% url 'claim_verify' claim.pk %}">Answer questions</a></div></div>
       {% else %}
-      <div class="panel notice warn"><h2>Waiting for verification questions</h2><p class="small">Campus security is preparing questions for this item. You'll be notified.</p></div>
+      <div class="panel notice warn callout">{% icon "clock" %}<div><h2>Waiting for verification questions</h2><p class="small mb-0">Campus security is preparing questions for this item. You'll be notified when they're ready.</p></div></div>
       {% endif %}
     {% elif claim.status == "under_review" %}
-      <div class="panel"><h2>With campus security</h2><p>Your answers have been submitted. A security officer will review the claim{% if claim.verification_status == "failed" %}; the answers did not match the finder's record{% endif %}.</p></div>
+      <div class="panel callout"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><h2>With campus security</h2><p class="small muted mb-0">Your answers have been submitted and a security officer will review the claim. Passing verification doesn't approve a claim automatically.{% if claim.verification_status == "failed" %} Your answers did not fully match the finder's record; security will still review the claim.{% endif %}</p></div></div>
     {% elif claim.status == "approved" %}
       <div class="panel">
-        <h2>Approved — collect your item</h2>
+        <div class="callout"><span class="figure-icon green">{% icon "check-circle" "icon-lg" %}</span><div><h2>Approved: collect your item</h2>
         {% if handover and handover.status == "scheduled" %}
-          <dl class="facts"><dt>Where</dt><dd>{{ handover.location }}</dd><dt>When</dt><dd>{{ handover.scheduled_for|date:"l j F Y, H:i" }}</dd><dt>Bring</dt><dd>Your university or government photo ID</dd></dl>
+          <dl class="facts mt-1"><dt>{% icon "pin" %}Where</dt><dd>{{ handover.location }}</dd><dt>{% icon "calendar" %}When</dt><dd>{{ handover.scheduled_for|date:"l j F Y, H:i" }}</dd><dt>{% icon "id-card" %}Bring</dt><dd>Your university or government photo ID</dd></dl>
           {% if handover.method == "otp" %}
-          <form method="post" action="{% url 'handover_code' claim.pk %}" style="margin-top:1rem">{% csrf_token %}
-            <p class="small">At the counter, show the officer a one-time code. Generate it when you arrive: it's valid for a few minutes and shown only once.</p>
-            <button class="btn btn-found" type="submit">Show my handover code</button>
+          <form method="post" action="{% url 'handover_code' claim.pk %}" class="mt-2">{% csrf_token %}
+            <p class="small muted">At the counter, show the officer a one-time code. Generate it when you arrive: it's valid for a few minutes and shown only once.</p>
+            <button class="btn btn-found" type="submit">{% icon "key" %}Show my handover code</button>
           </form>
-          {% else %}<p class="small" style="margin-top:1rem">You'll sign on the officer's device to confirm collection.</p>{% endif %}
-        {% else %}<p>Security will schedule a supervised handover and notify you.</p>{% endif %}
+          {% else %}<p class="small muted mt-1">You'll sign on the officer's device to confirm collection.</p>{% endif %}
+        {% else %}<p class="small muted mb-0">Security will schedule a supervised handover and notify you with the time and place.</p>{% endif %}
+        </div></div>
       </div>
     {% elif claim.status == "completed" %}
-      <div class="panel notice ok"><h2>Returned to you</h2>{% if handover %}<p>Receipt <span class="mono">{{ handover.receipt_code }}</span>, {{ handover.completed_at|date:"j M Y, H:i" }}.</p>{% endif %}</div>
+      <div class="panel notice ok callout">{% icon "check-circle" %}<div><h2>Returned to you</h2>{% if handover %}<p class="mb-0">Receipt <span class="mono">{{ handover.receipt_code }}</span>, {{ handover.completed_at|date:"j M Y, H:i" }}.</p>{% endif %}</div></div>
     {% elif claim.status == "rejected" %}
-      <div class="panel notice bad"><h2>Claim not approved</h2><p>{{ claim.decision_reason|default:"No reason recorded." }}</p></div>
+      <div class="panel notice bad callout">{% icon "x-circle" %}<div><h2>Claim not approved</h2><p class="mb-0">{{ claim.decision_reason|default:"No reason recorded." }}</p></div></div>
     {% else %}
-      <div class="panel"><h2>Withdrawn</h2></div>
+      <div class="panel notice callout">{% icon "info" %}<div><h2>Claim withdrawn</h2><p class="mb-0 small">You withdrew this claim. You can start a new one from the item page if it's still on the board.</p></div></div>
     {% endif %}
+
     <section class="panel">
       <h2>History</h2>
       <ol class="timeline">
-        <li><strong>Claim submitted</strong><div class="muted small">{{ claim.created_at|date:"j M Y, H:i" }}</div></li>
-        {% if challenge %}{% for a in challenge.attempts.all %}<li><strong>Verification attempt {{ forloop.counter }}</strong><div class="muted small">{{ a.submitted_at|date:"j M Y, H:i" }}{% if a.passed %}, accepted{% endif %}</div></li>{% endfor %}{% endif %}
-        {% if claim.decided_at %}<li><strong>{{ claim.get_status_display }}</strong><div class="muted small">{{ claim.decided_at|date:"j M Y, H:i" }}</div></li>{% endif %}
-        {% if handover %}<li><strong>Handover {{ handover.get_status_display|lower }}</strong><div class="muted small">{{ handover.scheduled_for|date:"j M Y, H:i" }}</div></li>{% endif %}
+        <li class="done"><strong>Claim submitted</strong><div class="muted small">{{ claim.created_at|date:"j M Y, H:i" }}</div></li>
+        {% if challenge %}{% for a in challenge.attempts.all %}<li class="{% if a.passed %}done{% endif %}"><strong>Verification attempt {{ forloop.counter }}</strong><div class="muted small">{{ a.submitted_at|date:"j M Y, H:i" }}{% if a.passed %} · accepted{% endif %}</div></li>{% endfor %}{% endif %}
+        {% if claim.decided_at %}<li class="{% if claim.status == 'rejected' %}correction{% else %}done{% endif %}"><strong>{{ claim.get_status_display }}</strong><div class="muted small">{{ claim.decided_at|date:"j M Y, H:i" }}</div></li>{% endif %}
+        {% if handover %}<li class="{% if handover.status == 'completed' %}done{% else %}pending{% endif %}"><strong>Handover {{ handover.get_status_display|lower }}</strong><div class="muted small">{{ handover.scheduled_for|date:"j M Y, H:i" }}</div></li>{% endif %}
       </ol>
     </section>
-    {% if claim.is_active %}
-    <form method="post" action="{% url 'claim_withdraw' claim.pk %}" data-confirm="Withdraw this claim? You can't undo this.">{% csrf_token %}<button class="btn btn-ghost" type="submit">Withdraw claim</button></form>
-    {% endif %}
   </div>
-  <aside class="panel">
-    <h3>Your statement</h3><p class="small">{{ claim.statement|linebreaksbr }}</p>
-    {% if claim.lost_report %}<p class="small">Linked lost report: <a href="{% url 'report_detail' claim.lost_report_id %}">{{ claim.lost_report.reference }}</a></p>{% endif %}
+  <aside>
+    <div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/item_card.html" %}{% endwith %}</div>
+    <div class="panel mt-1">
+      <h3>Your statement</h3><p class="small muted">{{ claim.statement|linebreaksbr }}</p>
+      {% if claim.lost_report %}<p class="small mb-0">Linked lost report: <a href="{% url 'report_detail' claim.lost_report_id %}">{{ claim.lost_report.reference }}</a></p>{% endif %}
+    </div>
+    {% if claim.is_active %}
+    <form method="post" action="{% url 'claim_withdraw' claim.pk %}" data-confirm="Withdraw this claim? You can't undo this.">{% csrf_token %}<button class="btn btn-ghost btn-block" type="submit">{% icon "x" %}Withdraw claim</button></form>
+    {% endif %}
   </aside>
 </div>
 {% endblock %}

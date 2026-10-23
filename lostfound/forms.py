@@ -155,7 +155,8 @@ class ItemReportForm(forms.ModelForm):
 class PrivateDetailForm(forms.Form):
     kind = forms.ChoiceField(choices=PrivateDetail.Kind.choices, label="Type of detail")
     question = forms.CharField(max_length=200, label="Question to ask the claimant",
-                               widget=forms.TextInput(attrs={"placeholder": "e.g. What sticker is on the lid?"}))
+                               widget=forms.TextInput(attrs={"placeholder": "e.g. What sticker is on the lid?",
+                                                             "data-private-question": ""}))
     answer = forms.CharField(max_length=300, label="Correct answer (kept private and encrypted)",
                              widget=forms.TextInput(attrs={"placeholder": "e.g. a yellow smiley face", "autocomplete": "off"}))
     match_mode = forms.ChoiceField(choices=PrivateDetail.MatchMode.choices, initial=PrivateDetail.MatchMode.KEYWORDS,
@@ -174,7 +175,14 @@ class PrivateDetailForm(forms.Form):
         return cleaned
 
 
-PrivateDetailFormSet = forms.formset_factory(PrivateDetailForm, extra=3, max_num=5, min_num=1, validate_min=True)
+class BasePrivateDetailFormSet(forms.BaseFormSet):
+    default_error_messages = {
+        "too_few_forms": "Add at least one private detail so the real owner can prove the item is theirs.",
+    }
+
+
+PrivateDetailFormSet = forms.formset_factory(PrivateDetailForm, formset=BasePrivateDetailFormSet, extra=3, max_num=5,
+                                             min_num=1, validate_min=True)
 
 
 class ClaimForm(forms.Form):

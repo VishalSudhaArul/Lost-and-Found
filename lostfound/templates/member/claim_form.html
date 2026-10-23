@@ -1,14 +1,14 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Claim {{ card.reference }}{% endblock %}
 {% block content %}
-<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Claim</span></nav>
-<h1>Claim this item</h1>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'board' %}">Board</a><span class="sep" aria-hidden="true">/</span><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Claim</span></nav>
+<div class="page-head"><div><h1>Claim this item</h1><p>Step 1 of 2: tell security why it's yours. Next you'll answer verification questions.</p></div></div>
 <div class="split">
   <form method="post" class="panel" novalidate>{% csrf_token %}
-    <p>After this step you'll answer verification questions based on details the finder kept private. You won't be told which answer was wrong, and attempts are limited.</p>
+    <div class="notice callout small">{% icon "info" %}<span>After this step you'll answer questions about details the finder kept private. Attempts are limited and you won't be told which answer was wrong.</span></div>
     {% field form.statement %}{% field form.lost_report %}
-    <button class="btn" type="submit">Continue to verification</button>
+    <button class="btn btn-primary" type="submit">Continue to verification {% icon "arrow-right" %}</button>
   </form>
-  <div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/tag.html" %}{% endwith %}</div>
+  <aside><div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/item_card.html" %}{% endwith %}</div></aside>
 </div>
 {% endblock %}

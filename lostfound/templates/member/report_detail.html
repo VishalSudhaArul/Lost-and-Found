@@ -2,38 +2,57 @@
 {% block title %}{{ item.reference }}{% endblock %}
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_reports' %}">My reports</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ item.reference }}</span></nav>
-<div class="page-head"><div><h1>{{ item.title }}</h1><p>{{ item.get_report_type_display }} report <span class="mono">{{ item.reference }}</span></p></div>{% badge item.status item.get_status_display %}</div>
+<div class="page-head">
+  <div><div class="btn-row mb-1">{% badge item.report_type item.get_report_type_display %}<span class="mono muted small">{{ item.reference }}</span></div><h1>{{ item.title }}</h1></div>
+  {% badge item.status item.get_status_display %}
+</div>
+{% if item.is_found %}{% with s=item.status %}
+<ol class="track" style="--n:4" aria-label="Item progress">
+  <li class="done">Reported</li>
+  <li class="{% if s == 'open' %}current{% elif s == 'closed' %}stopped{% else %}done{% endif %}">With security</li>
+  <li class="{% if s == 'awaiting_handover' %}current{% elif s == 'returned' %}done{% elif s == 'disposal_review' or s == 'disposed' %}stopped{% endif %}">Claim approved</li>
+  <li class="{% if s == 'returned' %}done{% endif %}">Returned to owner</li>
+</ol>
+{% endwith %}{% endif %}
 <div class="split">
   <section class="panel">
-    {% if item.photo %}<img src="{{ item.photo.url }}" alt="Photo of {{ item.title }}" style="border-radius:8px;margin-bottom:1rem;max-height:360px;object-fit:contain">{% endif %}
+    <div class="photo-frame">
+      {% if item.photo %}<img src="{{ item.photo.url }}" alt="Photo of {{ item.title }}">
+      {% else %}<div class="placeholder"><span class="ph-icon">{% icon item.category|category_icon %}</span><span>No photo provided</span></div>{% endif %}
+    </div>
+    <h2>Description</h2>
     <p>{{ item.description|linebreaksbr }}</p>
-    <dl class="facts">
-      <dt>Category</dt><dd>{{ item.category }}</dd>
-      <dt>Location</dt><dd>{{ item.location }}{% if item.location_note %} ({{ item.location_note }}){% endif %}</dd>
-      <dt>When</dt><dd>{{ item.occurred_at|date:"j M Y, H:i" }}</dd>
-      {% for label, value in item.public_attributes %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
-      <dt>Reported</dt><dd>{{ item.created_at|date:"j M Y, H:i" }}</dd>
+    <dl class="facts mt-2">
+      <dt>{% icon "tag" %}Category</dt><dd>{{ item.category }}</dd>
+      <dt>{% icon "pin" %}Location</dt><dd>{{ item.location }}{% if item.location_note %} ({{ item.location_note }}){% endif %}</dd>
+      <dt>{% icon "calendar" %}When</dt><dd>{{ item.occurred_at|date:"j M Y, H:i" }}</dd>
+      {% for label, value in item.public_attributes %}<dt>{% icon "info" %}{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+      <dt>{% icon "clock" %}Reported</dt><dd>{{ item.created_at|date:"j M Y, H:i" }}</dd>
     </dl>
+    {% if item.is_public %}<p class="small mt-2 mb-0"><a href="{% url 'item_detail' item.pk %}">View the public listing {% icon "arrow-right" %}</a></p>{% endif %}
   </section>
   <aside>
     {% if item.is_found %}
     <div class="panel">
       <h2>What happens next</h2>
-      {% if item.status == "open" %}<p class="notice warn small">Please hand the item to the campus security office. It will show as "In custody" once received.</p>
-      {% elif item.status == "returned" %}<p class="notice ok small">This item has been returned to its owner. Thank you!</p>
-      {% else %}<p class="small">Campus security is holding this item.</p>{% endif %}
-      <p class="small">{{ private_count }} private detail{{ private_count|pluralize }} recorded for verification. {{ claim_count }} claim{{ claim_count|pluralize }} in progress.</p>
+      {% if item.status == "open" %}<p class="notice warn small callout">{% icon "package" %}<span>Please hand the item to the campus security office. It shows as “In custody” once received.</span></p>
+      {% elif item.status == "returned" %}<p class="notice ok small callout">{% icon "check-circle" %}<span>This item has been returned to its owner. Thank you!</span></p>
+      {% else %}<p class="small muted">Campus security is holding this item.</p>{% endif %}
+      <ul class="summary mb-0">
+        <li>{% icon "lock" %}<div><span>Private details</span><strong>{{ private_count }} recorded for verification</strong></div></li>
+        <li>{% icon "user-check" %}<div><span>Claims</span><strong>{{ claim_count }} in progress</strong></div></li>
+      </ul>
     </div>
     {% else %}
     <div class="panel">
-      <h2>Possible matches</h2>
-      <p>{{ match_count }} found item{{ match_count|pluralize }} may match this report.</p>
-      <a class="btn btn-lost" href="{% url 'report_matches' item.pk %}">Review matches</a>
+      <h2>Potential matches</h2>
+      <p class="muted">{% if match_count %}{{ match_count }} found item{{ match_count|pluralize }} may match this report.{% else %}No matches yet. We check new found items as they arrive and every night.{% endif %}</p>
+      <a class="btn btn-primary btn-block" href="{% url 'report_matches' item.pk %}">{% icon "link" %}Review matches</a>
     </div>
     {% endif %}
     {% if item.status == "open" %}
     <form method="post" action="{% url 'close_report' item.pk %}" class="panel" data-confirm="Close this report? It will be removed from the public board.">{% csrf_token %}
-      <h3>No longer needed?</h3><p class="small">{% if item.is_lost %}Close the report if you found the item yourself.{% else %}Close it if the owner already collected it directly.{% endif %}</p>
+      <h3>No longer needed?</h3><p class="small muted">{% if item.is_lost %}Close the report if you found the item yourself.{% else %}Close it if the owner already collected it directly.{% endif %}</p>
       <button class="btn btn-ghost" type="submit">Close report</button>
     </form>
     {% endif %}

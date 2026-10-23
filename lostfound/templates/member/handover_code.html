@@ -1,11 +1,15 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}Handover code{% endblock %}
 {% block content %}
-<div class="narrow" style="--w:480px">
-  <h1>Your handover code</h1>
-  <p>Show this to the security officer. Don't share it with anyone else.</p>
-  <div class="code-display" aria-label="Handover code">{{ code }}</div>
-  <p class="muted" data-expires="{{ expires|date:'c' }}" aria-live="polite" style="margin-top:.75rem">Valid until {{ expires|date:"H:i" }}</p>
-  <a class="btn btn-ghost" href="{% url 'claim_detail' claim.pk %}">Back to claim</a>
+<div class="narrow" style="--w:520px">
+  <div class="panel" style="text-align:center">
+    <span class="figure-icon amber" style="margin:0 auto .8rem">{% icon "key" "icon-lg" %}</span>
+    <h1>Your handover code</h1>
+    <p class="muted" style="margin-inline:auto">Show this to the security officer at the counter. Don't share it with anyone else.</p>
+    <div class="code-display" aria-label="Handover code {{ code }}">{{ code }}</div>
+    <p class="muted mt-1" data-expires="{{ expires|date:'c' }}" aria-live="polite" style="margin-inline:auto">Valid until {{ expires|date:"H:i" }}</p>
+    <p class="small muted" style="margin-inline:auto">This code is shown once and isn't stored in your browser. If it expires, generate a new one from your claim.</p>
+    <a class="btn btn-ghost" href="{% url 'claim_detail' claim.pk %}">{% icon "arrow-left" %}Back to claim</a>
+  </div>
 </div>
 {% endblock %}

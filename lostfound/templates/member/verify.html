@@ -1,13 +1,25 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Verify ownership{% endblock %}
 {% block content %}
-<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'claim_detail' claim.pk %}">Claim {{ claim.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Verify</span></nav>
-<div class="narrow" style="--w:640px">
-  <h1>Prove it's yours</h1>
-  <p>The finder recorded these details privately. Answer in your own words; small spelling differences are fine. You have <strong>{{ challenge.attempts_remaining }}</strong> attempt{{ challenge.attempts_remaining|pluralize }} left, and you won't be told which answer didn't match.</p>
-  <form method="post" class="panel" autocomplete="off" novalidate>{% csrf_token %}
-    {% for f in form %}{% field f %}{% endfor %}
-    <button class="btn" type="submit">Submit answers</button>
+{# Only the questions are rendered here. Correct answers never reach the template, page data or browser. #}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_claims' %}">My claims</a><span class="sep" aria-hidden="true">/</span><a href="{% url 'claim_detail' claim.pk %}">{{ claim.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Verify</span></nav>
+<div class="narrow" style="--w:760px">
+  <div class="page-head"><div><span class="eyebrow">{% icon "shield" %}Ownership verification</span><h1>Prove it's yours</h1><p>Claim <span class="mono">{{ claim.reference }}</span> for item <span class="mono">{{ claim.item.reference }}</span>: {{ claim.item.title }}</p></div></div>
+  <div class="grid grid-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
+    <div class="panel mb-0 callout small">{% icon "lock" %}<span>The finder recorded these details privately. Only the questions are shown; the answers are never sent to your browser.</span></div>
+    <div class="panel mb-0 callout small">{% icon "alert" %}<span>You have <strong>{{ challenge.attempts_remaining }}</strong> attempt{{ challenge.attempts_remaining|pluralize }} left. You won't be told which answer didn't match.</span></div>
+  </div>
+  <form method="post" class="panel mt-2" autocomplete="off" novalidate>{% csrf_token %}
+    <h2>Answer in your own words</h2>
+    <p class="small muted">Small spelling differences are fine. If you're not sure, describe what you remember.</p>
+    {% for f in form %}
+    <div class="private-row">{% field f %}</div>
+    {% endfor %}
+    <div class="btn-row mt-1">
+      <button class="btn btn-primary" type="submit">{% icon "check" %}Submit answers</button>
+      <a class="btn btn-quiet" href="{% url 'claim_detail' claim.pk %}">Cancel</a>
+    </div>
+    <p class="small muted mt-1 mb-0">After you submit, campus security reviews the claim. Approval is never automatic.</p>
   </form>
 </div>
 {% endblock %}

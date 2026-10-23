@@ -1,26 +1,56 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Security overview{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Security office</h1><p>Custody, verification and handovers.</p></div></div>
-<div class="figures">
-  <a class="figure" href="{% url 'security_items' %}?state=intake"><strong>{{ awaiting_intake }}</strong><span>Reported, not yet received</span></a>
-  <a class="figure" href="{% url 'security_items' %}?state=custody"><strong>{{ in_custody }}</strong><span>Items in custody</span></a>
-  <a class="figure" href="{% url 'security_claims' %}"><strong>{{ pending_review }}</strong><span>Claims to review</span></a>
-  <a class="figure" href="{% url 'security_claims' %}?tab=approved"><strong>{{ approved_waiting }}</strong><span>Approved, awaiting handover</span></a>
-  <a class="figure" href="{% url 'security_ageing' %}"><strong>{{ ageing_count }}</strong><span>Near or past retention</span></a>
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "shield" %}Security office</span><h1>Custody, verification and handovers</h1><p>Work queues update live from the database.</p></div>
+  <div class="btn-row">
+    {% if nav.review_claims %}<a class="btn btn-primary" href="{% url 'security_claims' %}">{% icon "user-check" %}Review claims</a>{% endif %}
+    {% if nav.manage_custody %}<a class="btn btn-ghost" href="{% url 'security_items' %}?state=intake">{% icon "package" %}Receive items</a>{% endif %}
+  </div>
 </div>
+
+<div class="figures">
+  <a class="figure" href="{% url 'security_items' %}?state=custody"><span class="figure-icon navy">{% icon "archive" "icon-lg" %}</span><div><strong>{{ in_custody }}</strong><span>Items currently in custody</span></div></a>
+  <a class="figure" href="{% url 'security_items' %}?state=intake"><span class="figure-icon">{% icon "inbox" "icon-lg" %}</span><div><strong>{{ awaiting_intake }}</strong><span>Reported found, not yet dropped off</span></div></a>
+  <a class="figure" href="{% url 'security_claims' %}?tab=pending"><span class="figure-icon amber">{% icon "clock" "icon-lg" %}</span><div><strong>{{ pending_verification }}</strong><span>Pending verification (claimant answering)</span></div></a>
+  <a class="figure" href="{% url 'security_claims' %}"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><strong>{{ pending_review }}</strong><span>Claims awaiting review</span></div></a>
+  <a class="figure" href="{% url 'security_claims' %}?tab=approved"><span class="figure-icon green">{% icon "key" "icon-lg" %}</span><div><strong>{{ approved_waiting }}</strong><span>Approved, awaiting handover</span></div></a>
+  <a class="figure" href="{% url 'security_ageing' %}"><span class="figure-icon red">{% icon "hourglass" "icon-lg" %}</span><div><strong>{{ ageing_count }}</strong><span>Near or past retention</span></div></a>
+</div>
+
 <div class="grid grid-2">
   <section class="panel">
-    <div class="panel-head"><h2>Upcoming handovers</h2><a href="{% url 'security_handovers' %}">All</a></div>
-    {% if upcoming_handovers %}<ul class="rows">{% for h in upcoming_handovers %}
-      <li><div><a href="{% url 'security_handover' h.pk %}">{{ h.claim.item.title }}</a><div class="muted small">{{ h.claim.claimant.get_full_name|default:h.claim.claimant.username }} at {{ h.location.name }}</div></div><span class="small">{{ h.scheduled_for|date:"j M, H:i" }}</span></li>
-    {% endfor %}</ul>{% else %}<div class="empty"><p>No handovers scheduled.</p></div>{% endif %}
+    <div class="panel-head"><h2>{% icon "user-check" %}Claims awaiting review</h2><a href="{% url 'security_claims' %}">Review queue {% icon "arrow-right" %}</a></div>
+    {% if review_queue %}<ul class="rows">{% for c in review_queue %}
+      <li><div><a href="{% url 'security_claim' c.pk %}">{{ c.item.title }}</a><div class="muted small"><span class="mono">{{ c.reference }}</span> · {{ c.claimant.get_full_name|default:c.claimant.username }} · waiting {{ c.created_at|timesince }}</div></div>{% badge c.verification_status c.get_verification_status_display %}</li>
+    {% endfor %}</ul>{% else %}<div class="empty"><span class="empty-icon">{% icon "check-circle" "icon-lg" %}</span><p>No claims are waiting for a decision.</p></div>{% endif %}
   </section>
   <section class="panel">
-    <div class="panel-head"><h2>Approaching retention limit</h2><a href="{% url 'security_ageing' %}">Queue</a></div>
-    {% if ageing %}<ul class="rows">{% for r in ageing %}
-      <li><div><a href="{% url 'security_item' r.item.pk %}">{{ r.item.title }}</a><div class="muted small mono">{{ r.item.reference }}</div></div>{% if r.days_left <= 0 %}<span class="badge badge-bad">{{ r.days_left|stringformat:"d"|cut:"-" }} days over</span>{% else %}<span class="badge badge-warn">{{ r.days_left }} days left</span>{% endif %}</li>
-    {% endfor %}</ul>{% else %}<div class="empty"><p>Nothing near its retention limit.</p></div>{% endif %}
+    <div class="panel-head"><h2>{% icon "calendar" %}Upcoming handovers</h2><a href="{% url 'security_handovers' %}">All handovers {% icon "arrow-right" %}</a></div>
+    {% if upcoming_handovers %}<ul class="rows">{% for h in upcoming_handovers %}
+      <li><div><a href="{% url 'security_handover' h.pk %}">{{ h.claim.item.title }}</a><div class="muted small">{{ h.claim.claimant.get_full_name|default:h.claim.claimant.username }} · {{ h.location.name }} · officer {{ h.officer.get_full_name|default:h.officer.username }}</div></div><span class="badge badge-info nowrap">{{ h.scheduled_for|date:"j M, H:i" }}</span></li>
+    {% endfor %}</ul>{% else %}<div class="empty"><span class="empty-icon">{% icon "calendar" "icon-lg" %}</span><p>No handovers scheduled. Approved claims can be scheduled from the review screen.</p></div>{% endif %}
   </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "hourglass" %}Approaching retention deadline</h2><a href="{% url 'security_ageing' %}">Ageing queue {% icon "arrow-right" %}</a></div>
+    {% if ageing %}<ul class="rows">{% for r in ageing %}
+      <li><div><a href="{% url 'security_item' r.item.pk %}">{{ r.item.title }}</a><div class="muted small mono">{{ r.item.reference }} · held {{ r.age_days }} days</div></div>{% if r.days_left <= 0 %}<span class="badge badge-bad">{{ r.days_left|stringformat:"d"|cut:"-" }} days over</span>{% else %}<span class="badge badge-warn">{{ r.days_left }} days left</span>{% endif %}</li>
+    {% endfor %}</ul>{% else %}<div class="empty"><span class="empty-icon">{% icon "hourglass" "icon-lg" %}</span><p>Nothing is near its retention limit.</p></div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "history" %}Recent custody activity</h2>{% if nav.manage_custody %}<a href="{% url 'security_custody' %}">Full history {% icon "arrow-right" %}</a>{% endif %}</div>
+    {% if recent_custody %}<ul class="feed">{% for r in recent_custody %}
+      <li><span class="feed-icon">{% if r.action == "correction" %}{% icon "alert" %}{% elif r.action == "received" %}{% icon "inbox" %}{% else %}{% icon "transfer" %}{% endif %}</span>
+      <div><p><strong>{{ r.get_action_display }}</strong> · <a class="mono" href="{% url 'security_item' r.item_id %}">{{ r.item.reference }}</a>{% if r.to_location %} to {{ r.to_location.name }}{% endif %}</p><small>{{ r.created_at|date:"j M, H:i" }} · {{ r.accepted_by.get_full_name|default:r.accepted_by.username }}</small></div></li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>No custody entries yet.</p></div>{% endif %}
+  </section>
+</div>
+
+<h2 class="mt-1">Shortcuts</h2>
+<div class="grid grid-4 mt-1">
+  {% if nav.review_claims %}<a class="shortcut" href="{% url 'security_claims' %}"><span class="figure-icon">{% icon "user-check" "icon-lg" %}</span><div><h3>Review claims</h3><p>Compare answers with private details and decide.</p></div></a>{% endif %}
+  {% if nav.manage_custody %}<a class="shortcut" href="{% url 'security_items' %}?state=custody"><span class="figure-icon navy">{% icon "transfer" "icon-lg" %}</span><div><h3>Record a transfer</h3><p>Move an item between custody points.</p></div></a>{% endif %}
+  {% if nav.conduct_handover %}<a class="shortcut" href="{% url 'security_handovers' %}"><span class="figure-icon green">{% icon "key" "icon-lg" %}</span><div><h3>Complete a handover</h3><p>ID check plus one-time code or signature.</p></div></a>{% endif %}
+  {% if nav.review_disposal %}<a class="shortcut" href="{% url 'security_ageing' %}"><span class="figure-icon red">{% icon "hourglass" "icon-lg" %}</span><div><h3>Review ageing items</h3><p>Extend retention or prepare disposal.</p></div></a>{% endif %}
 </div>
 {% endblock %}

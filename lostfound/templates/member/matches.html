@@ -2,22 +2,22 @@
 {% block title %}Matches for {{ item.reference }}{% endblock %}
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'report_detail' item.pk %}">{{ item.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Matches</span></nav>
-<div class="page-head"><div><h1>Possible matches</h1><p>Found items that resemble "{{ item.title }}". Scores explain why each was suggested.</p></div></div>
+<div class="page-head"><div><span class="eyebrow">{% icon "link" %}Potential matches</span><h1>Possible matches</h1><p>Found items that resemble "{{ item.title }}". Scores explain why each was suggested.</p></div></div>
 {% for row in suggestions %}
 <article class="panel">
   <div class="grid grid-2">
     <div class="tags" style="grid-template-columns:1fr">{% with item=row.card %}{% include "partials/tag.html" %}{% endwith %}</div>
     <div>
-      <div class="panel-head"><h2>{{ row.suggestion.percent }}% match</h2>{% badge row.suggestion.status row.suggestion.get_status_display %}</div>
-      <ul class="bars">{% for f in row.factors %}<li><span>{{ f.label }}</span><span class="bar"><i style="width:{{ f.value }}%"></i></span><span class="mono small">{{ f.value }}%</span></li>{% endfor %}</ul>
+      <div class="panel-head"><h2>{% icon "link" %}{{ row.suggestion.percent }}% match</h2>{% badge row.suggestion.status row.suggestion.get_status_display %}</div>
+      <p class="small muted">Why this was suggested (public information only):</p><ul class="bars">{% for f in row.factors %}<li><span>{{ f.label }}</span><span class="bar"><i style="width:{{ f.value }}%"></i></span><span class="mono small">{{ f.value }}%</span></li>{% endfor %}</ul>
       <div class="btn-row" style="margin-top:1rem">
-        {% if row.suggestion.status == "suggested" and row.card.status != "awaiting_handover" %}<a class="btn" href="{% url 'claim_create' row.card.id %}?lost={{ item.pk }}">This is mine — start a claim</a>{% endif %}
+        {% if row.suggestion.status == "suggested" and row.card.status != "awaiting_handover" %}<a class="btn btn-primary" href="{% url 'claim_create' row.card.id %}?lost={{ item.pk }}">{% icon "clipboard-check" %}This is mine: start a claim</a>{% endif %}
         <form method="post">{% csrf_token %}<input type="hidden" name="dismiss" value="{{ row.suggestion.pk }}"><button class="btn btn-ghost" type="submit">Not mine</button></form>
       </div>
     </div>
   </div>
 </article>
 {% empty %}
-<div class="panel empty"><h3>No matches yet</h3><p style="margin-inline:auto">We check new found items as they're reported and every night. You'll get a notification when something looks similar.</p><a class="btn btn-ghost" href="{% url 'board' %}?type=found">Browse found items</a></div>
+<div class="panel empty"><span class="empty-icon">{% icon "link" "icon-lg" %}</span><h3>No matches yet</h3><p>We check new found items as they're reported and every night. You'll get a notification when something looks similar.</p><div class="btn-row"><a class="btn btn-ghost" href="{% url 'board' %}?type=found">Browse found items</a></div></div>
 {% endfor %}
 {% endblock %}

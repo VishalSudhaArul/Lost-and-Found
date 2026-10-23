@@ -12,7 +12,8 @@ from collections import Counter
 from django.db.models import Count
 from django.utils import timezone
 
-from ..models import Claim, DisposalRecord, Handover, Item, MatchSuggestion, Notification, VerificationAttempt
+from ..models import (AuditEntry, Claim, CustodyRecord, DisposalRecord, Handover, Item, MatchSuggestion, Notification,
+                      VerificationAttempt)
 from . import disposal
 
 
@@ -78,12 +79,28 @@ def security_metrics():
         .select_related("claim__item", "claim__claimant", "location", "officer").order_by("scheduled_for")[:8],
         "ageing": queue[:6],
         "ageing_count": len(queue),
+        "pending_verification": Claim.objects.filter(status=Claim.Status.PENDING_VERIFICATION).count(),
+        "review_queue": Claim.objects.filter(status=Claim.Status.UNDER_REVIEW)
+        .select_related("item", "claimant").order_by("created_at")[:5],
+        "recent_custody": CustodyRecord.objects.select_related("item", "to_location", "from_location", "accepted_by")
+        .order_by("-created_at")[:6],
     }
 
 
 def member_metrics(user):
+    from . import public  # local import: public imports models only
     reports = Item.objects.owned_by(user)
+    suggestions = (MatchSuggestion.objects.filter(lost_item__reporter=user, lost_item__status=Item.Status.OPEN,
+                                                  status=MatchSuggestion.Status.SUGGESTED)
+                   .select_related("lost_item").order_by("-score")[:4])
+    # Found items are shown to the owner of the lost report only via the redacted public DTO.
+    top_matches = [{"suggestion": s, "lost": s.lost_item, "card": card}
+                   for s in suggestions if (card := public.summary(s.found_item_id))]
+    activity = AuditEntry.objects.filter(actor=user).exclude(action="auth.login").order_by("-created_at")[:6]
     return {
+        "top_matches": top_matches,
+        "activity": activity,
+        "active_claims": Claim.objects.filter(claimant=user, status__in=Claim.ACTIVE_STATUSES).select_related("item")[:5],
         "active_reports": reports.filter(status__in=Item.PUBLIC_STATUSES).count(),
         "pending_claims": Claim.objects.filter(claimant=user, status__in=Claim.ACTIVE_STATUSES).count(),
         "matches": MatchSuggestion.objects.filter(lost_item__reporter=user, lost_item__status=Item.Status.OPEN,

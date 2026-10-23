@@ -1,16 +1,16 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}My reports{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>My reports</h1></div><div class="btn-row"><a class="btn btn-lost btn-small" href="{% url 'report_item' 'lost' %}">Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">Report found</a></div></div>
+<div class="page-head"><div><h1>My reports</h1><p>Everything you've reported as lost or found, with its current status.</p></div><div class="btn-row"><a class="btn btn-primary btn-small" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found</a></div></div>
 <nav class="tabs" aria-label="Filter"><a href="?" {% if not type %}aria-current="page"{% endif %}>All</a><a href="?type=lost" {% if type == "lost" %}aria-current="page"{% endif %}>Lost</a><a href="?type=found" {% if type == "found" %}aria-current="page"{% endif %}>Found</a></nav>
 {% if reports %}
 <div class="panel table-wrap"><table>
-  <thead><tr><th>Reference</th><th>Item</th><th>Type</th><th>Where</th><th>Status</th></tr></thead>
+  <thead><tr><th>Reference</th><th>Item</th><th>Type</th><th>Where</th><th>When</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>{% for r in reports %}<tr>
     <td class="mono">{{ r.reference }}</td><td><a href="{% url 'report_detail' r.pk %}">{{ r.title }}</a></td>
-    <td>{% badge r.report_type r.get_report_type_display %}</td><td>{{ r.location.name }}</td><td>{% badge r.status r.get_status_display %}</td>
+    <td>{% badge r.report_type r.get_report_type_display %}</td><td>{{ r.location.name }}</td><td class="nowrap">{{ r.occurred_at|date:"j M Y" }}</td><td>{% badge r.status r.get_status_display %}</td><td class="nowrap">{% if r.is_lost and r.status == "open" %}<a class="small" href="{% url 'report_matches' r.pk %}">Matches</a>{% endif %}</td>
   </tr>{% endfor %}</tbody></table></div>
 {% else %}
-<div class="panel empty"><h3>No reports here yet</h3><p style="margin-inline:auto">Reports you submit will show here with their status.</p></div>
+<div class="panel empty"><span class="empty-icon">{% icon "file" "icon-lg" %}</span><h3>No reports here yet</h3><p>Reports you submit will show here with their status.</p><div class="btn-row"><a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">Report a lost item</a></div></div>
 {% endif %}
 {% endblock %}

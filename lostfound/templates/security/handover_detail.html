@@ -2,31 +2,59 @@
 {% block title %}Handover {{ handover.receipt_code }}{% endblock %}
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_handovers' %}">Handovers</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ handover.receipt_code }}</span></nav>
-<div class="page-head"><div><h1>Handover <span class="mono">{{ handover.receipt_code }}</span></h1><p>{{ handover.claim.item.title }} ({{ handover.claim.item.reference }}) to {{ handover.claim.claimant.get_full_name|default:handover.claim.claimant.username }}</p></div>{% badge handover.status handover.get_status_display %}</div>
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "key" %}Supervised handover</span><h1>Handover <span class="mono">{{ handover.receipt_code }}</span></h1><p>{{ handover.claim.item.title }} <span class="mono">({{ handover.claim.item.reference }})</span> to {{ handover.claim.claimant.get_full_name|default:handover.claim.claimant.username }}</p></div>
+  {% badge handover.status handover.get_status_display %}
+</div>
+{% with s=handover.status %}
+<ol class="track" style="--n:4" aria-label="Handover progress">
+  <li class="done">Claim approved</li>
+  <li class="{% if s == 'cancelled' %}stopped{% else %}done{% endif %}">Scheduled</li>
+  <li class="{% if s == 'scheduled' %}current{% elif s == 'completed' %}done{% endif %}">ID check and confirmation</li>
+  <li class="{% if s == 'completed' %}done{% endif %}">Released with receipt</li>
+</ol>
+{% endwith %}
 <div class="split">
   <div>
     {% if handover.status == "completed" %}
-    <section class="panel notice ok"><h2>Handover complete</h2>
-      <dl class="facts"><dt>Receipt</dt><dd class="mono">{{ handover.receipt_code }}</dd><dt>Completed</dt><dd>{{ handover.completed_at|date:"j M Y, H:i" }} by {{ handover.completed_by.username }}</dd>
-      <dt>Confirmation</dt><dd>{{ handover.get_method_display }}</dd><dt>ID checked</dt><dd>{{ handover.get_id_type_checked_display }}</dd>{% if handover.notes %}<dt>Notes</dt><dd>{{ handover.notes }}</dd>{% endif %}</dl>
-      {% if handover.signature_image %}<p class="label" style="margin-top:1rem">Signature</p><img src="{% url 'security_private_file' 'signature' handover.pk %}" alt="Claimant signature" style="max-width:320px;background:#fff;border:1px solid var(--line)">{% endif %}
-      {% if handover.proof_photo %}<p class="label" style="margin-top:1rem">Proof photo</p><img src="{% url 'security_private_file' 'proof' handover.pk %}" alt="Handover proof photo" style="max-width:320px">{% endif %}
+    <section class="panel">
+      <div class="callout mb-1"><span class="figure-icon green">{% icon "check-circle" "icon-lg" %}</span><div><h2 class="mb-0">Handover complete</h2><p class="small muted mb-0">Completion receipt</p></div></div>
+      <dl class="facts"><dt>{% icon "file" %}Receipt</dt><dd class="mono">{{ handover.receipt_code }}</dd><dt>{% icon "clock" %}Completed</dt><dd>{{ handover.completed_at|date:"j M Y, H:i" }} by {{ handover.completed_by.get_full_name|default:handover.completed_by.username }}</dd>
+      <dt>{% icon "key" %}Confirmation</dt><dd>{{ handover.get_method_display }}</dd><dt>{% icon "id-card" %}ID checked</dt><dd>{{ handover.get_id_type_checked_display }}{% if handover.id_name_matches %} · name matched{% endif %}</dd>{% if handover.notes %}<dt>{% icon "info" %}Notes</dt><dd>{{ handover.notes }}</dd>{% endif %}</dl>
+      {% if handover.signature_image %}<p class="label mt-2">Signature</p><img src="{% url 'security_private_file' 'signature' handover.pk %}" alt="Claimant signature" style="max-width:320px;background:#fff;border:1px solid var(--line);border-radius:8px">{% endif %}
+      {% if handover.proof_photo %}<p class="label mt-2">Proof photo</p><img src="{% url 'security_private_file' 'proof' handover.pk %}" alt="Handover proof photo" style="max-width:320px;border-radius:8px">{% endif %}
     </section>
     {% elif handover.status == "scheduled" %}
-      {% if blockers %}<div class="notice bad"><strong>Not ready:</strong> {% for b in blockers %}{{ b }} {% endfor %}</div>{% endif %}
-      <form method="post" enctype="multipart/form-data" class="panel" data-confirm="Release the item to this claimant? This cannot be undone." autocomplete="off">{% csrf_token %}
+      {% if blockers %}<div class="notice bad callout" role="alert">{% icon "alert" %}<div><strong>Not ready to release:</strong>{% for b in blockers %} {{ b }}{% endfor %}</div></div>{% endif %}
+      <form method="post" enctype="multipart/form-data" class="panel" data-confirm="Release the item to this claimant? This cannot be undone." autocomplete="off" novalidate>{% csrf_token %}
         <h2>Complete handover</h2>
-        <ol class="small"><li>Ask for photo ID and compare it with the account name: <strong>{{ handover.claim.claimant.get_full_name|default:handover.claim.claimant.username }}</strong>.</li>
-        <li>{% if handover.method == "otp" %}Ask the claimant to open their claim and tap "Show my handover code", then type it below.{% else %}Ask the claimant to sign below.{% endif %}</li></ol>
-        {% field form.id_type %}{% field form.id_name_matches %}
-        {% if handover.method == "otp" %}{% field form.otp_code %}
-        {% else %}<div class="field"><label for="signature-pad">Claimant signature</label><canvas id="signature-pad" class="sig-pad"></canvas>{{ form.signature_data }}<button type="button" class="btn btn-ghost btn-small" id="signature-clear" style="margin-top:.4rem">Clear</button></div>{% endif %}
-        {% field form.proof_photo %}{% field form.notes %}
-        <button class="btn" type="submit" {% if blockers %}disabled{% endif %}>Release item</button>
+        <fieldset class="mt-1"><legend><span class="step-num" aria-hidden="true">1</span>Check photo ID</legend>
+          <p class="small muted">Compare the ID with the account name: <strong>{{ handover.claim.claimant.get_full_name|default:handover.claim.claimant.username }}</strong>.</p>
+          {% field form.id_type %}{% field form.id_name_matches %}
+        </fieldset>
+        <fieldset><legend><span class="step-num" aria-hidden="true">2</span>{% if handover.method == "otp" %}Enter the one-time code{% else %}Collect a signature{% endif %}</legend>
+          {% if handover.method == "otp" %}<p class="small muted">Ask the claimant to open their claim and tap “Show my handover code”, then type it below.</p>{% field form.otp_code %}
+          {% else %}<div class="field"><label for="signature-pad">Claimant signature</label><canvas id="signature-pad" class="sig-pad" aria-label="Signature pad"></canvas>{{ form.signature_data }}<button type="button" class="btn btn-ghost btn-small mt-1" id="signature-clear">Clear signature</button></div>{% endif %}
+        </fieldset>
+        <fieldset><legend><span class="step-num" aria-hidden="true">3</span>Record and release</legend>
+          {% field form.proof_photo %}{% field form.notes %}
+        </fieldset>
+        <button class="btn btn-primary" type="submit" {% if blockers %}disabled{% endif %}>{% icon "check" %}Release item and issue receipt</button>
       </form>
-      <form method="post" action="{% url 'security_handover_cancel' handover.pk %}" class="panel" data-confirm="Cancel this appointment?">{% csrf_token %}<div class="field"><label for="reason">Cancel appointment — reason</label><input id="reason" type="text" name="reason" maxlength="300"></div><button class="btn btn-ghost" type="submit">Cancel handover</button></form>
-    {% else %}<div class="panel"><h2>Cancelled</h2><p>{{ handover.cancelled_reason }}</p><a class="btn" href="{% url 'security_claim' handover.claim_id %}">Reschedule from the claim</a></div>{% endif %}
+      <form method="post" action="{% url 'security_handover_cancel' handover.pk %}" class="panel" data-confirm="Cancel this appointment?">{% csrf_token %}<h3>Cancel appointment</h3><div class="field"><label for="reason">Reason</label><input id="reason" type="text" name="reason" maxlength="300"></div><button class="btn btn-ghost" type="submit">Cancel handover</button></form>
+    {% else %}<div class="panel notice callout">{% icon "x-circle" %}<div><h2>Cancelled</h2><p>{{ handover.cancelled_reason|default:"No reason recorded." }}</p><a class="btn btn-ghost" href="{% url 'security_claim' handover.claim_id %}">Reschedule from the claim</a></div></div>{% endif %}
   </div>
-  <aside class="panel"><dl class="facts"><dt>Scheduled</dt><dd>{{ handover.scheduled_for|date:"j M Y, H:i" }}</dd><dt>Where</dt><dd>{{ handover.location }}</dd><dt>Officer</dt><dd>{{ handover.officer.get_full_name|default:handover.officer.username }}</dd><dt>Claim</dt><dd><a href="{% url 'security_claim' handover.claim_id %}">{{ handover.claim.reference }}</a></dd>{% if handover.method == "otp" and handover.status == "scheduled" %}<dt>Code</dt><dd>{% if handover.otp_hash %}Generated, {{ handover.otp_attempts }} wrong attempt{{ handover.otp_attempts|pluralize }}{% else %}Not generated yet{% endif %}</dd>{% endif %}</dl></aside>
+  <aside class="panel">
+    <h3>Appointment</h3>
+    <dl class="facts">
+      <dt>{% icon "calendar" %}Scheduled</dt><dd>{{ handover.scheduled_for|date:"j M Y, H:i" }}</dd>
+      <dt>{% icon "pin" %}Where</dt><dd>{{ handover.location }}</dd>
+      <dt>{% icon "shield" %}Officer</dt><dd>{{ handover.officer.get_full_name|default:handover.officer.username }}</dd>
+      <dt>{% icon "archive" %}Held at</dt><dd>{{ handover.claim.item.current_custody_location|default:"—" }}</dd>
+      <dt>{% icon "clipboard-check" %}Claim</dt><dd><a href="{% url 'security_claim' handover.claim_id %}">{{ handover.claim.reference }}</a> · {{ handover.claim.get_status_display }}</dd>
+      {% if handover.method == "otp" and handover.status == "scheduled" %}<dt>{% icon "key" %}Code</dt><dd>{% if handover.otp_hash %}Generated · {{ handover.otp_attempts }} wrong attempt{{ handover.otp_attempts|pluralize }}{% else %}Not generated yet{% endif %}</dd>{% endif %}
+    </dl>
+    <p class="small mt-2 mb-0"><a href="{% url 'security_item' handover.claim.item_id %}">View custody timeline {% icon "arrow-right" %}</a></p>
+  </aside>
 </div>
 {% endblock %}

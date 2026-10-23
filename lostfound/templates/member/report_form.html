@@ -4,54 +4,93 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 {% endif %}{% endblock %}
 {% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_reports' %}">My reports</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">New {{ report_type }} report</span></nav>
 <div class="page-head">
-  <div><h1>{% if is_found %}Report a found item{% else %}Report a lost item{% endif %}</h1>
-  <p>{% if is_found %}Thank you for handing it in. Please take it to the campus security office after reporting.{% else %}We'll alert you if a matching item is handed in.{% endif %}</p></div>
-  <div class="segmented" role="navigation" aria-label="Report type">
-    <a class="btn {% if is_found %}btn-ghost{% else %}btn-lost{% endif %} btn-small" href="{% url 'report_item' 'lost' %}">Lost</a>
-    <a class="btn {% if is_found %}btn-found{% else %}btn-ghost{% endif %} btn-small" href="{% url 'report_item' 'found' %}">Found</a>
+  <div>
+    <h1>{% if is_found %}Report a found item{% else %}Report a lost item{% endif %}</h1>
+    <p>{% if is_found %}Thank you for helping. After reporting, please take the item to the campus security office.{% else %}We'll compare your report with items handed in and notify you about likely matches.{% endif %}</p>
   </div>
+  <nav class="type-switch" aria-label="Report type">
+    <a class="lost" href="{% url 'report_item' 'lost' %}" {% if not is_found %}aria-current="page"{% endif %}>{% icon "search" %}I lost something</a>
+    <a class="found" href="{% url 'report_item' 'found' %}" {% if is_found %}aria-current="page"{% endif %}>{% icon "package" %}I found something</a>
+  </nav>
 </div>
+
+<ol class="stepper" aria-label="Steps">
+  <li>What is it?</li><li>When and where?</li><li>{% if is_found %}Private details{% else %}Keep proof private{% endif %}</li><li>Review and submit</li>
+</ol>
+
 <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
-  {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
+  {% if form.errors or formset.non_form_errors or formset.total_error_count %}
+  <div class="notice bad callout" role="alert">{% icon "alert" %}<div><strong>Please check the highlighted fields.</strong>{% for e in form.non_field_errors %}<div class="small">{{ e }}</div>{% endfor %}{% if form.photo.value or form.errors.photo %}<div class="small">For security, a chosen photo has to be selected again after an error.</div>{% endif %}</div></div>
+  {% endif %}
   <div class="split">
     <div>
-      <fieldset class="panel"><legend>What is it?</legend>
+      <fieldset><legend><span class="step-num" aria-hidden="true">1</span>What is it?</legend>
         {% field form.title %}
         {% field form.category %}
         <div id="attribute-fields" class="form-row" data-values="{{ attr_values_json }}" hidden></div>
         {% field form.description %}
-        <div class="field">{{ form.photo.label_tag }}{{ form.photo }}<div class="help">JPEG, PNG or WebP up to 8 MB. Location data in photos is removed automatically.</div>{% for e in form.photo.errors %}<p class="error">{{ e }}</p>{% endfor %}</div>
+        <div class="field{% if form.photo.errors %} has-error{% endif %}">
+          <label for="{{ form.photo.id_for_label }}">Photo <span class="optional">(optional)</span></label>
+          <div class="upload" data-upload>
+            <div class="upload-preview" data-upload-preview>{% icon "camera" "icon-lg" %}</div>
+            <div>{{ form.photo }}<div class="help">JPEG, PNG or WebP up to 8 MB. We resize photos and remove location data automatically.{% if is_found %} Avoid showing serial codes or contents.{% endif %}</div></div>
+          </div>
+          {% for e in form.photo.errors %}<p class="error" role="alert">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
+        </div>
       </fieldset>
-      <fieldset class="panel"><legend>When and where?</legend>
+
+      <fieldset><legend><span class="step-num" aria-hidden="true">2</span>When and where?</legend>
         {% field form.occurred_at %}
-        <div class="field"><label for="location-search">Search locations</label><input type="search" id="location-search" data-filter-select="id_location" placeholder="Type a building or block"></div>
+        <div class="field"><label for="location-search">Find a location</label><div class="input-icon">{% icon "search" %}<input type="search" id="location-search" data-filter-select="id_location" placeholder="Type a building, block or room"></div></div>
         {% if campus_map.center_lat is not None %}<div id="location-map" class="map" data-target="id_location" data-source="{% url 'locations_json' %}" aria-label="Campus map: select a marker to choose a location"></div>{% endif %}
         {% field form.location %}
         {% field form.location_note %}
       </fieldset>
-    </div>
-    <div>
+
       {% if is_found %}
       <section class="private-box" aria-labelledby="private-h">
-        <h2 id="private-h">Private details</h2>
-        <p class="small">These are <strong>never shown publicly</strong> and are stored encrypted. The owner must answer questions about them to claim the item. Add at least one.</p>
+        <h2 id="private-h"><span class="step-num" aria-hidden="true">3</span>{% icon "lock" %}Private identifying details</h2>
+        <p class="small">These are <strong>never published on the public board</strong>. They're stored encrypted and used only by authorised campus security staff to check that a claimant really owns the item. Add at least one detail only the owner would know, such as a sticker, engraving, serial code or what's inside.</p>
         {{ formset.management_form }}
         {% for e in formset.non_form_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
         {% for f in formset %}
         <div class="private-row">
-          <p class="label">Detail {{ forloop.counter }}{% if forloop.first %} (required){% endif %}</p>
-          {% for e in f.non_field_errors %}<p class="error">{{ e }}</p>{% endfor %}
-          {% field f.kind %}{% field f.question %}{% field f.answer %}
-          <details><summary class="small">Matching strictness</summary>{% field f.match_mode %}</details>
+          <p class="label">{% icon "key" %}Detail {{ forloop.counter }}{% if forloop.first %} <span class="badge badge-info">Required</span>{% else %} <span class="optional">(optional)</span>{% endif %}</p>
+          {% for e in f.non_field_errors %}<p class="error" role="alert">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
+          <div class="form-row">{% field f.kind %}{% field f.match_mode %}</div>
+          {% field f.question %}{% field f.answer %}
         </div>
         {% endfor %}
       </section>
       {% else %}
-      <div class="panel"><h2>Keep proof to yourself</h2><p class="small">Don't put serial numbers, stickers, engravings or contents in the public description. When you claim an item you'll be asked about them.</p></div>
+      <fieldset><legend><span class="step-num" aria-hidden="true">3</span>Keep proof to yourself</legend>
+        <p class="small muted">Don't put serial codes, stickers, engravings or contents in the public description. When you claim a found item you'll be asked about them, and that's how you prove it's yours.</p>
+      </fieldset>
       {% endif %}
-      <button class="btn {% if is_found %}btn-found{% else %}btn-lost{% endif %}" type="submit" style="width:100%">Submit report</button>
     </div>
+
+    <aside>
+      <div class="panel" data-review aria-labelledby="review-h">
+        <h2 id="review-h" class="mb-1"><span class="step-num" aria-hidden="true">4</span> Review and submit</h2>
+        <ul class="summary">
+          <li>{% icon "tag" %}<div><span>Item</span><strong data-review-field="title" data-empty="Add a title"></strong></div></li>
+          <li>{% icon "layers" %}<div><span>Category</span><strong data-review-field="category" data-empty="Choose a category"></strong></div></li>
+          <li>{% icon "calendar" %}<div><span>When</span><strong data-review-field="occurred_at"></strong></div></li>
+          <li>{% icon "pin" %}<div><span>Where</span><strong data-review-field="location" data-empty="Choose a location"></strong></div></li>
+          <li>{% icon "image" %}<div><span>Photo</span><strong data-review-field="photo" data-empty="No photo"></strong></div></li>
+          {% if is_found %}<li>{% icon "lock" %}<div><span>Private details</span><strong data-review-private></strong></div></li>{% endif %}
+        </ul>
+        <p class="small muted">The title, category, description, place, time and photo appear on the public board.{% if is_found %} Private details never do.{% endif %}</p>
+        <button class="btn {% if is_found %}btn-found{% else %}btn-primary{% endif %} btn-block" type="submit">{% icon "check" %}Submit {{ report_type }} report</button>
+      </div>
+      <div class="panel small">
+        <h3>{% icon "info" %} What happens next</h3>
+        {% if is_found %}<p class="muted mb-0">Drop the item at the security office. It shows as “With security” once received. If someone claims it, security checks their answers against your private details.</p>
+        {% else %}<p class="muted mb-0">We check new found items as they arrive and every night. You'll get a notification for likely matches and can review them from your report.</p>{% endif %}
+      </div>
+    </aside>
   </div>
 </form>
 {{ attribute_map|json_script:"attribute-map" }}

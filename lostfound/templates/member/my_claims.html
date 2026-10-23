@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}My claims{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>My claims</h1><p>Every claim and its history.</p></div></div>
+<div class="page-head"><div><h1>My claims</h1><p>Every claim you've made, where it is in the process, and what to do next.</p></div><a class="btn btn-ghost btn-small" href="{% url 'board' %}?type=found">{% icon "search" %}Browse found items</a></div>
 {% if claims %}
 <div class="panel table-wrap"><table>
   <thead><tr><th>Claim</th><th>Item</th><th>Submitted</th><th>Verification</th><th>Status</th></tr></thead>
@@ -10,6 +10,6 @@
     <td>{{ c.created_at|date:"j M Y" }}</td><td>{% badge c.verification_status c.get_verification_status_display %}</td><td>{% badge c.status c.get_status_display %}</td>
   </tr>{% endfor %}</tbody></table></div>
 {% else %}
-<div class="panel empty"><h3>You haven't claimed anything</h3><p style="margin-inline:auto">Find your item on the board and choose "Start a claim".</p><a class="btn" href="{% url 'board' %}?type=found">Browse found items</a></div>
+<div class="panel empty"><span class="empty-icon">{% icon "clipboard-check" "icon-lg" %}</span><h3>You haven't claimed anything</h3><p>Find your item on the board and choose “Start a claim”.</p><div class="btn-row"><a class="btn btn-primary" href="{% url 'board' %}?type=found">Browse found items</a></div></div>
 {% endif %}
 {% endblock %}
