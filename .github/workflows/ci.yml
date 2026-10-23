@@ -1,0 +1,34 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lostfound
+          POSTGRES_USER: lostfound
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lostfound" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: ci-only-not-secret
+      DB_BACKEND: postgres
+      POSTGRES_DB: lostfound
+      POSTGRES_USER: lostfound
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_HOST: localhost
+      FIELD_ENCRYPTION_KEYS: ZmFrZS1jaS1rZXktMzItYnl0ZXMtbG9uZy0xMjM0NTY=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Enable pg_trgm in template database
+        run: PGPASSWORD=ci-only-password psql -h localhost -U lostfound -d template1 -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test lostfound
