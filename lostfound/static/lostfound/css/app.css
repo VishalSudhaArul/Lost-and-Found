@@ -277,7 +277,7 @@ dl.facts dd { margin: 0; font-weight: 500; }
 .hero-tags .tag:nth-child(1) { left: 5%; top: 40px; transform: rotate(-6deg); }
 .hero-tags .tag:nth-child(2) { right: 5%; top: 0; transform: rotate(5deg); }
 .hero-tags .tag:hover { transform: rotate(0) translateY(-4px); z-index: 2; }
-@media (max-width: 800px) { .hero { grid-template-columns: 1fr; } .hero-tags { display: none; } }
+@media (max-width: 1150px) { .hero { grid-template-columns: 1fr; } .hero-tags { display: none; } }
 .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 1.1rem; counter-reset: s; }
 .steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 1.25rem; box-shadow: var(--shadow-s); transition: transform .2s var(--ease), box-shadow .2s; }
 .steps li:hover { transform: translateY(-3px); box-shadow: var(--shadow-m); }
