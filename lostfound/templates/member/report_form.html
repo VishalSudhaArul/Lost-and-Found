@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Report a {{ report_type }} item{% endblock %}
+{% block head %}{% if campus_map.center_lat is not None %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if is_found %}Report a found item{% else %}Report a lost item{% endif %}</h1>
+  <p>{% if is_found %}Thank you for handing it in. Please take it to the campus security office after reporting.{% else %}We'll alert you if a matching item is handed in.{% endif %}</p></div>
+  <div class="segmented" role="navigation" aria-label="Report type">
+    <a class="btn {% if is_found %}btn-ghost{% else %}btn-lost{% endif %} btn-small" href="{% url 'report_item' 'lost' %}">Lost</a>
+    <a class="btn {% if is_found %}btn-found{% else %}btn-ghost{% endif %} btn-small" href="{% url 'report_item' 'found' %}">Found</a>
+  </div>
+</div>
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
+  <div class="split">
+    <div>
+      <fieldset class="panel"><legend>What is it?</legend>
+        {% field form.title %}
+        {% field form.category %}
+        <div id="attribute-fields" class="form-row" data-values="{{ attr_values_json }}" hidden></div>
+        {% field form.description %}
+        <div class="field">{{ form.photo.label_tag }}{{ form.photo }}<div class="help">JPEG, PNG or WebP up to 8 MB. Location data in photos is removed automatically.</div>{% for e in form.photo.errors %}<p class="error">{{ e }}</p>{% endfor %}</div>
+      </fieldset>
+      <fieldset class="panel"><legend>When and where?</legend>
+        {% field form.occurred_at %}
+        <div class="field"><label for="location-search">Search locations</label><input type="search" id="location-search" data-filter-select="id_location" placeholder="Type a building or block"></div>
+        {% if campus_map.center_lat is not None %}<div id="location-map" class="map" data-target="id_location" data-source="{% url 'locations_json' %}" aria-label="Campus map: select a marker to choose a location"></div>{% endif %}
+        {% field form.location %}
+        {% field form.location_note %}
+      </fieldset>
+    </div>
+    <div>
+      {% if is_found %}
+      <section class="private-box" aria-labelledby="private-h">
+        <h2 id="private-h">Private details</h2>
+        <p class="small">These are <strong>never shown publicly</strong> and are stored encrypted. The owner must answer questions about them to claim the item. Add at least one.</p>
+        {{ formset.management_form }}
+        {% for e in formset.non_form_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
+        {% for f in formset %}
+        <div class="private-row">
+          <p class="label">Detail {{ forloop.counter }}{% if forloop.first %} (required){% endif %}</p>
+          {% for e in f.non_field_errors %}<p class="error">{{ e }}</p>{% endfor %}
+          {% field f.kind %}{% field f.question %}{% field f.answer %}
+          <details><summary class="small">Matching strictness</summary>{% field f.match_mode %}</details>
+        </div>
+        {% endfor %}
+      </section>
+      {% else %}
+      <div class="panel"><h2>Keep proof to yourself</h2><p class="small">Don't put serial numbers, stickers, engravings or contents in the public description. When you claim an item you'll be asked about them.</p></div>
+      {% endif %}
+      <button class="btn {% if is_found %}btn-found{% else %}btn-lost{% endif %}" type="submit" style="width:100%">Submit report</button>
+    </div>
+  </div>
+</form>
+{{ attribute_map|json_script:"attribute-map" }}
+{{ campus_map|json_script:"map-config" }}
+{% endblock %}
+{% block scripts %}{% if campus_map.center_lat is not None %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% endif %}{% endblock %}

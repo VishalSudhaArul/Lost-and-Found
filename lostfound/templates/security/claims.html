@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Verification review{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Verification review</h1><p>Claims are decided by security; passing verification never approves a claim automatically.</p></div></div>
+<nav class="tabs" aria-label="Claim queue">
+  <a href="?tab=review" {% if tab == "review" %}aria-current="page"{% endif %}>Ready for review</a>
+  <a href="?tab=pending" {% if tab == "pending" %}aria-current="page"{% endif %}>Awaiting answers</a>
+  <a href="?tab=approved" {% if tab == "approved" %}aria-current="page"{% endif %}>Approved</a>
+  <a href="?tab=closed" {% if tab == "closed" %}aria-current="page"{% endif %}>Closed</a>
+</nav>
+{% if page.object_list %}
+<div class="panel table-wrap"><table><thead><tr><th>Claim</th><th>Item</th><th>Claimant</th><th>Verification</th><th>Status</th><th>Submitted</th></tr></thead>
+<tbody>{% for c in page %}<tr><td class="mono"><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a></td><td>{{ c.item.title }} <span class="mono muted small">{{ c.item.reference }}</span></td>
+<td>{{ c.claimant.get_full_name|default:c.claimant.username }}</td><td>{% badge c.verification_status c.get_verification_status_display %}</td><td>{% badge c.status c.get_status_display %}</td><td>{{ c.created_at|date:"j M, H:i" }}</td></tr>{% endfor %}</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% else %}<div class="panel empty"><h3>Queue is empty</h3></div>{% endif %}
+{% endblock %}

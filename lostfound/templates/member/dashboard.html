@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Hello, {{ user.first_name|default:user.username }}</h1><p>Your reports, claims and updates in one place.</p></div>
+  <div class="btn-row"><a class="btn btn-lost" href="{% url 'report_item' 'lost' %}">I lost something</a><a class="btn btn-found" href="{% url 'report_item' 'found' %}">I found something</a></div>
+</div>
+<div class="figures">
+  <a class="figure" href="{% url 'my_reports' %}"><strong>{{ active_reports }}</strong><span>Active reports</span></a>
+  <a class="figure" href="{% url 'my_claims' %}"><strong>{{ pending_claims }}</strong><span>Claims in progress</span></a>
+  <a class="figure" href="{% url 'my_reports' %}?type=lost"><strong>{{ matches }}</strong><span>Possible matches</span></a>
+  <a class="figure" href="{% url 'notifications' %}"><strong>{{ unread }}</strong><span>Unread updates</span></a>
+</div>
+<div class="grid grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>Recent reports</h2><a href="{% url 'my_reports' %}">All reports</a></div>
+    {% if recent_reports %}<ul class="rows">{% for r in recent_reports %}
+      <li><div><a href="{% url 'report_detail' r.pk %}">{{ r.title }}</a><div class="muted small">{{ r.reference }}, {{ r.get_report_type_display|lower }} at {{ r.location.name }}</div></div>{% badge r.status r.get_status_display %}</li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>You haven't reported anything yet.</p></div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>My claims</h2><a href="{% url 'my_claims' %}">All claims</a></div>
+    {% if recent_claims %}<ul class="rows">{% for c in recent_claims %}
+      <li><div><a href="{% url 'claim_detail' c.pk %}">{{ c.item.title }}</a><div class="muted small mono">{{ c.reference }}</div></div>{% badge c.status c.get_status_display %}</li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>No claims. Found your item on the board? Open it and choose "Start a claim".</p></div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Latest updates</h2><a href="{% url 'notifications' %}">All updates</a></div>
+    {% if notifications %}<ul class="rows">{% for n in notifications %}
+      <li><div><a href="{% url 'notification_open' n.pk %}">{{ n.title }}</a><div class="muted small">{{ n.message }}</div></div><span class="muted small">{{ n.created_at|timesince }}</span></li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>No updates yet.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

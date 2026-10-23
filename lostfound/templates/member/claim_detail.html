@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Claim {{ claim.reference }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{% url 'my_claims' %}">My claims</a> / {{ claim.reference }}</p>
+<div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>For {{ card.title }} ({{ card.reference }})</p></div>{% badge claim.status claim.get_status_display %}</div>
+<div class="split">
+  <div>
+    {% if claim.status == "pending_verification" %}
+      {% if challenge and challenge.status == "open" %}
+      <div class="panel"><h2>Answer the verification questions</h2><p>{{ challenge.attempts_remaining }} attempt{{ challenge.attempts_remaining|pluralize }} remaining.</p><a class="btn" href="{% url 'claim_verify' claim.pk %}">Answer questions</a></div>
+      {% else %}
+      <div class="panel notice warn"><h2>Waiting for verification questions</h2><p class="small">Campus security is preparing questions for this item. You'll be notified.</p></div>
+      {% endif %}
+    {% elif claim.status == "under_review" %}
+      <div class="panel"><h2>With campus security</h2><p>Your answers have been submitted. A security officer will review the claim{% if claim.verification_status == "failed" %}; the answers did not match the finder's record{% endif %}.</p></div>
+    {% elif claim.status == "approved" %}
+      <div class="panel">
+        <h2>Approved — collect your item</h2>
+        {% if handover and handover.status == "scheduled" %}
+          <dl class="facts"><dt>Where</dt><dd>{{ handover.location }}</dd><dt>When</dt><dd>{{ handover.scheduled_for|date:"l j F Y, H:i" }}</dd><dt>Bring</dt><dd>Your university or government photo ID</dd></dl>
+          {% if handover.method == "otp" %}
+          <form method="post" action="{% url 'handover_code' claim.pk %}" style="margin-top:1rem">{% csrf_token %}
+            <p class="small">At the counter, show the officer a one-time code. Generate it when you arrive: it's valid for a few minutes and shown only once.</p>
+            <button class="btn btn-found" type="submit">Show my handover code</button>
+          </form>
+          {% else %}<p class="small" style="margin-top:1rem">You'll sign on the officer's device to confirm collection.</p>{% endif %}
+        {% else %}<p>Security will schedule a supervised handover and notify you.</p>{% endif %}
+      </div>
+    {% elif claim.status == "completed" %}
+      <div class="panel notice ok"><h2>Returned to you</h2>{% if handover %}<p>Receipt <span class="mono">{{ handover.receipt_code }}</span>, {{ handover.completed_at|date:"j M Y, H:i" }}.</p>{% endif %}</div>
+    {% elif claim.status == "rejected" %}
+      <div class="panel notice bad"><h2>Claim not approved</h2><p>{{ claim.decision_reason|default:"No reason recorded." }}</p></div>
+    {% else %}
+      <div class="panel"><h2>Withdrawn</h2></div>
+    {% endif %}
+    <section class="panel">
+      <h2>History</h2>
+      <ol class="timeline">
+        <li><strong>Claim submitted</strong><div class="muted small">{{ claim.created_at|date:"j M Y, H:i" }}</div></li>
+        {% if challenge %}{% for a in challenge.attempts.all %}<li><strong>Verification attempt {{ forloop.counter }}</strong><div class="muted small">{{ a.submitted_at|date:"j M Y, H:i" }}{% if a.passed %}, accepted{% endif %}</div></li>{% endfor %}{% endif %}
+        {% if claim.decided_at %}<li><strong>{{ claim.get_status_display }}</strong><div class="muted small">{{ claim.decided_at|date:"j M Y, H:i" }}</div></li>{% endif %}
+        {% if handover %}<li><strong>Handover {{ handover.get_status_display|lower }}</strong><div class="muted small">{{ handover.scheduled_for|date:"j M Y, H:i" }}</div></li>{% endif %}
+      </ol>
+    </section>
+    {% if claim.is_active %}
+    <form method="post" action="{% url 'claim_withdraw' claim.pk %}" data-confirm="Withdraw this claim? You can't undo this.">{% csrf_token %}<button class="btn btn-ghost" type="submit">Withdraw claim</button></form>
+    {% endif %}
+  </div>
+  <aside class="panel">
+    <h3>Your statement</h3><p class="small">{{ claim.statement|linebreaksbr }}</p>
+    {% if claim.lost_report %}<p class="small">Linked lost report: <a href="{% url 'report_detail' claim.lost_report_id %}">{{ claim.lost_report.reference }}</a></p>{% endif %}
+  </aside>
+</div>
+{% endblock %}

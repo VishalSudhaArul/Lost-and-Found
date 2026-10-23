@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Claim {{ card.reference }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a> / Claim</p>
+<h1>Claim this item</h1>
+<div class="split">
+  <form method="post" class="panel" novalidate>{% csrf_token %}
+    <p>After this step you'll answer verification questions based on details the finder kept private. You won't be told which answer was wrong, and attempts are limited.</p>
+    {% field form.statement %}{% field form.lost_report %}
+    <button class="btn" type="submit">Continue to verification</button>
+  </form>
+  <div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/tag.html" %}{% endwith %}</div>
+</div>
+{% endblock %}

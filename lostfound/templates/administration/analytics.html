@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Reports &amp; analytics{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Reports &amp; analytics</h1><p>Live figures from the database.</p></div></div>
+<div class="figures">
+  <div class="figure"><strong>{{ lost_total }}</strong><span>Lost reports</span></div>
+  <div class="figure"><strong>{{ found_total }}</strong><span>Found reports</span></div>
+  <div class="figure"><strong>{{ returned }}</strong><span>Returned</span></div>
+  <div class="figure"><strong>{% if return_rate is not None %}{{ return_rate }}%{% else %}—{% endif %}</strong><span>Return rate</span></div>
+  <div class="figure"><strong>{% if median_hours_to_return is not None %}{{ median_hours_to_return }} h{% else %}—{% endif %}</strong><span>Median time to return</span></div>
+</div>
+<div class="figures">
+  <div class="figure"><strong>{{ in_custody }}</strong><span>Unclaimed, in custody</span></div>
+  <div class="figure"><strong>{{ disposed }}</strong><span>Disposed</span></div>
+  <div class="figure"><strong>{% if verification_failure_rate is not None %}{{ verification_failure_rate }}%{% else %}—{% endif %}</strong><span>Verification failure rate ({{ verification_attempts }} attempts)</span></div>
+  <div class="figure"><strong>{{ outstanding_claims }}</strong><span>Claims outstanding</span></div>
+  <div class="figure"><strong>{{ outstanding_handovers }}</strong><span>Handovers outstanding</span></div>
+</div>
+<div class="grid grid-2">
+  <section class="panel"><h2>Reports by category</h2>{% if category_bars %}<ul class="bars">{% for b in category_bars %}<li><span>{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No reports yet.</p>{% endif %}</section>
+  <section class="panel"><h2>Where things get lost</h2>{% if location_bars %}<ul class="bars">{% for b in location_bars %}<li><span>{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No lost reports yet.</p>{% endif %}</section>
+  <section class="panel"><h2>When things get lost</h2>{% if peak_hour %}<p class="small">Peak hour: {{ peak_hour }}</p>
+    <div class="hours" role="img" aria-label="Lost reports by hour of day">{% for b in hour_bars %}<div style="height:{{ b.pct }}%" title="{{ b.label }}:00 — {{ b.count }}"></div>{% endfor %}</div>
+    <div class="hours-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></div>{% else %}<p class="muted">No lost reports yet.</p>{% endif %}</section>
+  <section class="panel"><h2>Disposal by method</h2>{% if disposal_by_method %}<ul class="bars">{% for b in disposal_by_method %}<li><span>{{ b.label }}</span><span class="bar"><i style="width:{{ b.pct }}%"></i></span><span class="mono small">{{ b.count }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No disposals yet.</p>{% endif %}</section>
+</div>
+<details class="panel"><summary>How these figures are calculated</summary>
+<p class="small">Return rate is returned found reports divided by all found reports, excluding reports the finder withdrew. Time to return runs from the found report's creation to handover completion. Verification failure rate is failed attempts over all attempts; a high rate can signal false claims. Hotspots count lost reports by location and by the hour they were lost.</p></details>
+{% endblock %}

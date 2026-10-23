@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Campus locations{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Campus locations</h1><p>Coordinates are optional and only used for the map picker and distance matching. Enter real campus coordinates; none are assumed.</p></div>{% if editing %}<a class="btn btn-ghost btn-small" href="{% url 'admin_locations' %}">New location</a>{% endif %}</div>
+<div class="split">
+  <section class="panel"><div class="table-wrap"><table><thead><tr><th>Location</th><th>Type</th><th>Code</th><th>Map</th><th></th></tr></thead><tbody>
+  {% for l in locations %}<tr><td><a href="{% url 'admin_location_edit' l.pk %}">{{ l.full_path }}</a></td><td>{{ l.get_kind_display }}</td><td class="mono">{{ l.code }}</td><td>{% if l.latitude is not None %}Yes{% else %}—{% endif %}</td><td>{% if l.is_custody_point %}<span class="badge badge-found">Custody point</span>{% endif %}{% if not l.is_active %}<span class="badge">Inactive</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">No locations yet.</td></tr>{% endfor %}</tbody></table></div></section>
+  <form method="post" class="panel">{% csrf_token %}<h2>{% if editing %}Edit {{ editing.name }}{% else %}New location{% endif %}</h2>{% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}{% for f in form %}{% field f %}{% endfor %}<button class="btn" type="submit">Save location</button></form>
+</div>
+{% endblock %}

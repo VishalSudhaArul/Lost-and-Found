@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Handovers{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Supervised handovers</h1></div></div>
+<section class="panel"><h2>Scheduled</h2>
+{% if scheduled %}<div class="table-wrap"><table><thead><tr><th>When</th><th>Item</th><th>Claimant</th><th>Where</th><th>Officer</th><th>Method</th></tr></thead><tbody>
+{% for h in scheduled %}<tr><td><a href="{% url 'security_handover' h.pk %}">{{ h.scheduled_for|date:"j M, H:i" }}</a></td><td>{{ h.claim.item.title }} <span class="mono muted small">{{ h.claim.item.reference }}</span></td><td>{{ h.claim.claimant.get_full_name|default:h.claim.claimant.username }}</td><td>{{ h.location.name }}</td><td>{{ h.officer.username }}</td><td>{{ h.get_method_display }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="empty"><p>Nothing scheduled. Approved claims appear in the verification review queue.</p></div>{% endif %}
+</section>
+<section class="panel"><h2>Recent</h2>
+{% if recent %}<ul class="rows">{% for h in recent %}<li><div><a href="{% url 'security_handover' h.pk %}" class="mono">{{ h.receipt_code }}</a> <span class="small">{{ h.claim.item.title }}</span></div>{% badge h.status h.get_status_display %}</li>{% endfor %}</ul>{% else %}<p class="muted">No completed or cancelled handovers yet.</p>{% endif %}
+</section>
+{% endblock %}

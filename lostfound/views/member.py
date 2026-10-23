@@ -1,5 +1,7 @@
 """Student & staff screens. Every object lookup is scoped to request.user,
 so another user's report or claim returns 404 rather than leaking existence."""
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -53,6 +55,7 @@ def report_item(request, report_type):
     return render(request, "member/report_form.html", {
         "form": form, "formset": formset, "is_found": is_found, "report_type": report_type,
         "attribute_map": _category_attribute_map(),
+        "attr_values_json": json.dumps({k[5:]: v for k, v in request.POST.items() if k.startswith("attr_")}),
     })
 
 

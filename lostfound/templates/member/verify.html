@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Verify ownership{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{% url 'claim_detail' claim.pk %}">Claim {{ claim.reference }}</a> / Verify</p>
+<div style="max-width:640px">
+  <h1>Prove it's yours</h1>
+  <p>The finder recorded these details privately. Answer in your own words; small spelling differences are fine. You have <strong>{{ challenge.attempts_remaining }}</strong> attempt{{ challenge.attempts_remaining|pluralize }} left, and you won't be told which answer didn't match.</p>
+  <form method="post" class="panel" autocomplete="off" novalidate>{% csrf_token %}
+    {% for f in form %}{% field f %}{% endfor %}
+    <button class="btn" type="submit">Submit answers</button>
+  </form>
+</div>
+{% endblock %}

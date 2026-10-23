@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Review {{ claim.reference }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{% url 'security_claims' %}">Verification review</a> / {{ claim.reference }}</p>
+<div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>{{ claim.item.title }} (<a href="{% url 'security_item' claim.item.pk %}">{{ claim.item.reference }}</a>), {{ claim.item.get_status_display|lower }}</p></div>
+<div class="btn-row">{% badge claim.verification_status claim.get_verification_status_display %}{% badge claim.status claim.get_status_display %}</div></div>
+<p class="notice warn small">Private details are shown below. This view has been recorded in the audit log.</p>
+<div class="split">
+  <div>
+    <section class="panel"><h2>Claimant</h2>
+      <dl class="facts"><dt>Name</dt><dd>{{ claim.claimant.get_full_name|default:"—" }}</dd><dt>Account</dt><dd>{{ claim.claimant.username }} ({{ claim.claimant.email }})</dd>
+      <dt>Submitted</dt><dd>{{ claim.created_at|date:"j M Y, H:i" }}</dd>{% if claim.lost_report %}<dt>Lost report</dt><dd>{{ claim.lost_report.reference }}: {{ claim.lost_report.title }}, {{ claim.lost_report.location.name }}, {{ claim.lost_report.occurred_at|date:"j M Y" }}</dd>{% endif %}</dl>
+      <h3 style="margin-top:1rem">Statement</h3><p>{{ claim.statement|linebreaksbr }}</p>
+    </section>
+    <section class="panel"><h2>Verification evidence</h2>
+      {% if evidence.challenge %}<p class="small">{{ evidence.challenge.attempts_used }} of {{ evidence.challenge.max_attempts }} attempts used; best score {{ evidence.challenge.best_score|pct }}% (pass mark {{ evidence.challenge.pass_threshold|pct }}%).</p>
+        {% for a in evidence.attempts %}
+        <h3>Attempt {{ forloop.counter }} — {{ a.attempt.score|pct }}% {% if a.attempt.passed %}<span class="badge badge-ok">passed</span>{% else %}<span class="badge badge-bad">failed</span>{% endif %}</h3>
+        <div class="table-wrap"><table><thead><tr><th>Question</th><th>Recorded answer</th><th>Claimant answered</th><th>Result</th></tr></thead><tbody>
+        {% for r in a.rows %}<tr><td>{{ r.question }}<div class="muted small">{{ r.kind }}, {{ r.mode }}</div></td><td>{{ r.expected }}</td><td>{{ r.response|default:"(blank)" }}</td><td>{% if r.passed %}<span class="badge badge-ok">match</span>{% else %}<span class="badge badge-bad">no match</span>{% endif %}<div class="muted small">{{ r.similarity|pct }}%</div></td></tr>{% endfor %}
+        </tbody></table></div>
+        {% empty %}<p class="muted">The claimant hasn't answered yet.</p>{% endfor %}
+      {% else %}<p class="notice warn">No challenge yet: the item has no private details. Add one from the <a href="{% url 'security_item' claim.item.pk %}">item page</a>.</p>{% endif %}
+      <details><summary>All private details on this item ({{ evidence.details|length }})</summary><ul>{% for d in evidence.details %}<li class="small">{{ d.kind }}: {{ d.question }} → <strong>{{ d.answer }}</strong>{% if d.drawn %} (asked){% endif %}</li>{% endfor %}</ul></details>
+    </section>
+    {% if competing %}<section class="panel"><h2>Competing claims ({{ competing|length }})</h2><ul class="rows">{% for c in competing %}<li><div><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a> <span class="muted small">{{ c.claimant.get_full_name|default:c.claimant.username }}</span></div><div class="btn-row">{% badge c.verification_status c.get_verification_status_display %}{% badge c.status c.get_status_display %}</div></li>{% endfor %}</ul></section>{% endif %}
+  </div>
+  <aside>
+    {% if claim.decision_reason %}<div class="panel"><h3>Decision note</h3><p class="small">{{ claim.decision_reason }}</p><p class="muted small">{{ claim.decided_by.username }}, {{ claim.decided_at|date:"j M Y, H:i" }}</p></div>{% endif %}
+    {% if user.pk != claim.claimant_id %}
+    {% if claim.status == "under_review" and nav.review_claims %}
+      {% if claim.verification_status == "passed" %}
+      <form method="post" action="{% url 'security_claim_approve' claim.pk %}" class="panel" data-confirm="Approve this claim{% if competing %} and reject {{ competing|length }} competing claim(s){% endif %}?">{% csrf_token %}<h2>Approve</h2>{% field approve_form.reason %}{% if competing %}{% field approve_form.confirm_competing %}{% endif %}<button class="btn" type="submit">Approve claim</button></form>
+      {% else %}<p class="notice bad small">Verification failed, so this claim can only be rejected.</p>{% endif %}
+    {% endif %}
+    {% if claim.is_active %}
+    <form method="post" action="{% url 'security_claim_reject' claim.pk %}" class="panel" data-confirm="Reject this claim?">{% csrf_token %}<h2>Reject</h2>{% field reject_form.reason %}<button class="btn btn-danger" type="submit">Reject claim</button></form>
+    {% endif %}
+    {% if claim.status == "approved" and nav.conduct_handover %}
+      {% if handover and handover.status == "scheduled" %}<div class="panel"><h2>Handover scheduled</h2><p>{{ handover.scheduled_for|date:"j M Y, H:i" }} at {{ handover.location.name }}</p><a class="btn" href="{% url 'security_handover' handover.pk %}">Open handover</a></div>
+      {% else %}<form method="post" action="{% url 'security_handover_schedule' claim.pk %}" class="panel">{% csrf_token %}<h2>Schedule handover</h2>{% field schedule_form.scheduled_for %}{% field schedule_form.location %}{% field schedule_form.officer %}{% field schedule_form.method %}<button class="btn" type="submit">Schedule and notify claimant</button></form>{% endif %}
+    {% endif %}
+    {% else %}<p class="notice bad">This is your own claim. Another officer must decide it.</p>{% endif %}
+  </aside>
+</div>
+{% endblock %}

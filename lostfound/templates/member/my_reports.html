@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}My reports{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>My reports</h1></div><div class="btn-row"><a class="btn btn-lost btn-small" href="{% url 'report_item' 'lost' %}">Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">Report found</a></div></div>
+<nav class="tabs" aria-label="Filter"><a href="?" {% if not type %}aria-current="page"{% endif %}>All</a><a href="?type=lost" {% if type == "lost" %}aria-current="page"{% endif %}>Lost</a><a href="?type=found" {% if type == "found" %}aria-current="page"{% endif %}>Found</a></nav>
+{% if reports %}
+<div class="panel table-wrap"><table>
+  <thead><tr><th>Reference</th><th>Item</th><th>Type</th><th>Where</th><th>Status</th></tr></thead>
+  <tbody>{% for r in reports %}<tr>
+    <td class="mono">{{ r.reference }}</td><td><a href="{% url 'report_detail' r.pk %}">{{ r.title }}</a></td>
+    <td>{% badge r.report_type r.get_report_type_display %}</td><td>{{ r.location.name }}</td><td>{% badge r.status r.get_status_display %}</td>
+  </tr>{% endfor %}</tbody></table></div>
+{% else %}
+<div class="panel empty"><h3>No reports here yet</h3><p style="margin-inline:auto">Reports you submit will show here with their status.</p></div>
+{% endif %}
+{% endblock %}

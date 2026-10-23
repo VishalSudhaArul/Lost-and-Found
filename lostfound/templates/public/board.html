@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Lost &amp; found board{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Lost &amp; found board</h1><p>Public listing. Identifying details stay private for ownership checks.</p></div>
+  {% if user.is_authenticated %}<div class="btn-row"><a class="btn btn-lost btn-small" href="{% url 'report_item' 'lost' %}">Report lost</a><a class="btn btn-found btn-small" href="{% url 'report_item' 'found' %}">Report found</a></div>{% endif %}
+</div>
+<form class="panel filters" id="board-filters" method="get" action="{% url 'board' %}" role="search">
+  <div class="field wide"><label for="q">Search</label><input type="search" id="q" name="q" value="{{ params.q }}" placeholder="e.g. blue water bottle"></div>
+  <div class="field"><label for="type">Type</label>
+    <select id="type" name="type"><option value="">Lost and found</option><option value="found" {% if params.type == "found" %}selected{% endif %}>Found items</option><option value="lost" {% if params.type == "lost" %}selected{% endif %}>Lost reports</option></select></div>
+  <div class="field"><label for="category">Category</label>
+    <select id="category" name="category"><option value="">All</option>{% for c in categories %}<option value="{{ c.pk }}" {% if params.category == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>{% for s in c.children.all %}<option value="{{ s.pk }}" {% if params.category == s.pk|stringformat:"d" %}selected{% endif %}>— {{ s.name }}</option>{% endfor %}{% endfor %}</select></div>
+  <div class="field"><label for="location">Location</label>
+    <select id="location" name="location"><option value="">Anywhere</option>{% for l in locations %}<option value="{{ l.pk }}" {% if params.location == l.pk|stringformat:"d" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="sort">Sort</label>
+    <select id="sort" name="sort"><option value="newest">Newest reports</option><option value="occurred" {% if params.sort == "occurred" %}selected{% endif %}>Most recent date lost/found</option><option value="relevance" {% if params.sort == "relevance" %}selected{% endif %}>Best match to search</option><option value="oldest" {% if params.sort == "oldest" %}selected{% endif %}>Oldest first</option></select></div>
+  <div class="field"><label for="from">From</label><input type="date" id="from" name="from" value="{{ params.from }}"></div>
+  <noscript><button class="btn" type="submit">Apply</button></noscript>
+</form>
+<div id="board-results" aria-live="polite">{% include "public/_board_results.html" %}</div>
+<p class="muted small">Search engine: {{ search_backend }}.</p>
+{% endblock %}

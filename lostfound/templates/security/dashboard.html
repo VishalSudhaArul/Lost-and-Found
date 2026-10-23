@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Security overview{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Security office</h1><p>Custody, verification and handovers.</p></div></div>
+<div class="figures">
+  <a class="figure" href="{% url 'security_items' %}?state=intake"><strong>{{ awaiting_intake }}</strong><span>Reported, not yet received</span></a>
+  <a class="figure" href="{% url 'security_items' %}?state=custody"><strong>{{ in_custody }}</strong><span>Items in custody</span></a>
+  <a class="figure" href="{% url 'security_claims' %}"><strong>{{ pending_review }}</strong><span>Claims to review</span></a>
+  <a class="figure" href="{% url 'security_claims' %}?tab=approved"><strong>{{ approved_waiting }}</strong><span>Approved, awaiting handover</span></a>
+  <a class="figure" href="{% url 'security_ageing' %}"><strong>{{ ageing_count }}</strong><span>Near or past retention</span></a>
+</div>
+<div class="grid grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>Upcoming handovers</h2><a href="{% url 'security_handovers' %}">All</a></div>
+    {% if upcoming_handovers %}<ul class="rows">{% for h in upcoming_handovers %}
+      <li><div><a href="{% url 'security_handover' h.pk %}">{{ h.claim.item.title }}</a><div class="muted small">{{ h.claim.claimant.get_full_name|default:h.claim.claimant.username }} at {{ h.location.name }}</div></div><span class="small">{{ h.scheduled_for|date:"j M, H:i" }}</span></li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>No handovers scheduled.</p></div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Approaching retention limit</h2><a href="{% url 'security_ageing' %}">Queue</a></div>
+    {% if ageing %}<ul class="rows">{% for r in ageing %}
+      <li><div><a href="{% url 'security_item' r.item.pk %}">{{ r.item.title }}</a><div class="muted small mono">{{ r.item.reference }}</div></div>{% if r.days_left <= 0 %}<span class="badge badge-bad">{{ r.days_left|stringformat:"d"|cut:"-" }} days over</span>{% else %}<span class="badge badge-warn">{{ r.days_left }} days left</span>{% endif %}</li>
+    {% endfor %}</ul>{% else %}<div class="empty"><p>Nothing near its retention limit.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

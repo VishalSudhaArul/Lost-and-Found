@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Found items &amp; custody{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Found items &amp; custody</h1></div>
+<form method="get" class="btn-row"><input type="hidden" name="state" value="{{ state }}"><input type="search" name="q" value="{{ q }}" placeholder="Title or F-00012" aria-label="Search items"><button class="btn btn-small" type="submit">Search</button></form></div>
+<nav class="tabs" aria-label="Item state">
+  <a href="?state=intake" {% if state == "intake" %}aria-current="page"{% endif %}>Awaiting drop-off</a>
+  <a href="?state=custody" {% if state == "custody" %}aria-current="page"{% endif %}>In custody</a>
+  <a href="?state=handover" {% if state == "handover" %}aria-current="page"{% endif %}>Awaiting handover</a>
+  <a href="?state=review" {% if state == "review" %}aria-current="page"{% endif %}>Disposal review</a>
+  <a href="?state=closed" {% if state == "closed" %}aria-current="page"{% endif %}>Closed</a>
+</nav>
+{% if page.object_list %}
+<div class="panel table-wrap"><table>
+<thead><tr><th>Ref</th><th>Item</th><th>Found at</th><th>Held at</th><th>Finder</th><th>Status</th></tr></thead>
+<tbody>{% for i in page %}<tr>
+  <td class="mono"><a href="{% url 'security_item' i.pk %}">{{ i.reference }}</a></td><td>{{ i.title }}<div class="muted small">{{ i.category }}</div></td>
+  <td>{{ i.location.name }}<div class="muted small">{{ i.occurred_at|date:"j M, H:i" }}</div></td><td>{{ i.current_custody_location.name|default:"—" }}</td>
+  <td>{{ i.reporter.get_full_name|default:i.reporter.username }}</td><td>{% badge i.status i.get_status_display %}</td>
+</tr>{% endfor %}</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% else %}<div class="panel empty"><h3>No items in this state</h3></div>{% endif %}
+{% endblock %}

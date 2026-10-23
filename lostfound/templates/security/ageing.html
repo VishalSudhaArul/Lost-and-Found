@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Ageing &amp; disposal{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Ageing &amp; disposal</h1><p>Items near or past their retention period. Disposal needs a security review and an authorised decision.</p></div></div>
+{% if rows %}
+{% for r in rows %}
+<article class="panel">
+  <div class="panel-head"><div><h2><a href="{% url 'security_item' r.item.pk %}">{{ r.item.title }}</a></h2><p class="muted small mono">{{ r.item.reference }}, {{ r.item.category }}, held at {{ r.item.current_custody_location.name|default:"—" }}</p></div>
+  <div class="btn-row">{% badge r.item.status r.item.get_status_display %}{% if r.days_left <= 0 %}<span class="badge badge-bad">{{ r.age_days }} days held, limit {{ r.retention_days }}</span>{% else %}<span class="badge badge-warn">{{ r.days_left }} days left</span>{% endif %}</div></div>
+  {% if r.has_active_claims %}<p class="notice small">Protected: this item has an active claim and cannot be disposed.</p>{% endif %}
+  <div class="grid grid-3">
+    {% if r.item.status == "disposal_review" and nav.review_disposal %}
+      {% if r.item.disposal_reviewed_by %}<p class="small">Reviewed by {{ r.item.disposal_reviewed_by.username }} on {{ r.item.disposal_reviewed_at|date:"j M Y" }}.</p>
+      {% elif not r.has_active_claims %}<form method="post" action="{% url 'security_ageing_review' r.item.pk %}">{% csrf_token %}<p class="small">Confirm you've physically checked the item and it is unclaimed.</p><button class="btn btn-small" type="submit">Record security review</button></form>{% endif %}
+    {% endif %}
+    {% if nav.review_disposal %}<form method="post" action="{% url 'security_ageing_extend' r.item.pk %}">{% csrf_token %}<div class="form-row"><div class="field"><label for="d{{ r.item.pk }}">Extend by days</label><input id="d{{ r.item.pk }}" type="number" name="days" min="1" max="365" value="14"></div><div class="field"><label for="e{{ r.item.pk }}">Reason</label><input id="e{{ r.item.pk }}" type="text" name="reason" maxlength="200" required></div></div><button class="btn btn-ghost btn-small" type="submit">Extend retention</button></form>{% endif %}
+    {% if r.item.status == "disposal_review" and r.item.disposal_reviewed_by and perms.lostfound.authorize_disposal %}
+    <form method="post" action="{% url 'security_ageing_dispose' r.item.pk %}" enctype="multipart/form-data" data-confirm="Record disposal of {{ r.item.reference }}? This is final.">{% csrf_token %}
+      <div class="field"><label for="m{{ r.item.pk }}">Method</label><select id="m{{ r.item.pk }}" name="method">{% for v, l in disposal_form.fields.method.choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="r{{ r.item.pk }}">Reason</label><input id="r{{ r.item.pk }}" type="text" name="reason" required maxlength="1000"></div>
+      <div class="field"><label for="p{{ r.item.pk }}">Recipient <span class="muted small">(optional)</span></label><input id="p{{ r.item.pk }}" type="text" name="recipient" maxlength="150"></div>
+      <div class="field"><label for="v{{ r.item.pk }}">Evidence photo <span class="muted small">(optional)</span></label><input id="v{{ r.item.pk }}" type="file" name="evidence" accept="image/*"></div>
+      <button class="btn btn-danger btn-small" type="submit">Authorise disposal</button></form>{% endif %}
+  </div>
+</article>
+{% endfor %}
+{% else %}<div class="panel empty"><h3>Nothing is near its retention limit</h3><p style="margin-inline:auto">The nightly ageing check moves expired, unclaimed items here.</p></div>{% endif %}
+<section class="panel"><h2>Disposal history</h2>
+{% if disposals %}<div class="table-wrap"><table><thead><tr><th>Item</th><th>Method</th><th>Reason</th><th>Reviewed</th><th>Authorised</th><th>Date</th></tr></thead><tbody>
+{% for d in disposals %}<tr><td class="mono">{{ d.item.reference }}</td><td>{{ d.get_method_display }}</td><td class="small">{{ d.reason }}{% if d.recipient %} (to {{ d.recipient }}){% endif %}{% if d.evidence %} <a href="{% url 'security_private_file' 'disposal' d.pk %}">evidence</a>{% endif %}</td><td>{{ d.reviewed_by.username }}</td><td>{{ d.authorized_by.username }}</td><td>{{ d.disposed_at|date:"j M Y" }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">No disposals recorded.</p>{% endif %}</section>
+{% endblock %}

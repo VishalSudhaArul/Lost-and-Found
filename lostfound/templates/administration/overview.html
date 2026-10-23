@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Administration{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Administration</h1><p>Campus configuration and policy.</p></div></div>
+{% if metrics %}<div class="figures">
+  <div class="figure"><strong>{{ metrics.found_total }}</strong><span>Found reports</span></div>
+  <div class="figure"><strong>{% if metrics.return_rate is not None %}{{ metrics.return_rate }}%{% else %}—{% endif %}</strong><span>Return rate</span></div>
+  <div class="figure"><strong>{{ metrics.in_custody }}</strong><span>Held by security</span></div>
+  <div class="figure"><strong>{{ metrics.outstanding_claims }}</strong><span>Open claims</span></div>
+</div>{% endif %}
+<div class="grid grid-3">
+  {% if nav.manage_taxonomy %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_categories' %}"><h2>Categories</h2><p class="small muted">{{ category_count }} categories and subcategories, with public attributes and retention overrides.</p></a>
+  <a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_locations' %}"><h2>Campus locations</h2><p class="small muted">{{ location_count }} buildings, floors and spots, including custody points.</p></a>{% endif %}
+  {% if nav.manage_retention or nav.manage_matching %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_settings' %}"><h2>Policies &amp; settings</h2><p class="small muted">Retention {{ cfg.default_retention_days }} days; match threshold {{ cfg.match_threshold }}; {{ cfg.verification_max_attempts }} verification attempts.</p></a>{% endif %}
+  {% if nav.manage_users %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_users' %}"><h2>Users &amp; roles</h2><p class="small muted">{{ user_count }} accounts.</p></a>{% endif %}
+  {% if nav.view_analytics %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_analytics' %}"><h2>Reports &amp; analytics</h2><p class="small muted">Return rate, time to return, hotspots, disposal volume.</p></a>{% endif %}
+  {% if nav.view_audit %}<a class="panel" style="text-decoration:none;color:inherit" href="{% url 'admin_audit' %}"><h2>Audit log</h2><p class="small muted">Every claim decision, custody change and private-detail access.</p></a>{% endif %}
+</div>
+{% endblock %}

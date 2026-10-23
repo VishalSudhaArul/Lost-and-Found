@@ -1,0 +1,11 @@
+{# Renders a PublicItem DTO only. #}
+<a class="tag {{ item.report_type }}" href="{% url 'item_detail' item.id %}">
+  <div class="tag-band"><span>{% if item.report_type == "found" %}Found{% else %}Lost{% endif %}</span><span class="mono">{{ item.reference }}</span></div>
+  <div class="tag-photo">{% if item.photo_url %}<img src="{{ item.photo_url }}" alt="Photo of {{ item.title }}" loading="lazy">{% else %}<span>No photo</span>{% endif %}</div>
+  <div class="tag-body">
+    <h3>{{ item.title }}</h3>
+    <div class="tag-meta">{{ item.category }}</div>
+    <div class="tag-meta">{{ item.location }}</div>
+    <div class="tag-meta">{{ item.occurred_at|date:"j M Y, H:i" }}</div>
+  </div>
+</a>

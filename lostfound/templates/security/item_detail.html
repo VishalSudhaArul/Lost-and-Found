@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}{{ item.reference }} (security){% endblock %}
+{% block content %}
+<p class="crumb"><a href="{% url 'security_items' %}">Found items</a> / {{ item.reference }}</p>
+<div class="page-head"><div><h1>{{ item.title }}</h1><p class="mono">{{ item.reference }}</p></div>{% badge item.status item.get_status_display %}</div>
+<div class="split">
+  <div>
+    <section class="panel">
+      <dl class="facts">
+        <dt>Finder</dt><dd>{{ item.reporter.get_full_name|default:item.reporter.username }} ({{ item.reporter.email }})</dd>
+        <dt>Found at</dt><dd>{{ item.location }}{% if item.location_note %} ({{ item.location_note }}){% endif %}, {{ item.occurred_at|date:"j M Y, H:i" }}</dd>
+        <dt>Category</dt><dd>{{ item.category }}</dd>
+        <dt>Held at</dt><dd>{{ item.current_custody_location|default:"Not in custody" }}{% if item.custody_since %}, since {{ item.custody_since|date:"j M Y" }}{% endif %}</dd>
+        <dt>Private details</dt><dd>{{ private_count }} recorded (shown only on the claim review screen)</dd>
+      </dl>
+      <p style="margin-top:1rem">{{ item.description|linebreaksbr }}</p>
+    </section>
+    <section class="panel">
+      <h2>Custody chain</h2>
+      {% if records %}<ol class="timeline">{% for r in records %}
+        <li class="{% if r.action == 'correction' %}correction{% endif %}"><strong>{{ r.get_action_display }}</strong>{% if r.to_location %} to {{ r.to_location.name }}{% endif %}{% if r.from_location %} from {{ r.from_location.name }}{% endif %}
+          <div class="muted small">{{ r.created_at|date:"j M Y, H:i" }}, accepted by {{ r.accepted_by.get_full_name|default:r.accepted_by.username }}{% if r.received_from %}, handed in by {{ r.received_from }}{% endif %}</div>
+          {% if r.corrects %}<div class="small">Corrects entry #{{ r.corrects.pk }}</div>{% endif %}
+          {% if r.notes %}<div class="small">{{ r.notes }}</div>{% endif %}
+          {% if nav.manage_custody and r.action != 'correction' %}<details class="small"><summary>Record a correction</summary>
+            <form method="post" action="{% url 'security_custody_correct' item.pk %}">{% csrf_token %}<input type="hidden" name="record_id" value="{{ r.pk }}"><div class="field"><label for="c{{ r.pk }}">What was wrong?</label><input id="c{{ r.pk }}" type="text" name="notes" maxlength="500" required></div><button class="btn btn-small" type="submit">Append correction</button></form></details>{% endif %}
+        </li>{% endfor %}</ol>
+      {% else %}<p class="muted">No custody entries. The item hasn't been received yet.</p>{% endif %}
+    </section>
+    <section class="panel">
+      <h2>Claims</h2>
+      {% if claims %}<ul class="rows">{% for c in claims %}<li><div><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a> <span class="muted small">by {{ c.claimant.get_full_name|default:c.claimant.username }}</span></div>{% badge c.status c.get_status_display %}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">No claims yet.</p>{% endif %}
+    </section>
+  </div>
+  <aside>
+    {% if nav.manage_custody %}
+      {% if item.status == "open" %}
+      <form method="post" action="{% url 'security_item_receive' item.pk %}" class="panel">{% csrf_token %}<h2>Receive into custody</h2>{% field receive_form.location %}{% field receive_form.received_from %}{% field receive_form.notes %}<button class="btn" type="submit">Record receipt</button></form>
+      {% elif item.status == "in_custody" or item.status == "awaiting_handover" or item.status == "disposal_review" %}
+      <form method="post" action="{% url 'security_item_transfer' item.pk %}" class="panel">{% csrf_token %}<h2>Transfer</h2>{% field transfer_form.location %}{% field transfer_form.notes %}<button class="btn btn-ghost" type="submit">Record transfer</button></form>
+      {% endif %}
+      {% if item.status != "returned" and item.status != "disposed" and item.status != "closed" %}
+      <form method="post" action="{% url 'security_private_detail_add' item.pk %}" class="private-box" autocomplete="off">{% csrf_token %}<h2>Add a private detail</h2><p class="small">Inspect the item and record something only the owner would know.</p>{% field detail_form.kind %}{% field detail_form.question %}{% field detail_form.answer %}{% field detail_form.match_mode %}<button class="btn" type="submit">Save privately</button></form>
+      {% endif %}
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

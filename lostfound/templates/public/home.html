@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Lost something on campus? Start here.</h1>
+    <p class="lede">One board for everything handed in to campus security. Finders keep the identifying details private, so only the real owner can prove an item is theirs.</p>
+    <div class="btn-row">
+      <a class="btn btn-lost" href="{% url 'report_item' 'lost' %}">I lost something</a>
+      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">I found something</a>
+      <a class="btn btn-ghost" href="{% url 'board' %}">Browse the board</a>
+    </div>
+    <p class="muted small" style="margin-top:1rem">{{ stats.open_found }} found item{{ stats.open_found|pluralize }} waiting for owners, {{ stats.returned }} returned so far</p>
+  </div>
+  <div class="hero-tags" aria-hidden="true">
+    {% for item in recent|slice:":2" %}{% include "partials/tag.html" %}{% endfor %}
+  </div>
+</section>
+
+<h2>How a return works</h2>
+<ol class="steps" style="margin-bottom:2rem">
+  <li><h3>Report</h3><p class="small">Post what you lost or found with a photo, category, place and time. It takes under a minute on a phone.</p></li>
+  <li><h3>Match</h3><p class="small">We compare lost and found reports by description, category, place and time, and tell you about likely matches.</p></li>
+  <li><h3>Prove it</h3><p class="small">Answer questions about details the finder kept private. Security reviews every claim.</p></li>
+  <li><h3>Collect</h3><p class="small">Pick it up from the security office with your ID and a one-time code. Every handover is recorded.</p></li>
+</ol>
+
+<div class="panel-head"><h2>Recently reported</h2><a href="{% url 'board' %}">See all</a></div>
+{% if recent %}
+<div class="tags">{% for item in recent %}{% include "partials/tag.html" %}{% endfor %}</div>
+{% else %}
+<div class="panel empty"><h3>Nothing on the board yet</h3><p>When items are reported they'll appear here.</p></div>
+{% endif %}
+{% endblock %}

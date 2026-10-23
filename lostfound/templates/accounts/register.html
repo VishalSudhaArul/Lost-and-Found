@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div style="max-width:620px">
+  <h1>Create your account</h1>
+  <form method="post" class="panel" novalidate>{% csrf_token %}
+    {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
+    <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
+    {% field form.email %}
+    <div class="form-row">{% field form.member_type %}{% field form.department %}</div>
+    {% field form.username %}
+    <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+  <p>Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+</div>
+{% endblock %}

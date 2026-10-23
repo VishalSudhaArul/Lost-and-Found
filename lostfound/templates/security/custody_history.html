@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Custody history{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Custody history</h1><p>Append-only. Mistakes are fixed with correction entries.</p></div>
+<form method="get" class="btn-row"><select name="action" aria-label="Action"><option value="">All actions</option>{% for v, l in actions %}<option value="{{ v }}" {% if action == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><button class="btn btn-small" type="submit">Filter</button></form></div>
+{% if page.object_list %}<div class="panel table-wrap"><table><thead><tr><th>#</th><th>When</th><th>Item</th><th>Action</th><th>From</th><th>To</th><th>By</th><th>Notes</th></tr></thead><tbody>
+{% for r in page %}<tr><td class="mono">{{ r.pk }}</td><td>{{ r.created_at|date:"j M Y, H:i" }}</td><td><a class="mono" href="{% url 'security_item' r.item_id %}">{{ r.item.reference }}</a></td><td>{{ r.get_action_display }}</td><td>{{ r.from_location.name|default:"" }}</td><td>{{ r.to_location.name|default:"" }}</td><td>{{ r.accepted_by.username }}</td><td class="small">{{ r.notes }}{% if r.corrects_id %} (corrects #{{ r.corrects_id }}){% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "partials/pagination.html" %}{% else %}<div class="panel empty"><h3>No custody entries yet</h3></div>{% endif %}
+{% endblock %}

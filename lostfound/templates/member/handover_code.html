@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Handover code{% endblock %}
+{% block content %}
+<div style="max-width:480px">
+  <h1>Your handover code</h1>
+  <p>Show this to the security officer. Don't share it with anyone else.</p>
+  <div class="code-display" aria-label="Handover code">{{ code }}</div>
+  <p class="muted" data-expires="{{ expires|date:'c' }}" aria-live="polite" style="margin-top:.75rem">Valid until {{ expires|date:"H:i" }}</p>
+  <a class="btn btn-ghost" href="{% url 'claim_detail' claim.pk %}">Back to claim</a>
+</div>
+{% endblock %}

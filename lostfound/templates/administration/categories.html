@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Categories</h1><p>Attributes here are public (colour, brand). Secret details belong in private details, never in attributes.</p></div>{% if editing %}<a class="btn btn-ghost btn-small" href="{% url 'admin_categories' %}">New category</a>{% endif %}</div>
+<div class="split">
+  <section class="panel"><div class="table-wrap"><table><thead><tr><th>Category</th><th>Attributes</th><th>Retention</th><th>Status</th></tr></thead><tbody>
+  {% for c in tree %}<tr><td><a href="{% url 'admin_category_edit' c.pk %}"><strong>{{ c.name }}</strong></a></td><td class="small">{% for a in c.attributes.all %}{{ a.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{{ c.retention_days|default:"default" }}</td><td>{% if c.is_active %}Active{% else %}<span class="badge">Inactive</span>{% endif %}</td></tr>
+    {% for s in c.children.all %}<tr><td style="padding-left:1.6rem"><a href="{% url 'admin_category_edit' s.pk %}">{{ s.name }}</a></td><td class="small">{% for a in s.attributes.all %}{{ a.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{{ s.retention_days|default:"inherit" }}</td><td>{% if s.is_active %}Active{% else %}<span class="badge">Inactive</span>{% endif %}</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="4" class="muted">No categories yet.</td></tr>{% endfor %}</tbody></table></div></section>
+  <aside>
+    <form method="post" class="panel">{% csrf_token %}<h2>{% if editing %}Edit {{ editing.name }}{% else %}New category{% endif %}</h2>{% for f in form %}{% field f %}{% endfor %}<button class="btn" type="submit">Save category</button></form>
+    {% if editing %}<form method="post" class="panel">{% csrf_token %}<h2>Add attribute</h2>{% for f in attr_form %}{% if f.name == "category" %}<input type="hidden" name="attr-category" value="{{ editing.pk }}">{% else %}{% field f %}{% endif %}{% endfor %}<button class="btn" type="submit">Add attribute</button></form>{% endif %}
+  </aside>
+</div>
+{% endblock %}

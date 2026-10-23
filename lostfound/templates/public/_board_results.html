@@ -1,0 +1,8 @@
+<p class="muted small">{{ page.paginator.count }} result{{ page.paginator.count|pluralize }}</p>
+{% if items %}
+<div class="tags">{% for item in items %}{% include "partials/tag.html" %}{% endfor %}</div>
+{% include "partials/pagination.html" %}
+{% else %}
+<div class="panel empty"><h3>No items match those filters</h3><p style="margin-inline:auto">Try fewer words or a wider location. If you lost something, report it and we'll tell you when a match is handed in.</p>
+{% if user.is_authenticated %}<a class="btn btn-lost" href="{% url 'report_item' 'lost' %}">Report a lost item</a>{% else %}<a class="btn" href="{% url 'login' %}?next={% url 'report_item' 'lost' %}">Sign in to report</a>{% endif %}</div>
+{% endif %}
