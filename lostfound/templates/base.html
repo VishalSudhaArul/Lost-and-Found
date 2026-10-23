@@ -59,7 +59,7 @@
     <div class="nav-group nav">
       <span>Signed in as {{ user.get_full_name|default:user.username }}</span>
       <a href="{% url 'password_change' %}">Change password</a>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-small" style="width:100%;color:#dfe5f3;border-color:#52617f;margin-top:.3rem" type="submit">Sign out</button></form>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-small signout" type="submit">Sign out</button></form>
     </div>
     {% else %}
     <div class="nav-group nav">

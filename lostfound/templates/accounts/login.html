@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
-<div style="max-width:440px">
+<div class="narrow" style="--w:440px">
   <h1>Sign in</h1>
   <p class="muted">Use your campus account to report items and follow your claims.</p>
   <form method="post" class="panel" novalidate>{% csrf_token %}

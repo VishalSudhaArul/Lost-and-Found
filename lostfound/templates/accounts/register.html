@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Create account{% endblock %}
 {% block content %}
-<div style="max-width:620px">
+<div class="narrow" style="--w:620px">
   <h1>Create your account</h1>
   <form method="post" class="panel" novalidate>{% csrf_token %}
     {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
