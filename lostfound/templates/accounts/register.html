@@ -1,23 +1,29 @@
 {% extends "base.html" %}{% load lf %}
-{% block title %}Create account{% endblock %}
+{% block title %}{% if portal_label %}{{ portal_label }} registration{% else %}Create account{% endif %}{% endblock %}
 {% block content %}
 <div class="auth-wrap">
-  <div class="auth-card" style="--w:640px">
+  <div class="auth-card{% if portal_slug %} portal-{{ portal_slug }}{% endif %}" style="--w:640px">
+    {% if portal_slug %}
+    <nav class="portal-switch" aria-label="Choose account type">
+      <a href="{% url 'student_register' %}" {% if portal_slug == "student" %}aria-current="page"{% endif %}>{% icon "book" %}Student</a>
+      <a href="{% url 'teacher_register' %}" {% if portal_slug == "teacher" %}aria-current="page"{% endif %}>{% icon "users" %}Teacher</a>
+    </nav>
+    {% endif %}
     <div class="auth-head">
-      <span class="auth-icon">{% icon "user-plus" "icon-lg" %}</span>
-      <h1>Create your account</h1>
-      <p>Students and staff can report items, receive match alerts and claim belongings.</p>
+      <span class="auth-icon">{% if portal_slug == "teacher" %}{% icon "users" "icon-lg" %}{% elif portal_slug == "student" %}{% icon "book" "icon-lg" %}{% else %}{% icon "user-plus" "icon-lg" %}{% endif %}</span>
+      <h1>{% if portal_label %}Create a {{ portal_label|lower }} account{% else %}Create your account{% endif %}</h1>
+      <p>Report items, receive match alerts and claim your belongings.</p>
     </div>
     <form method="post" class="panel" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
       {% field form.email %}
-      <div class="form-row">{% field form.member_type %}{% field form.department %}</div>
+      <div class="form-row">{% if form.member_type %}{% field form.member_type %}{% endif %}{% field form.department %}</div>
       {% field form.username %}
       <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
-      <button class="btn btn-primary btn-block" type="submit">Create account</button>
+      <button class="btn btn-primary btn-block" type="submit">Create {% if portal_label %}{{ portal_label|lower }} {% endif %}account</button>
     </form>
-    <p class="auth-alt">Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+    <p class="auth-alt">Already registered? <a href="{% if portal_slug == 'teacher' %}{% url 'teacher_login' %}{% elif portal_slug == 'student' %}{% url 'student_login' %}{% else %}{% url 'login' %}{% endif %}">Sign in</a></p>
   </div>
 </div>
 {% endblock %}

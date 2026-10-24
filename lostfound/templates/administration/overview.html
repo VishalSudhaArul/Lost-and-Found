@@ -6,8 +6,69 @@
   {% if nav.view_analytics %}<a class="btn btn-ghost" href="{% url 'admin_analytics' %}">{% icon "chart" %}Full analytics</a>{% endif %}
 </div>
 
+{% with p=counts.pipeline c=counts.claims a=counts.accounts %}
+<h2>Complaints (lost &amp; found reports)</h2>
+<div class="pipeline mt-1">
+  <div class="total"><strong>{{ p.total }}</strong><span>Total reports</span></div>
+  <a class="pending" href="{% url 'security_reports' %}"><strong>{{ p.pending }}</strong><span>Pending team review</span></a>
+  <a class="progress-step" href="{% url 'security_reports' %}?tab=verified"><strong>{{ p.in_progress }}</strong><span>In progress</span></a>
+  <div class="done"><strong>{{ p.completed }}</strong><span>Completed (returned)</span></div>
+  <a class="rejected" href="{% url 'security_reports' %}?tab=rejected"><strong>{{ p.rejected }}</strong><span>Rejected{% if p.closed %} · {{ p.closed }} closed/disposed{% endif %}</span></a>
+</div>
+
+<section class="panel panel-flush">
+  <div class="panel-head"><h2>{% icon "users" %}Students and teachers</h2>{% if nav.manage_users %}<a href="{% url 'admin_users' %}">Manage accounts {% icon "arrow-right" %}</a>{% endif %}</div>
+  <div class="table-wrap mt-1"><table>
+    <thead><tr><th></th><th>Registered</th><th>New (30 days)</th><th>Lost reports</th><th>Found reports</th><th>Pending review</th><th>Items received back</th><th>Their finds returned</th></tr></thead>
+    <tbody>{% for g in counts.groups %}<tr>
+      <th scope="row" style="background:none;text-transform:none;letter-spacing:0;font-size:.92rem;color:var(--text)">{% if g.key == "student" %}{% icon "book" %}{% else %}{% icon "users" %}{% endif %} {{ g.label }}</th>
+      <td><strong>{{ g.registered }}</strong>{% if g.active != g.registered %} <span class="muted small">({{ g.active }} active)</span>{% endif %}</td>
+      <td>{{ g.new_30d }}</td><td>{{ g.lost }}</td><td>{{ g.found }}</td>
+      <td>{% if g.pending %}<span class="badge badge-warn">{{ g.pending }}</span>{% else %}0{% endif %}</td>
+      <td>{% if g.received_back %}<span class="badge badge-ok">{{ g.received_back }}</span>{% else %}0{% endif %}</td><td>{{ g.returned_found }}</td>
+    </tr>{% endfor %}</tbody></table></div>
+</section>
+
+<div class="grid grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "clipboard-check" %}Claims</h2></div>
+    <ul class="summary mb-0">
+      <li>{% icon "clock" %}<div><span>Pending verification or review</span><strong>{{ c.pending }}</strong></div></li>
+      <li>{% icon "key" %}<div><span>Approved, awaiting handover</span><strong>{{ c.approved }}</strong></div></li>
+      <li>{% icon "check-circle" %}<div><span>Completed handovers</span><strong>{{ c.completed }}</strong></div></li>
+      <li>{% icon "x-circle" %}<div><span>Rejected</span><strong>{{ c.rejected }}</strong></div></li>
+    </ul>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "shield" %}Accounts</h2></div>
+    <ul class="summary mb-0">
+      <li>{% icon "users" %}<div><span>All accounts</span><strong>{{ a.total }}</strong></div></li>
+      <li>{% icon "user-check" %}<div><span>Lost &amp; Found team</span><strong>{{ a.team }}</strong></div></li>
+      <li>{% icon "sliders" %}<div><span>Administrators</span><strong>{{ a.admins }}</strong></div></li>
+      <li>{% icon "mail" %}<div><span>Waiting for email activation</span><strong>{{ a.awaiting_activation }}</strong></div></li>
+    </ul>
+  </section>
+</div>
+
+<section class="panel panel-flush">
+  <div class="panel-head"><h2>{% icon "inbox" %}Latest complaints</h2>{% if nav.review_reports %}<a href="{% url 'security_reports' %}">Review queue {% icon "arrow-right" %}</a>{% endif %}</div>
+  {% if counts.recent_reports %}<div class="table-wrap mt-1"><table>
+    <thead><tr><th>Ref</th><th>Item</th><th>Reported by</th><th>When</th><th>Review</th><th>Status</th></tr></thead>
+    <tbody>{% for r in counts.recent_reports %}<tr>
+      <td class="mono">{% if nav.review_reports %}<a href="{% url 'security_report' r.pk %}">{{ r.reference }}</a>{% else %}{{ r.reference }}{% endif %}</td>
+      <td>{{ r.title }}<div class="muted small">{% badge r.report_type r.get_report_type_display %}</div></td>
+      <td>{{ r.reporter.get_full_name|default:r.reporter.username }}<div class="muted small">{% if r.reporter.profile %}{{ r.reporter.profile.get_member_type_display }}{% endif %}</div></td>
+      <td class="nowrap small">{{ r.created_at|date:"j M, H:i" }}</td>
+      <td>{% if r.review_status == "verified" %}<span class="badge badge-ok">Verified</span>{% elif r.review_status == "rejected" %}<span class="badge badge-bad">Rejected</span>{% else %}<span class="badge badge-warn">Pending</span>{% endif %}</td>
+      <td>{% badge r.status r.get_status_display %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty"><p>No reports yet.</p></div>{% endif %}
+</section>
+{% endwith %}
+
 {% if metrics %}
-<div class="figures">
+<h2 class="mt-2">Return performance</h2>
+<div class="figures mt-1">
   <div class="figure"><span class="figure-icon red">{% icon "search" "icon-lg" %}</span><div><strong>{{ metrics.lost_total }}</strong><span>Lost reports</span></div></div>
   <div class="figure"><span class="figure-icon amber">{% icon "package" "icon-lg" %}</span><div><strong>{{ metrics.found_total }}</strong><span>Found reports</span></div></div>
   <div class="figure"><span class="figure-icon green">{% icon "check-circle" "icon-lg" %}</span><div><strong>{{ metrics.returned }}</strong><span>Returned{% if metrics.return_rate is not None %} · {{ metrics.return_rate }}% return rate{% endif %}</span></div></div>

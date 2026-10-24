@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Activate your account{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    {% if valid %}
+    <div class="auth-head">
+      <span class="auth-icon">{% icon "key" "icon-lg" %}</span>
+      <h1>Activate your account</h1>
+      <p>Hello {{ target.first_name|default:target.username }}. Choose a password for <strong>{{ target.username }}</strong>. Nobody else, including administrators, will know it.</p>
+    </div>
+    <form method="post" class="panel" novalidate>{% csrf_token %}
+      {% field form.new_password1 %}{% field form.new_password2 %}
+      <button class="btn btn-primary btn-block" type="submit">Activate account</button>
+    </form>
+    {% else %}
+    <div class="panel empty">
+      <span class="empty-icon" style="background:var(--bad-wash);color:var(--bad)">{% icon "x-circle" "icon-lg" %}</span>
+      <h1>This activation link isn't valid</h1>
+      <p>It may have expired, been used already, or the account may already be active. Ask your administrator to send a new link.</p>
+      <div class="btn-row"><a class="btn btn-ghost" href="{% url 'login' %}">Go to sign-in</a></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

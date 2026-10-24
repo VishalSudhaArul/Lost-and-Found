@@ -1,0 +1,9 @@
+{% autoescape off %}Hello {{ user.get_full_name|default:user.get_username }},
+
+An administrator created a Campus Lost & Found account for you ({{ user.get_username }}{% if roles %}; access: {{ roles }}{% endif %}).
+
+To activate it, open this link and choose your own password:
+{{ protocol }}://{{ domain }}{% url 'activate' uidb64=uid token=token %}
+
+The link works once and expires in {{ days }} days. If you weren't expecting this email, ignore it and the account stays locked.
+{% endautoescape %}

@@ -2,21 +2,41 @@
 {% block title %}Sign in{% endblock %}
 {% block content %}
 <div class="auth-wrap">
-  <div class="auth-card">
+  <div class="auth-card" style="--w:980px">
     <div class="auth-head">
       <span class="auth-icon">{% icon "log-in" "icon-lg" %}</span>
       <h1>Sign in</h1>
-      <p>Use your campus account to report items, follow your claims and collect returned belongings.</p>
+      <p>Choose your portal. Students and teachers each have their own; the Lost &amp; Found team and administrators use the staff console.</p>
     </div>
-    <form method="post" class="panel" novalidate>{% csrf_token %}
+    {% if form.is_bound %}
+    <form method="post" class="panel narrow" style="--w:440px" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       {% field form.username %}{% field form.password %}
       <input type="hidden" name="next" value="{{ next }}">
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
-      <p class="small mt-1 mb-0" style="text-align:center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
     </form>
-    <p class="auth-alt">New here? <a href="{% url 'register' %}">Create an account</a></p>
-    <p class="auth-alt small">{% icon "shield" %} Lost &amp; Found team or administrator? <a href="{% url 'staff_login' %}">Staff sign-in</a></p>
+    {% endif %}
+    <div class="portal-grid">
+      <a class="portal-card student" href="{% url 'student_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+        <span class="portal-icon">{% icon "book" "icon-lg" %}</span>
+        <h2>Student</h2>
+        <p>Report what you lost or found, follow matches and claim your belongings.</p>
+        <span class="portal-go">Student sign-in {% icon "arrow-right" %}</span>
+      </a>
+      <a class="portal-card teacher" href="{% url 'teacher_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+        <span class="portal-icon">{% icon "users" "icon-lg" %}</span>
+        <h2>Teacher</h2>
+        <p>Faculty and teaching staff: report items, hand in finds from your classroom and recover your own.</p>
+        <span class="portal-go">Teacher sign-in {% icon "arrow-right" %}</span>
+      </a>
+      <a class="portal-card staff" href="{% url 'staff_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+        <span class="portal-icon">{% icon "shield" "icon-lg" %}</span>
+        <h2>Staff &amp; admin</h2>
+        <p>Lost &amp; Found team and administrators. Password plus a code sent to your email.</p>
+        <span class="portal-go">Staff console {% icon "arrow-right" %}</span>
+      </a>
+    </div>
+    <p class="auth-alt">New here? Create a <a href="{% url 'student_register' %}">student account</a> or a <a href="{% url 'teacher_register' %}">teacher account</a>.</p>
   </div>
 </div>
 {% endblock %}

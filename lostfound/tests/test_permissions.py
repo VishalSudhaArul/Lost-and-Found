@@ -67,6 +67,9 @@ class AccessControlTests(LFTestCase):
         self.assertEqual(self.client.post(url, {"roles": ["Security Personnel"], "is_active": "on"}).status_code, 403)
         self.client.force_login(self.sysadmin)
         self.client.post(url, {"roles": ["Students & Staff", "Security Personnel"], "is_active": "on"})
+        self.assertFalse(self.student.groups.filter(name="Security Personnel").exists())  # password required
+        self.client.post(url, {"roles": ["Students & Staff", "Security Personnel"], "is_active": "on",
+                               "confirm_password": "pw-Long-enough-1"})
         self.assertTrue(self.student.groups.filter(name="Security Personnel").exists())
 
     def test_system_admin_cannot_lock_themselves_out(self):

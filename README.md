@@ -45,7 +45,7 @@ lostfound/
   static/          app.css (design system), app.js (progressive enhancement only)
   management/commands/  refresh_matches, check_ageing, seed_demo, rotate_encryption_keys
   migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
-  tests/           137 tests
+  tests/           150 tests
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
 
@@ -115,6 +115,20 @@ Then, as an administrator: add your campus locations (mark the security office a
 
 See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler and cron examples. No Celery/Redis is required.
 
+## Accounts and sign-in
+
+| Who | Sign-in | How the account is created |
+|---|---|---|
+| Students | `/student/login/` | Self-registration at `/student/register/` |
+| Teachers | `/teacher/login/` | Self-registration at `/teacher/register/` |
+| Lost & Found team, administrators | `/staff/login/`: password, then a 6-digit code emailed to the account owner | Only an administrator can create them, after re-entering their own password. The account starts locked with no password; the owner activates it from a one-time link sent to their own email and chooses a password |
+
+* Each portal accepts only its own account type. `/accounts/login/` lets people choose a portal.
+* Staff codes are stored only as a keyed hash in the session, expire (10 min), are attempt-limited (5) and work once.
+* Granting Lost & Found team or administrator roles to an existing account also requires the administrator's password. Set `ALLOWED_STAFF_EMAIL_DOMAINS` to require official email addresses for those roles.
+* Django's built-in `/admin/` goes through the same two-step staff sign-in.
+* Emails (codes, activation and reset links) use `EMAIL_BACKEND`; in development they are printed in the server console. Configure SMTP for real delivery.
+
 ## Community rewards rules
 
 * Points are awarded only after a confirmed event: a team-verified found report (+10), the item received into custody (+5), the item returned to its verified owner (+25), or a reviewer bonus (+5). Values are configurable under Administration → Rewards & badges.
@@ -137,7 +151,7 @@ python manage.py test lostfound            # against PostgreSQL (recommended)
 set DB_BACKEND=sqlite && python manage.py test lostfound   # fallback; 3 PostgreSQL-only tests skip
 ```
 
-Latest results (Oct 2026): 137 tests; locally on SQLite 134 pass and the 3 PostgreSQL-only tests skip. GitHub Actions runs the suite on PostgreSQL 16 for every push; check the Actions tab for the latest result. The workflow runs on every push (`.github/workflows/ci.yml`).
+Latest results (Oct 2026): 150 tests; locally on SQLite 147 pass and the 3 PostgreSQL-only tests skip. GitHub Actions runs the suite on PostgreSQL 16 for every push; check the Actions tab for the latest result. The workflow runs on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 

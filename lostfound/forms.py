@@ -29,6 +29,14 @@ class RegistrationForm(UserCreationForm):
         model = User
         fields = ("username", "first_name", "last_name", "email")
 
+    def __init__(self, *args, portal=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.portal = portal
+        if portal:
+            # The portal decides the account type; it can't be changed from the form.
+            del self.fields["member_type"]
+            self.fields["department"].label = "Department or course" if portal == "student" else "Department"
+
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         domains = settings.ALLOWED_EMAIL_DOMAINS
@@ -43,7 +51,7 @@ class RegistrationForm(UserCreationForm):
         user.email = self.cleaned_data["email"]
         if commit:
             user.save()
-            UserProfile.objects.create(user=user, member_type=self.cleaned_data["member_type"],
+            UserProfile.objects.create(user=user, member_type=self.portal or self.cleaned_data["member_type"],
                                        department=self.cleaned_data.get("department", ""))
             user.groups.add(Group.objects.get(name=roles.MEMBERS))
         return user
@@ -329,6 +337,9 @@ class UserRolesForm(forms.Form):
     roles = forms.MultipleChoiceField(choices=[(r, r) for r in roles.ROLE_PERMISSIONS], required=False,
                                       widget=forms.CheckboxSelectMultiple)
     is_active = forms.BooleanField(required=False, label="Account active")
+    confirm_password = forms.CharField(
+        required=False, label="Your password", widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+        help_text="Required when granting Lost & Found team or administrator access.")
 
 
 # --- Staff sign-in ---------------------------------------------------------------
@@ -429,11 +440,17 @@ class UserDetailsForm(forms.Form):
 
 
 class AdminCreateUserForm(UserDetailsForm):
+    """Creates an inactive account with no usable password. The person activates it
+    from a one-time link sent to their own email and chooses their own password."""
     username = forms.CharField(max_length=150, help_text="Letters, digits and @/./+/-/_ only.")
     roles = forms.MultipleChoiceField(choices=[(r, r) for r in roles.ROLE_PERMISSIONS], required=False,
                                       widget=forms.CheckboxSelectMultiple, initial=[roles.MEMBERS])
-    password1 = forms.CharField(label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
-    password2 = forms.CharField(label="Repeat temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    confirm_password = forms.CharField(label="Your password (to confirm it's you)",
+                                       widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))
+
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actor = actor
 
     def clean_username(self):
         name = self.cleaned_data["username"].strip()
@@ -443,23 +460,74 @@ class AdminCreateUserForm(UserDetailsForm):
             raise ValidationError("That username is taken.")
         return name
 
+    def clean_confirm_password(self):
+        pw = self.cleaned_data["confirm_password"]
+        if self.actor is None or not self.actor.check_password(pw):
+            raise ValidationError("Your password is incorrect.")
+        return pw
+
     def clean(self):
         cleaned = super().clean()
-        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
-        if p1 and p2 and p1 != p2:
-            self.add_error("password2", "The two passwords don't match.")
-        elif p1:
-            from django.contrib.auth.password_validation import validate_password
+        if cleaned.get("email"):
             try:
-                validate_password(p1, User(username=cleaned.get("username", ""), email=cleaned.get("email", "")))
+                check_staff_email(cleaned["email"], cleaned.get("roles", []))
             except ValidationError as exc:
-                self.add_error("password1", exc)
+                self.add_error("email", exc)
         return cleaned
 
     def save(self):
         data = self.cleaned_data
-        user = User.objects.create_user(data["username"], data["email"], data["password1"],
+        user = User.objects.create_user(data["username"], data["email"], None,
                                         first_name=data["first_name"], last_name=data.get("last_name", ""))
+        user.set_unusable_password()
+        user.is_active = False
+        user.save()
         UserProfile.objects.create(user=user, member_type=data["member_type"], department=data.get("department", ""))
         user.groups.set(Group.objects.filter(name__in=set(data["roles"]) | {roles.MEMBERS}))
         return user
+
+
+# --- Student / teacher portals -----------------------------------------------------
+
+class PortalLoginForm(RateLimitedLoginForm):
+    """Sign-in for one portal: a student account can't use the teacher portal and vice versa."""
+    portal = None
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        member_type = getattr(getattr(user, "profile", None), "member_type", None)
+        if self.portal and member_type != self.portal:
+            here = "student" if self.portal == UserProfile.MemberType.STUDENT else "teacher"
+            other = "teacher" if here == "student" else "student"
+            raise ValidationError(f"This is the {here} sign-in. Your account is registered as a "
+                                  f"{other}; please use the {other} sign-in.", code="wrong_portal")
+
+
+class StudentLoginForm(PortalLoginForm):
+    portal = UserProfile.MemberType.STUDENT
+
+
+class TeacherLoginForm(PortalLoginForm):
+    portal = UserProfile.MemberType.STAFF
+
+
+class StaffCodeForm(forms.Form):
+    code = forms.CharField(max_length=6, min_length=6, label="6-digit code from your email",
+                           widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "one-time-code",
+                                                         "pattern": "[0-9]{6}"}))
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        if not code.isdigit():
+            raise ValidationError("Enter the 6 digits from the email.")
+        return code
+
+
+STAFF_ROLES = (roles.SECURITY, roles.CAMPUS_ADMIN, roles.SYSTEM_ADMIN)
+
+
+def check_staff_email(email, chosen_roles):
+    """Team and administrator accounts may be limited to official email domains."""
+    domains = getattr(settings, "ALLOWED_STAFF_EMAIL_DOMAINS", [])
+    if domains and set(chosen_roles) & set(STAFF_ROLES) and email.rsplit("@", 1)[-1] not in domains:
+        raise ValidationError("Lost & Found team and administrator accounts must use an official campus email address.")

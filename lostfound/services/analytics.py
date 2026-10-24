@@ -9,7 +9,7 @@ Definitions (also shown in the UI):
 import statistics
 from collections import Counter
 
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from ..models import (AuditEntry, Claim, CustodyRecord, DisposalRecord, Handover, Item, MatchSuggestion, Notification,
@@ -63,6 +63,60 @@ def admin_metrics():
         "peak_hour": f"{peak_hour:02d}:00" if peak_hour is not None else None,
         "match_suggestions": MatchSuggestion.objects.count(),
     }
+
+
+def overview_counts():
+    """Administrator overview: report ("complaint") pipeline, claims and registrations,
+    split by students and teachers. All values are database counts."""
+    from django.contrib.auth import get_user_model
+    from .. import roles
+    from ..models import UserProfile
+    User = get_user_model()
+    items = Item.objects.all()
+    active_statuses = [Item.Status.OPEN, Item.Status.IN_CUSTODY, Item.Status.AWAITING_HANDOVER, Item.Status.DISPOSAL_REVIEW]
+    pipeline = items.aggregate(
+        total=Count("pk"),
+        pending=Count("pk", filter=Q(review_status=Item.Review.PENDING)),
+        in_progress=Count("pk", filter=Q(review_status=Item.Review.VERIFIED, status__in=active_statuses)),
+        completed=Count("pk", filter=Q(status=Item.Status.RETURNED)),
+        rejected=Count("pk", filter=Q(review_status=Item.Review.REJECTED)),
+        closed=Count("pk", filter=Q(status__in=[Item.Status.CLOSED, Item.Status.DISPOSED])),
+    )
+    claims = Claim.objects.aggregate(
+        total=Count("pk"),
+        pending=Count("pk", filter=Q(status__in=[Claim.Status.PENDING_VERIFICATION, Claim.Status.UNDER_REVIEW])),
+        approved=Count("pk", filter=Q(status=Claim.Status.APPROVED)),
+        completed=Count("pk", filter=Q(status=Claim.Status.COMPLETED)),
+        rejected=Count("pk", filter=Q(status=Claim.Status.REJECTED)),
+    )
+    since = timezone.now() - timezone.timedelta(days=30)
+    groups = []
+    for value, label in ((UserProfile.MemberType.STUDENT, "Students"), (UserProfile.MemberType.STAFF, "Teachers")):
+        people = User.objects.filter(profile__member_type=value)
+        theirs = items.filter(reporter__profile__member_type=value)
+        groups.append({
+            "label": label, "key": value,
+            "registered": people.count(),
+            "active": people.filter(is_active=True).count(),
+            "new_30d": people.filter(date_joined__gte=since).count(),
+            "lost": theirs.filter(report_type=Item.ReportType.LOST).count(),
+            "found": theirs.filter(report_type=Item.ReportType.FOUND).count(),
+            "pending": theirs.filter(review_status=Item.Review.PENDING).count(),
+            "returned_found": theirs.filter(report_type=Item.ReportType.FOUND, status=Item.Status.RETURNED).count(),
+            "received_back": Claim.objects.filter(claimant__profile__member_type=value,
+                                                  status=Claim.Status.COMPLETED).count(),
+        })
+    accounts = {
+        "total": User.objects.count(),
+        "team": User.objects.filter(groups__name=roles.SECURITY).distinct().count(),
+        "admins": User.objects.filter(Q(groups__name__in=[roles.CAMPUS_ADMIN, roles.SYSTEM_ADMIN]) | Q(is_superuser=True))
+        .distinct().count(),
+        "awaiting_activation": User.objects.filter(is_active=False, password__startswith="!").count(),
+        "inactive": User.objects.filter(is_active=False).count(),
+    }
+    recent_reports = items.select_related("reporter__profile", "category").order_by("-created_at")[:8]
+    return {"pipeline": pipeline, "claims": claims, "groups": groups, "accounts": accounts,
+            "recent_reports": recent_reports}
 
 
 def security_metrics():

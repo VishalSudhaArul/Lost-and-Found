@@ -14,6 +14,12 @@ urlpatterns = [
     # Accounts
     path("accounts/login/", accounts.SignInView.as_view(), name="login"),
     path("staff/login/", accounts.StaffSignInView.as_view(), name="staff_login"),
+    path("staff/login/verify/", accounts.staff_login_verify, name="staff_login_verify"),
+    path("student/login/", accounts.PortalSignInView.as_view(portal="student"), name="student_login"),
+    path("teacher/login/", accounts.PortalSignInView.as_view(portal="staff"), name="teacher_login"),
+    path("student/register/", accounts.register_portal, {"slug": "student"}, name="student_register"),
+    path("teacher/register/", accounts.register_portal, {"slug": "teacher"}, name="teacher_register"),
+    path("accounts/activate/<uidb64>/<token>/", accounts.activate, name="activate"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/register/", accounts.register, name="register"),
     path("accounts/password/", auth_views.PasswordChangeView.as_view(template_name="accounts/password_change.html"),

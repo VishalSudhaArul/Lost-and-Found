@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="--w:760px">
+    <div class="auth-head">
+      <span class="auth-icon">{% icon "user-plus" "icon-lg" %}</span>
+      <h1>Create your account</h1>
+      <p>Students and teachers register separately. Lost &amp; Found team and administrator accounts are created by an administrator.</p>
+    </div>
+    <div class="portal-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))">
+      <a class="portal-card student" href="{% url 'student_register' %}"><span class="portal-icon">{% icon "book" "icon-lg" %}</span><h2>I'm a student</h2><p>Register with your university email.</p><span class="portal-go">Student registration {% icon "arrow-right" %}</span></a>
+      <a class="portal-card teacher" href="{% url 'teacher_register' %}"><span class="portal-icon">{% icon "users" "icon-lg" %}</span><h2>I'm a teacher</h2><p>Faculty and teaching staff.</p><span class="portal-go">Teacher registration {% icon "arrow-right" %}</span></a>
+    </div>
+    <p class="auth-alt">Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+  </div>
+</div>
+{% endblock %}

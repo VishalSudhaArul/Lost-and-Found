@@ -9,7 +9,8 @@ _Last updated: 23 Oct 2026._
 * Checked in a desktop browser and a 375 px phone viewport: no horizontal scrolling; mobile drawer opens and closes with Esc.
 * Migrations apply on PostgreSQL 16 (pg_trgm, GIN indexes, append-only triggers) and on SQLite; `makemigrations --check` is clean.
 * Lost & Found team report review, community points ledger, tiers/badges, opt-out leaderboard, staff sign-in and administrator account management (tests in `tests/test_rewards.py`).
-* Test suite: 137 tests; on SQLite 134 pass + 3 PostgreSQL-only skipped. GitHub Actions runs them on PostgreSQL 16 on every push.
+* Separate student and teacher portals, two-step staff sign-in (password + emailed code), email activation for administrator-created accounts, password re-entry for role escalation, admin overview with complaint pipeline and student/teacher breakdown (tests in `tests/test_portals.py`).
+* Test suite: 150 tests; on SQLite 147 pass + 3 PostgreSQL-only skipped. GitHub Actions runs them on PostgreSQL 16 on every push.
 * `manage.py check --deploy` with production settings: only the optional HSTS-preload warning remains (plus a key warning when using a dummy key).
 * Management commands `refresh_matches`, `check_ageing`, `seed_demo`, `rotate_encryption_keys` run successfully.
 

@@ -2,7 +2,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><span class="eyebrow">{% icon "dashboard" %}My dashboard</span><h1>Welcome back, {{ user.first_name|default:user.username }}</h1><p>Your reports, claims, matches and updates in one place.</p></div>
+  <div><span class="eyebrow">{% if user.profile.member_type == "staff" %}{% icon "users" %}Teacher dashboard{% else %}{% icon "book" %}Student dashboard{% endif %}</span><h1>Welcome back, {{ user.first_name|default:user.username }}</h1><p>Your reports, claims, matches and updates in one place.</p></div>
   <div class="btn-row"><a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost item</a><a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found item</a></div>
 </div>
 

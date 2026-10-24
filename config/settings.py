@@ -168,6 +168,13 @@ else:
 # --- Application settings --------------------------------------------------
 FIELD_ENCRYPTION_KEYS = env_list("FIELD_ENCRYPTION_KEYS")
 ALLOWED_EMAIL_DOMAINS = [d.lower().lstrip("@") for d in env_list("ALLOWED_EMAIL_DOMAINS")]
+# Lost & Found team and administrator accounts can be limited to official domains.
+ALLOWED_STAFF_EMAIL_DOMAINS = [d.lower().lstrip("@") for d in env_list("ALLOWED_STAFF_EMAIL_DOMAINS")]
+# Staff sign-in second step: a one-time code emailed to the account owner.
+STAFF_CODE_TTL_SECONDS = int(env("STAFF_CODE_TTL_SECONDS", "600"))
+STAFF_CODE_MAX_ATTEMPTS = int(env("STAFF_CODE_MAX_ATTEMPTS", "5"))
+# Account-activation and password-reset links expire after this many seconds (3 days).
+PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", str(3 * 24 * 3600)))
 
 
 def _float_or_none(name):

@@ -5,7 +5,7 @@ from django.db import models
 class UserProfile(models.Model):
     class MemberType(models.TextChoices):
         STUDENT = "student", "Student"
-        STAFF = "staff", "Staff"
+        STAFF = "staff", "Teacher"
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     member_type = models.CharField(max_length=10, choices=MemberType.choices, default=MemberType.STUDENT)

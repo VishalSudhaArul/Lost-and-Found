@@ -7,6 +7,7 @@
   <div><h1 class="mb-0">{{ target.get_full_name|default:target.username }}</h1><p>{{ target.username }} · {{ member.get_member_type_display }} · joined {{ target.date_joined|date:"j M Y" }}{% if target.last_login %} · last sign-in {{ target.last_login|date:"j M Y, H:i" }}{% endif %}</p></div></div>
   {% if target.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-bad">Inactive</span>{% endif %}
 </div>
+{% if awaiting_activation %}<div class="notice warn callout">{% icon "mail" %}<div><strong>Waiting for activation</strong><div class="small">This account is locked until its owner opens the activation link sent to {{ target.email }} and chooses a password.</div></div></div>{% endif %}
 <div class="figures">
   <div class="figure"><span class="figure-icon">{% icon "file" "icon-lg" %}</span><div><strong>{{ activity.reports }}</strong><span>Reports</span></div></div>
   <div class="figure"><span class="figure-icon amber">{% icon "clipboard-check" "icon-lg" %}</span><div><strong>{{ activity.claims }}</strong><span>Claims</span></div></div>
@@ -25,12 +26,13 @@
       <h2>{% icon "shield" %} Roles &amp; access</h2>
       <ul class="check-list">{% for choice in form.roles %}<li><label>{{ choice.tag }} <strong>{% if choice.choice_label == "Security Personnel" %}Lost &amp; Found team (Security Personnel){% else %}{{ choice.choice_label }}{% endif %}</strong></label>{% for name, d in descriptions.items %}{% if name == choice.data.value %}<div class="muted small" style="margin-left:1.6rem">{{ d }}</div>{% endif %}{% endfor %}</li>{% endfor %}</ul>
       <div class="field mt-1"><label>{{ form.is_active }} {{ form.is_active.label }}</label><div class="help">Inactive accounts can't sign in. Their reports and history are kept.</div></div>
+      {% field form.confirm_password %}
       <button class="btn btn-primary" type="submit">Save roles</button>
     </form>
-    <form method="post" class="panel" data-confirm="Send a password reset link to {{ target.email }}?">{% csrf_token %}<input type="hidden" name="action" value="reset">
+    <form method="post" class="panel" data-confirm="Send a {% if awaiting_activation %}new activation{% else %}password reset{% endif %} link to {{ target.email }}?">{% csrf_token %}<input type="hidden" name="action" value="reset">
       <h2>{% icon "key" %} Password</h2>
-      <p class="small muted">Administrators never see passwords. Send a one-time reset link to the account's email instead.</p>
-      <button class="btn btn-ghost" type="submit">{% icon "mail" %}Send reset link</button>
+      <p class="small muted">Administrators never see or set passwords. A one-time link goes to the account's own email.</p>
+      <button class="btn btn-ghost" type="submit">{% icon "mail" %}{% if awaiting_activation %}Resend activation link{% else %}Send reset link{% endif %}</button>
     </form>
   </div>
 </div>

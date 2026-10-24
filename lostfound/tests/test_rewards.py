@@ -189,20 +189,21 @@ class StaffAndAccountTests(LFTestCase):
         r = self.client.post(reverse("staff_login"), {"username": "student", "password": "pw-Long-enough-1"})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Lost &amp; Found team and administrators")
-        r = self.client.post(reverse("staff_login"), {"username": "guard", "password": "pw-Long-enough-1"})
-        self.assertRedirects(r, reverse("security_dashboard"))
-        self.client.logout()
-        r = self.client.post(reverse("staff_login"), {"username": "sysadmin", "password": "pw-Long-enough-1"})
-        self.assertRedirects(r, reverse("admin_overview"))
+        self.assertFalse("_auth_user_id" in self.client.session)
 
     def test_admin_creates_team_account_and_edits_details(self):
+        from django.core import mail
         self.client.force_login(self.sysadmin)
-        r = self.client.post(reverse("admin_user_create"), {
-            "first_name": "Nila", "last_name": "R", "email": "nila@uni.test", "member_type": "staff",
-            "department": "Security", "username": "nila", "roles": [roles.SECURITY],
-            "password1": "Temp-pass-2026!", "password2": "Temp-pass-2026!"})
+        data = {"first_name": "Nila", "last_name": "R", "email": "nila@uni.test", "member_type": "staff",
+                "department": "Security", "username": "nila", "roles": [roles.SECURITY]}
+        r = self.client.post(reverse("admin_user_create"), {**data, "confirm_password": "wrong"})
+        self.assertFalse(User.objects.filter(username="nila").exists())
+        r = self.client.post(reverse("admin_user_create"), {**data, "confirm_password": "pw-Long-enough-1"})
         user = User.objects.get(username="nila")
         self.assertRedirects(r, reverse("admin_user_edit", args=[user.pk]))
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.has_usable_password())
+        self.assertIn("/accounts/activate/", mail.outbox[-1].body)
         self.assertTrue(user.groups.filter(name=roles.SECURITY).exists())
         self.assertTrue(user.groups.filter(name=roles.MEMBERS).exists())
         r = self.client.post(reverse("admin_user_edit", args=[user.pk]), {

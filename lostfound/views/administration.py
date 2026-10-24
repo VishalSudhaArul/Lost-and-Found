@@ -30,7 +30,8 @@ def overview(request):
     cfg = OperationalSettings.load()
     return render(request, "administration/overview.html", {
         "cfg": cfg, "category_count": ItemCategory.objects.count(), "location_count": Location.objects.count(),
-        "user_count": User.objects.count(), "metrics": analytics.admin_metrics() if request.user.has_perm("lostfound.view_analytics") else None})
+        "user_count": User.objects.count(), "counts": analytics.overview_counts(),
+        "metrics": analytics.admin_metrics() if request.user.has_perm("lostfound.view_analytics") else None})
 
 
 def _save_form(request, form, label, action):
@@ -130,15 +131,33 @@ def users(request):
         "total": User.objects.count(), "querystring": f"tab={tab}&q={q}"})
 
 
+def send_activation(request, user):
+    """Email a one-time activation link to the account's own address."""
+    from django.conf import settings as dj_settings
+    from django.contrib.auth.tokens import default_token_generator
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+    staff_roles = [g for g in user.groups.values_list("name", flat=True) if g != roles.MEMBERS]
+    body = render_to_string("accounts/activation_email.txt", {
+        "user": user, "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+        "token": default_token_generator.make_token(user), "protocol": "https" if request.is_secure() else "http",
+        "domain": request.get_host(), "roles": ", ".join(staff_roles),
+        "days": max(1, dj_settings.PASSWORD_RESET_TIMEOUT // 86400)})
+    send_mail("Activate your Campus Lost & Found account", body, None, [user.email])
+
+
 @perm_required("manage_users")
 def user_create(request):
-    form = AdminCreateUserForm(request.POST or None)
+    form = AdminCreateUserForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        audit.record(request.user, "users.created", f"Account {user.username} created by an administrator",
+        send_activation(request, user)
+        audit.record(request.user, "users.created", f"Account {user.username} created; activation link emailed",
                      target=user, request=request, roles=sorted(form.cleaned_data["roles"]))
-        messages.success(request, f"Account {user.username} created. Share the temporary password privately "
-                                  f"and ask them to change it after signing in.")
+        messages.success(request, f"Account {user.username} created and locked. An activation link was sent to "
+                                  f"{user.email}; the account works only after they open it and choose a password.")
         return redirect("admin_user_edit", pk=user.pk)
     return render(request, "administration/user_create.html", {"form": form, "descriptions": roles.ROLE_DESCRIPTIONS})
 
@@ -154,11 +173,25 @@ def user_edit(request, pk):
         "first_name": target.first_name, "last_name": target.last_name, "email": target.email,
         "member_type": member.member_type, "department": member.department})
     if action == "roles" and roles_form.is_valid():
+        from ..forms import STAFF_ROLES, check_staff_email
+        from django.core.exceptions import ValidationError
         new_roles = set(roles_form.cleaned_data["roles"])
+        current = set(target.groups.values_list("name", flat=True))
+        granting_staff = bool((new_roles - current) & set(STAFF_ROLES))
         removing_self = target.pk == request.user.pk and (
             roles.SYSTEM_ADMIN not in new_roles or not roles_form.cleaned_data["is_active"])
+        email_problem = None
+        if granting_staff:
+            try:
+                check_staff_email(target.email or "", new_roles)
+            except ValidationError as exc:
+                email_problem = exc.messages[0]
         if removing_self and not request.user.is_superuser:
             messages.error(request, "You cannot remove your own administrator access or deactivate yourself.")
+        elif granting_staff and not request.user.check_password(roles_form.cleaned_data.get("confirm_password") or ""):
+            messages.error(request, "Enter your own password to grant Lost & Found team or administrator access.")
+        elif granting_staff and email_problem:
+            messages.error(request, email_problem)
         else:
             target.groups.set(Group.objects.filter(name__in=new_roles))
             target.is_active = roles_form.cleaned_data["is_active"]
@@ -176,6 +209,12 @@ def user_edit(request, pk):
         audit.record(request.user, "users.details_changed", f"Details for {target.username} updated", target=target,
                      request=request, fields=sorted(details_form.changed_data))
         messages.success(request, f"Details for {target.username} saved.")
+        return redirect("admin_user_edit", pk=target.pk)
+    elif action == "reset" and not target.is_active and not target.has_usable_password() and target.email:
+        send_activation(request, target)
+        audit.record(request.user, "users.activation_resent", f"Activation link re-sent to {target.username}",
+                     target=target, request=request)
+        messages.success(request, f"A new activation link was sent to {target.email}.")
         return redirect("admin_user_edit", pk=target.pk)
     elif action == "reset":
         from django.contrib.auth.forms import PasswordResetForm
@@ -196,6 +235,7 @@ def user_edit(request, pk):
         "points": rewards.summary(target)["balance"],
     }
     return render(request, "administration/user_edit.html", {
+        "awaiting_activation": not target.is_active and not target.has_usable_password(),
         "target": target, "member": member, "form": roles_form, "details_form": details_form,
         "descriptions": roles.ROLE_DESCRIPTIONS, "activity": activity})
 

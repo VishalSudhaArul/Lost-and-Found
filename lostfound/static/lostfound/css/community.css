@@ -171,3 +171,48 @@
 .staff-entry .auth-icon { background: rgba(255,255,255,.1); color: var(--amber); }
 .staff-entry .panel { color: var(--text); margin-bottom: 0; }
 .staff-entry .auth-alt, .staff-entry .auth-alt a { color: #c7cfdf; }
+
+/* Portals: student, teacher, staff */
+.portal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; margin-top: .5rem; }
+.portal-card { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: .55rem; padding: 1.5rem; border-radius: var(--radius-l);
+  text-decoration: none; color: var(--text); border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow-s);
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s; }
+.portal-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-l); color: var(--text); }
+.portal-card h2 { margin: .3rem 0 0; font-size: 1.3rem; }
+.portal-card p { margin: 0; color: var(--muted); font-size: .9rem; }
+.portal-icon { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; }
+.portal-go { display: inline-flex; align-items: center; gap: .35rem; margin-top: auto; padding-top: .6rem; font-weight: 700; font-size: .9rem; }
+.portal-card.student { background: linear-gradient(160deg, #eef2ff, #fff 70%); border-color: #c7d2fe; }
+.portal-card.student .portal-icon { background: var(--indigo); color: #fff; }
+.portal-card.student .portal-go { color: var(--indigo); }
+.portal-card.teacher { background: linear-gradient(160deg, #e9f7ee, #fff 70%); border-color: #bfe5cc; }
+.portal-card.teacher .portal-icon { background: var(--ok); color: #fff; }
+.portal-card.teacher .portal-go { color: var(--ok); }
+.portal-card.staff { background: var(--navy); border-color: var(--navy); color: #fff; }
+.portal-card.staff h2 { color: #fff; }
+.portal-card.staff p { color: #c7cfdf; }
+.portal-card.staff .portal-icon { background: rgba(255,255,255,.1); color: var(--amber); }
+.portal-card.staff .portal-go { color: var(--amber); }
+@media (max-width: 860px) { .portal-grid { grid-template-columns: minmax(0, 1fr); } }
+.portal-switch { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); margin: 0 auto 1.25rem; width: max-content; max-width: 100%; }
+.portal-switch a { display: inline-flex; align-items: center; gap: .45rem; padding: .5rem 1.1rem; border-radius: 9px; font-weight: 650; font-size: .9rem; color: var(--text-2); text-decoration: none; }
+.portal-switch a[aria-current="page"] { background: #fff; box-shadow: var(--shadow-s); color: var(--text); }
+.portal-teacher .auth-icon { background: var(--ok-wash); color: var(--ok); }
+.portal-teacher .btn-primary { background: var(--ok); border-color: var(--ok); }
+.portal-teacher .btn-primary:hover { background: #116432; border-color: #116432; }
+.portal-teacher .portal-switch a[aria-current="page"] { color: var(--ok); }
+.portal-student .portal-switch a[aria-current="page"] { color: var(--indigo); }
+
+/* Admin: complaint pipeline */
+.pipeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin-bottom: 1.5rem; }
+.pipeline a, .pipeline div { position: relative; display: block; padding: 1rem 1.1rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: inherit; box-shadow: var(--shadow-s); }
+.pipeline a:hover { border-color: var(--line-2); box-shadow: var(--shadow-m); }
+.pipeline strong { display: block; font-size: 1.8rem; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
+.pipeline span { font-size: .84rem; color: var(--muted); font-weight: 600; }
+.pipeline .total { background: var(--navy); color: #fff; border-color: var(--navy); }
+.pipeline .total span { color: #c7cfdf; }
+.pipeline .pending strong { color: var(--amber-ink); }
+.pipeline .progress-step strong { color: var(--indigo); }
+.pipeline .done strong { color: var(--ok); }
+.pipeline .rejected strong { color: var(--bad); }
+@media (max-width: 1000px) { .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pipeline .total { grid-column: 1 / -1; } }

@@ -6,6 +6,11 @@ from django.urls import include, path
 admin.site.site_header = "Campus Lost & Found administration"
 admin.site.site_title = "Lost & Found admin"
 
+# The built-in admin has no separate sign-in: it goes through the two-step staff sign-in.
+from lostfound.views.accounts import admin_site_login  # noqa: E402
+
+admin.site.login = admin_site_login
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("lostfound.urls")),
