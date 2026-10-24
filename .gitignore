@@ -62,3 +62,6 @@ private_media/
 # Test/coverage artefacts
 .coverage
 htmlcov/
+
+# Local editor/tool settings
+.claude/
