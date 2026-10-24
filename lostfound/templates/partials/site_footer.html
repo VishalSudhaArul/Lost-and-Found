@@ -3,37 +3,39 @@
   <div class="site-footer-inner">
     <div>
       <a class="brand" href="{% url 'home' %}"><span class="brand-mark" aria-hidden="true"></span><span>Campus Lost &amp; Found</span></a>
-      <p>A shared board for items lost and handed in on campus. Ownership is verified and every return is supervised by campus security.</p>
+      <p>A campus community where lost belongings find their way home. Ownership is verified, every return is supervised by the Lost &amp; Found team, and honest finders are recognised.</p>
     </div>
     <div>
       <h3>Use the service</h3>
       <ul>
-        <li><a href="{% url 'board' %}">Browse the board</a></li>
+        <li><a href="{% url 'board' %}">Browse items</a></li>
         <li><a href="{% url 'login' %}?next={% url 'report_item' 'lost' %}">Report a lost item</a></li>
         <li><a href="{% url 'login' %}?next={% url 'report_item' 'found' %}">Report a found item</a></li>
-        <li><a href="{% url 'home' %}#how-it-works">How it works</a></li>
+        <li><a href="{% url 'home' %}#guidance">Reporting guidance</a></li>
+        <li><a href="{% url 'rewards' %}">Community rewards</a></li>
       </ul>
     </div>
     <div>
-      <h3>Privacy</h3>
+      <h3>Privacy &amp; safety</h3>
       <ul>
         <li><a href="{% url 'home' %}#privacy">What we publish</a></li>
-        <li><a href="{% url 'home' %}#privacy">How claims are checked</a></li>
-        <li><a href="{% url 'home' %}#guidance">Usage guidance</a></li>
+        <li><a href="{% url 'home' %}#how-it-works">How returns are verified</a></li>
+        <li><a href="{% url 'rewards' %}">How points work</a></li>
       </ul>
     </div>
     <div>
-      <h3>Help</h3>
+      <h3>Account &amp; help</h3>
       <ul>
         <li><a href="{% url 'login' %}">Sign in</a></li>
         <li><a href="{% url 'register' %}">Create an account</a></li>
         <li><a href="{% url 'password_reset' %}">Reset your password</a></li>
+        <li><a href="{% url 'staff_login' %}">Staff sign-in</a></li>
       </ul>
-      <p class="small">For urgent matters, contact your campus security office in person.</p>
+      <p class="small">Need help? Visit your campus security office in person.</p>
     </div>
   </div>
   <div class="site-footer-bottom">
     <span>Campus Lost &amp; Found · EduRev P09 (Track P: Django + PostgreSQL)</span>
-    <span>Identifying details of found items are never shown publicly.</span>
+    <span>Identifying details of found items are never shown publicly. Community points are recognition only, not cash.</span>
   </div>
 </footer>

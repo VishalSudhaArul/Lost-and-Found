@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Points ledger{% endblock %}
+{% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_rewards' %}">Rewards &amp; badges</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Points ledger</span></nav>
+<div class="page-head"><div><h1>Points ledger</h1><p>Every award and correction. Entries are never edited or deleted; a reversal adds a new negative entry with your reason.</p></div></div>
+<form method="get" class="toolbar" role="search">
+  <div class="btn-row">
+    <div class="input-icon" style="min-width:260px">{% icon "search" %}<label class="visually-hidden" for="lq">Search ledger</label><input type="search" id="lq" name="q" value="{{ q }}" placeholder="Username, reason or reference"></div>
+    <label class="visually-hidden" for="lc">Category</label><select id="lc" name="category" style="width:auto"><option value="">All categories</option>{% for v, l in categories %}<option value="{{ v }}" {% if category == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <button class="btn btn-ghost btn-small" type="submit">Filter</button>
+  </div>
+</form>
+{% if page.object_list %}
+<div class="panel table-wrap"><table>
+  <thead><tr><th>When</th><th>Member</th><th>Activity</th><th>Authorised by</th><th>Points</th><th><span class="visually-hidden">Correct</span></th></tr></thead>
+  <tbody>{% for e in page %}<tr>
+    <td class="nowrap small">{{ e.created_at|date:"j M Y, H:i" }}</td>
+    <td><a href="{% url 'admin_user_edit' e.user_id %}">{{ e.user.username }}</a></td>
+    <td>{{ e.reason }}<div class="muted small">{{ e.get_category_display }} · <span class="mono">{{ e.reference }}</span></div></td>
+    <td class="small">{% if e.awarded_by %}{{ e.awarded_by.username }}{% else %}<span class="muted">System event</span>{% endif %}</td>
+    <td class="mono" style="font-weight:700;color:{% if e.points > 0 %}var(--ok){% else %}var(--bad){% endif %}">{% if e.points > 0 %}+{% endif %}{{ e.points }}</td>
+    <td>{% if e.points > 0 and e.category != "correction" %}{% if e.is_reversed %}<span class="badge">Reversed</span>{% else %}
+      <details data-dropdown style="position:relative"><summary class="btn btn-ghost btn-small">Reverse</summary>
+        <form method="post" class="dropdown" style="padding:.8rem" data-confirm="Reverse {{ e.points }} points for {{ e.user.username }}?">{% csrf_token %}<input type="hidden" name="entry" value="{{ e.pk }}">
+          <div class="field"><label for="r{{ e.pk }}">Reason</label><input id="r{{ e.pk }}" type="text" name="reason" minlength="5" maxlength="180" required></div>
+          <button class="btn btn-danger btn-small" type="submit">Record correction</button></form></details>{% endif %}{% endif %}</td>
+  </tr>{% endfor %}</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% else %}<div class="panel empty"><span class="empty-icon">{% icon "coins" "icon-lg" %}</span><h3>No ledger entries</h3><p>Points appear here when reports are verified, items are handed in and returns complete.</p></div>{% endif %}
+{% endblock %}

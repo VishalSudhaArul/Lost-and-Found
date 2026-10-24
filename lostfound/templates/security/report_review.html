@@ -1,0 +1,68 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Review {{ item.reference }}{% endblock %}
+{% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_reports' %}">Report review</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ item.reference }}</span></nav>
+<div class="page-head">
+  <div><div class="btn-row mb-1">{% badge item.report_type item.get_report_type_display %}{% badge item.status item.get_status_display %}<span class="mono muted small">{{ item.reference }}</span></div><h1>{{ item.title }}</h1></div>
+  {% if item.review_status == "verified" %}<span class="badge badge-ok">Verified</span>{% elif item.review_status == "rejected" %}<span class="badge badge-bad">Rejected</span>{% else %}<span class="badge badge-warn">Awaiting review</span>{% endif %}
+</div>
+<div class="split">
+  <div>
+    <section class="panel">
+      <div class="photo-frame">{% if item.photo %}<img src="{{ item.photo.url }}" alt="Photo of {{ item.title }}">{% else %}<div class="placeholder"><span class="ph-icon">{% icon item.category|category_icon %}</span><span>No photo provided</span></div>{% endif %}</div>
+      <h2>Public description</h2>
+      <p>{{ item.description|linebreaksbr }}</p>
+      <dl class="facts mt-2">
+        <dt>{% icon "user" %}Reported by</dt><dd>{{ item.reporter.get_full_name|default:item.reporter.username }} ({{ item.reporter.email }})</dd>
+        <dt>{% icon "tag" %}Category</dt><dd>{{ item.category }}</dd>
+        <dt>{% icon "pin" %}Location</dt><dd>{{ item.location }}{% if item.location_note %} ({{ item.location_note }}){% endif %}</dd>
+        <dt>{% icon "calendar" %}{% if item.is_found %}Found{% else %}Lost{% endif %}</dt><dd>{{ item.occurred_at|date:"j M Y, H:i" }}</dd>
+        {% for label, value in item.public_attributes %}<dt>{% icon "info" %}{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+        <dt>{% icon "clock" %}Submitted</dt><dd>{{ item.created_at|date:"j M Y, H:i" }}</dd>
+        {% if item.is_found %}<dt>{% icon "lock" %}Private details</dt><dd>{{ private_count }} recorded (shown only during claim review)</dd>{% endif %}
+        <dt>{% icon "link" %}Match suggestions</dt><dd>{{ match_count }}</dd>
+      </dl>
+    </section>
+    {% if duplicates %}
+    <section class="panel notice warn">
+      <h3>{% icon "alert" %} Possible duplicates by the same reporter</h3>
+      <ul class="rows">{% for d in duplicates %}<li><a href="{% url 'security_report' d.pk %}">{{ d.reference }} · {{ d.title }}</a><span class="small">{{ d.created_at|date:"j M, H:i" }} · {{ d.get_review_status_display }}</span></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+  </div>
+  <aside>
+    <div class="panel">
+      <h3>Review checklist</h3>
+      <ul class="checks small">
+        <li>{% icon "check" %}<span>The description is general and contains no serial codes, contents or other proof of ownership.</span></li>
+        <li>{% icon "check" %}<span>Category, place and time look plausible for campus.</span></li>
+        <li>{% icon "check" %}<span>It isn't a duplicate or a test/joke report.</span></li>
+        {% if item.is_found %}<li>{% icon "check" %}<span>At least one private detail was recorded for ownership checks.</span></li>{% endif %}
+      </ul>
+    </div>
+    {% if own_report %}
+    <p class="notice bad callout small">{% icon "alert" %}<span>This is your own report. Another team member must review it.</span></p>
+    {% elif item.review_status == "pending" %}
+    <form method="post" action="{% url 'security_report_verify' item.pk %}" class="panel">{% csrf_token %}
+      <h2>{% icon "check-circle" %} Verify</h2>
+      {% field verify_form.note %}
+      {% if item.is_found %}{% field verify_form.quality_bonus %}{% endif %}
+      <button class="btn btn-primary btn-block" type="submit">Verify report</button>
+      {% if item.is_found %}<p class="small muted mt-1 mb-0">The finder receives Community Points for a verified found report.</p>{% endif %}
+    </form>
+    <form method="post" action="{% url 'security_report_reject' item.pk %}" class="panel" data-confirm="Reject {{ item.reference }}? It will be hidden from the board.">{% csrf_token %}
+      <h2>{% icon "x-circle" %} Reject</h2>
+      {% field reject_form.reason %}
+      <button class="btn btn-danger btn-block" type="submit">Reject and hide</button>
+    </form>
+    {% else %}
+    <div class="panel">
+      <h3>Review outcome</h3>
+      <p class="small">{{ item.get_review_status_display }} by {{ item.reviewed_by.get_full_name|default:item.reviewed_by.username }} on {{ item.reviewed_at|date:"j M Y, H:i" }}.</p>
+      {% if item.review_note %}<p class="small muted">“{{ item.review_note }}”</p>{% endif %}
+      {% if item.is_found and nav.manage_custody %}<a class="btn btn-ghost btn-small" href="{% url 'security_item' item.pk %}">{% icon "package" %}Open custody record</a>{% endif %}
+    </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

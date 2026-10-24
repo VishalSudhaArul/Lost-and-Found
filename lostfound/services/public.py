@@ -15,7 +15,7 @@ from ..models import Item, ItemCategory, Location
 
 PUBLIC_VALUES = (
     "id", "report_type", "title", "description", "occurred_at", "status", "photo", "attributes",
-    "created_at", "category__name", "category__parent__name", "location__full_path",
+    "created_at", "category__name", "category__parent__name", "location__full_path", "review_status",
 )
 
 
@@ -34,6 +34,7 @@ class PublicItem:
     photo_url: str
     attributes: dict
     created_at: object
+    verified: bool = False
 
     @property
     def is_found(self):
@@ -41,6 +42,7 @@ class PublicItem:
 
     def as_json(self):
         data = asdict(self)
+        data.pop("verified", None)  # the public API keeps its documented field list
         data["occurred_at"] = self.occurred_at.isoformat()
         data["created_at"] = self.created_at.isoformat()
         return data
@@ -56,6 +58,7 @@ def _to_public(row):
         occurred_at=row["occurred_at"], status=row["status"], status_label=Item.Status(row["status"]).label,
         photo_url=default_storage.url(row["photo"]) if row["photo"] else "",
         attributes={str(k): str(v) for k, v in (row["attributes"] or {}).items() if v}, created_at=row["created_at"],
+        verified=row["review_status"] == Item.Review.VERIFIED,
     )
 
 

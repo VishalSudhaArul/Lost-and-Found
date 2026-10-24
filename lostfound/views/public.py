@@ -14,14 +14,24 @@ def home(request):
     recent = public.to_public_items(public.board_queryset({})[:8])
     # Live counts from the database. Sample rows created by `seed_demo` are labelled
     # "[Sample]", so the page says when the figures include demo data.
+    from ..models import AchievementBadge
+    from ..services import rewards
+    reported = Item.objects.exclude(review_status=Item.Review.REJECTED)
     stats = {
+        "reported": reported.count(),
         "open_found": Item.objects.found().publicly_listed().count(),
         "open_lost": Item.objects.lost().publicly_listed().count(),
         "returned": Item.objects.found().filter(status=Item.Status.RETURNED).count(),
+        "contributors": rewards.community_stats()["contributors"],
         "includes_sample": Item.objects.filter(title__startswith="[Sample]").exists(),
     }
+    policy = rewards.policy()
     return render(request, "public/home.html", {
-        "recent": recent, "preview": recent[:4], "stats": stats, **public.filter_options()})
+        "recent": recent, "preview": recent[:3], "stats": stats, "policy": policy,
+        "tiers": AchievementBadge.objects.filter(kind=AchievementBadge.Kind.TIER, is_active=True)[:4],
+        # Names on the leaderboard are shown to signed-in members only.
+        "leaders": rewards.leaderboard(limit=3) if request.user.is_authenticated else [],
+        **public.filter_options()})
 
 
 def _board_page(request):

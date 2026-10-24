@@ -9,3 +9,5 @@ from .claims import Claim, VerificationChallenge, VerificationAttempt  # noqa: F
 from .custody import CustodyRecord, Handover, DisposalRecord  # noqa: F401
 from .audit import AuditEntry, Notification  # noqa: F401
 from .roles import RolePermissions  # noqa: F401
+from .rewards import (AchievementBadge, PointsLedgerEntry, RewardPolicy, UserBadge,  # noqa: F401
+                      UserRewardProfile)

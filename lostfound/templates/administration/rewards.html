@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Rewards &amp; badges{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "award" %}Administration</span><h1>Rewards &amp; badges</h1><p>Points policy, achievement tiers, badges and the leaderboard. Changes apply to future awards only.</p></div>
+  <a class="btn btn-ghost" href="{% url 'admin_rewards_ledger' %}">{% icon "clipboard-list" %}Points ledger ({{ entry_count }})</a>
+</div>
+<div class="figures">
+  <div class="figure"><span class="figure-icon green">{% icon "coins" "icon-lg" %}</span><div><strong>{{ totals.awarded|default:0 }}</strong><span>Points awarded</span></div></div>
+  <div class="figure"><span class="figure-icon red">{% icon "history" "icon-lg" %}</span><div><strong>{{ totals.corrected|default:0 }}</strong><span>Points corrected</span></div></div>
+  <div class="figure"><span class="figure-icon">{% icon "clipboard-list" "icon-lg" %}</span><div><strong>{{ entry_count }}</strong><span>Ledger entries</span></div></div>
+</div>
+<div class="grid grid-2">
+  <form method="post" class="panel" novalidate>{% csrf_token %}<input type="hidden" name="action" value="policy">
+    <h2>{% icon "sliders" %} Points policy</h2>
+    {% field policy_form.rewards_enabled %}
+    <div class="form-row">{% field policy_form.points_found_report %}{% field policy_form.points_custody %}{% field policy_form.points_return %}{% field policy_form.points_quality_bonus %}</div>
+    {% field policy_form.max_community_award %}
+    <h3 class="mt-1">Leaderboard</h3>
+    {% field policy_form.leaderboard_enabled %}{% field policy_form.leaderboard_period_days %}
+    <button class="btn btn-primary" type="submit">Save policy</button>
+  </form>
+  <div>
+    <form method="post" class="panel" novalidate>{% csrf_token %}<input type="hidden" name="action" value="award">
+      <h2>{% icon "users" %} Award a community contribution</h2>
+      <p class="small muted">For approved activities outside the normal flow, such as an awareness campaign. Recorded in the ledger and audit log with your name.</p>
+      {% field award_form.username %}{% field award_form.points %}{% field award_form.reason %}
+      <button class="btn btn-found" type="submit">Record award</button>
+    </form>
+    <section class="panel">
+      <div class="panel-head"><h2>{% icon "trophy" %} Current leaders</h2></div>
+      {% if leaders %}<ol class="leader-list">{% for r in leaders %}<li><span class="rank{% if r.rank <= 3 %} r{{ r.rank }}{% endif %}">{{ r.rank }}</span><span class="who"><strong>{{ r.name }}</strong></span><span class="small muted">{{ r.returns }} returns</span><span class="pts">{{ r.points }}</span></li>{% endfor %}</ol>
+      {% else %}<p class="muted small">No points in the current period.</p>{% endif %}
+    </section>
+  </div>
+</div>
+<section class="panel panel-flush">
+  <div class="panel-head"><h2>{% icon "star" %} Tiers &amp; badges</h2></div>
+  <div class="table-wrap mt-1"><table>
+    <thead><tr><th>Badge</th><th>Type</th><th>Earned when</th><th>Holders</th><th>Status</th><th><span class="visually-hidden">Edit</span></th></tr></thead>
+    <tbody>{% for b in badges %}<tr>
+      <td><div style="display:flex;gap:.7rem;align-items:center">{% include "partials/points_badge.html" with badge=b size="sm" %}<div><strong>{{ b.name }}</strong><div class="muted small">{{ b.description }}</div></div></div></td>
+      <td>{{ b.get_kind_display }}</td><td class="small">{{ b.threshold }} × {{ b.get_metric_display|lower }}</td><td>{{ b.holders_count }}</td>
+      <td>{% if b.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge">Off</span>{% endif %}</td>
+      <td><a class="btn btn-ghost btn-small" href="{% url 'admin_badge_edit' b.pk %}">{% icon "edit" %}Edit</a></td>
+    </tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}

@@ -1,71 +1,154 @@
 {% extends "base.html" %}{% load lf %}
-{% block title %}Lost something on campus?{% endblock %}
+{% block title %}Lost something on campus? Let's bring it home{% endblock %}
 {% block content %}
+{# B. Hero #}
 <section class="hero" aria-labelledby="hero-title">
   <div>
-    <span class="eyebrow">{% icon "shield" %}Campus lost &amp; found service</span>
-    <h1 id="hero-title">Lost something on campus? <em>Let's get it back to you.</em></h1>
-    <p class="lede">Students and staff report lost and found items in one place. We suggest likely matches, the owner proves the item is theirs, and campus security supervises every return.</p>
-    <form class="hero-search" method="get" action="{% url 'board' %}" role="search">
-      <div class="input-icon">{% icon "search" %}<label class="visually-hidden" for="home-q">Search items</label><input type="search" id="home-q" name="q" placeholder="Try “black backpack” or “water bottle”"></div>
-      <label class="visually-hidden" for="home-cat">Category</label>
-      <select id="home-cat" name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select>
-      <button class="btn btn-primary" type="submit">Search</button>
-    </form>
-    {% if categories %}<div class="chips" aria-label="Browse by category">{% for c in categories|slice:":6" %}<a class="chip" href="{% url 'board' %}?category={{ c.pk }}">{% icon c.name|category_icon %}{{ c.name }}</a>{% endfor %}</div>{% endif %}
-    <div class="btn-row hero-actions">
-      <a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost item</a>
-      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found item</a>
-      <a class="btn btn-quiet" href="{% url 'board' %}">Browse the board {% icon "arrow-right" %}</a>
+    <span class="eyebrow">{% icon "heart" %}Lost something important? There's still hope.</span>
+    <h1 id="hero-title">Lost something on campus? <em>Let's bring it home.</em></h1>
+    <p class="lede">From a forgotten water bottle to something deeply personal, we're here to help you reconnect with what matters. Search campus reports, find possible matches, and recover your belongings through a safe, verified process.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="{% url 'board' %}?type=found">{% icon "search" %}Find my item</a>
+      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "package" %}I found something</a>
     </div>
+    <p class="trust-line">{% icon "shield" %}Built on community kindness. Protected by ownership verification.</p>
   </div>
-  <aside class="hero-panel" aria-labelledby="latest-title">
-    <div class="hero-panel-head"><h2 id="latest-title"><span class="live-dot" aria-hidden="true"></span>Latest on the board</h2><a class="small" href="{% url 'board' %}">View all</a></div>
-    {% if preview %}<ul class="item-rows">{% for item in preview %}{% include "partials/item_row.html" %}{% endfor %}</ul>
-    {% else %}<div class="empty"><span class="empty-icon">{% icon "inbox" "icon-lg" %}</span><p>Nothing has been reported yet.</p></div>{% endif %}
-    <div class="stats-strip small" style="padding:.75rem .2rem .6rem;border-top:1px solid var(--line)">
-      <span><strong>{{ stats.open_found }}</strong>found, awaiting owners</span>
-      <span><strong>{{ stats.open_lost }}</strong>open lost reports</span>
-      <span><strong>{{ stats.returned }}</strong>returned</span>
+  <aside class="reunite" aria-labelledby="latest-title">
+    <div class="reunite-path" aria-hidden="true">
+      <div class="reunite-node"><span style="color:var(--bad)">{% icon "search" "icon-lg" %}</span><span>Reported</span></div>
+      <div class="reunite-line"></div>
+      <div class="reunite-node"><span style="color:#c2410c">{% icon "link" "icon-lg" %}</span><span>Matched</span></div>
+      <div class="reunite-line"></div>
+      <div class="reunite-node"><span style="color:var(--navy)">{% icon "shield" "icon-lg" %}</span><span>Verified</span></div>
+      <div class="reunite-line"></div>
+      <div class="reunite-node"><span style="color:var(--ok)">{% icon "heart" "icon-lg" %}</span><span>Home</span></div>
     </div>
-    {% if stats.includes_sample %}<p class="mb-0" style="padding:0 .2rem .6rem"><span class="demo-note">{% icon "info" %}Includes labelled sample data</span></p>{% endif %}
+    <div class="hero-panel" style="box-shadow:var(--shadow-m)">
+      <div class="hero-panel-head"><h2 id="latest-title"><span class="live-dot" aria-hidden="true"></span>Latest on the board</h2><a class="small" href="{% url 'board' %}">View all</a></div>
+      {% if preview %}<ul class="item-rows">{% for item in preview %}{% include "partials/item_row.html" %}{% endfor %}</ul>
+      {% else %}<div class="empty"><span class="empty-icon">{% icon "inbox" "icon-lg" %}</span><p>Nothing has been reported yet.</p></div>{% endif %}
+    </div>
   </aside>
 </section>
 
-<section class="trust" id="privacy" aria-label="How your item stays protected">
-  <div class="trust-item"><span class="figure-icon">{% icon "user-check" "icon-lg" %}</span><div><h3>Secure ownership verification</h3><p>Claimants answer questions about details only the owner would know. Attempts are limited.</p></div></div>
-  <div class="trust-item"><span class="figure-icon amber">{% icon "shield" "icon-lg" %}</span><div><h3>Security-supervised handovers</h3><p>Items are released at the security office after an ID check and a one-time code or signature.</p></div></div>
-  <div class="trust-item"><span class="figure-icon green">{% icon "eye-off" "icon-lg" %}</span><div><h3>Identifying details stay private</h3><p>Serial codes, marks and contents are encrypted and never shown on the public board.</p></div></div>
+{# C. Two journeys #}
+<section class="journeys" aria-label="Choose your journey">
+  <article class="journey lost">
+    <span class="journey-icon">{% icon "search" "icon-lg" %}</span>
+    <h2>Something missing?</h2>
+    <p>Your belongings may already have been reported. Search the campus board and explore possible matches.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="{% url 'board' %}">Browse lost &amp; found</a>
+      <a class="btn btn-ghost" href="{% url 'report_item' 'lost' %}">Report a lost item</a>
+    </div>
+  </article>
+  <article class="journey found">
+    <span class="journey-icon">{% icon "heart" "icon-lg" %}</span>
+    <h2>Found something?</h2>
+    <p>Your honesty could turn someone's stressful day into a happy memory. Report what you found and help it reach its rightful owner.</p>
+    <div class="btn-row">
+      <a class="btn btn-found" href="{% url 'report_item' 'found' %}">Report a found item</a>
+      <a class="btn btn-ghost" href="{% url 'rewards' %}">Learn about rewards</a>
+    </div>
+  </article>
 </section>
 
-<section class="section" id="how-it-works" aria-labelledby="how-title">
-  <div class="section-head"><div><h2 id="how-title">How it works</h2><p>Four steps from “I lost it” to “I've got it back”.</p></div></div>
-  <ol class="steps">
-    <li><span class="figure-icon">{% icon "file" "icon-lg" %}</span><h3>Report an item</h3><p>Post what you lost or found with a category, place and time. A photo helps. It takes under a minute.</p></li>
-    <li><span class="figure-icon">{% icon "link" "icon-lg" %}</span><h3>Find a potential match</h3><p>Lost and found reports are compared by description, category, place and time. You're notified of likely matches.</p></li>
-    <li><span class="figure-icon">{% icon "clipboard-check" "icon-lg" %}</span><h3>Verify ownership</h3><p>Answer questions about details the finder kept private. A security officer reviews every claim.</p></li>
-    <li><span class="figure-icon">{% icon "key" "icon-lg" %}</span><h3>Collect it securely</h3><p>Pick it up from the security office with photo ID and a one-time code. Every handover is recorded.</p></li>
-  </ol>
+{# D. Live community activity #}
+<section class="stat-band" aria-label="Live community activity">
+  <div><strong>{{ stats.reported }}</strong><span>Items reported</span></div>
+  <div><strong>{{ stats.returned }}</strong><span>Returned to their owners</span></div>
+  <div><strong>{{ stats.open_found }}</strong><span>Found items awaiting owners</span></div>
+  <div><strong>{{ stats.contributors }}</strong><span>Verified community contributors</span></div>
+  <p class="note mb-0">{% icon "activity" %}Live figures from this system's database.{% if stats.includes_sample %} They currently include clearly labelled sample data.{% endif %}</p>
 </section>
 
+{# E. Recently reported #}
 <section class="section" aria-labelledby="recent-title">
   <div class="section-head">
-    <div><h2 id="recent-title">Recently reported</h2><p>General descriptions only. Identifying details are kept for ownership checks.</p></div>
-    <a class="btn btn-ghost btn-small" href="{% url 'board' %}">Browse all items {% icon "arrow-right" %}</a>
+    <div><h2 id="recent-title">Recently reported</h2><p>General descriptions only. Identifying details are kept private for ownership checks.</p></div>
+    <a class="btn btn-ghost btn-small" href="{% url 'board' %}">View all items {% icon "arrow-right" %}</a>
   </div>
+  <form class="hero-search" method="get" action="{% url 'board' %}" role="search" style="max-width:none">
+    <div class="input-icon">{% icon "search" %}<label class="visually-hidden" for="home-q">Search items</label><input type="search" id="home-q" name="q" placeholder="Search, e.g. “black backpack” or “water bottle”"></div>
+    <label class="visually-hidden" for="home-type">Type</label>
+    <select id="home-type" name="type" style="width:170px"><option value="">Lost and found</option><option value="found">Found items</option><option value="lost">Lost reports</option></select>
+    <label class="visually-hidden" for="home-cat">Category</label>
+    <select id="home-cat" name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select>
+    <button class="btn btn-primary" type="submit">Search</button>
+  </form>
+  {% if categories %}<div class="chips mb-1" aria-label="Browse by category">{% for c in categories|slice:":7" %}<a class="chip" href="{% url 'board' %}?category={{ c.pk }}">{% icon c.name|category_icon %}{{ c.name }}</a>{% endfor %}</div>{% endif %}
   {% if recent %}
-  <div class="tags">{% for item in recent %}{% include "partials/item_card.html" %}{% endfor %}</div>
+  <div class="tags mt-1">{% for item in recent %}{% include "partials/item_card.html" %}{% endfor %}</div>
   {% else %}
   <div class="panel empty"><span class="empty-icon">{% icon "inbox" "icon-lg" %}</span><h3>Nothing on the board yet</h3><p>When items are reported they'll appear here.</p></div>
   {% endif %}
 </section>
 
+{# F. Every report brings hope #}
+<section class="section" id="how-it-works" aria-labelledby="how-title">
+  <div class="section-head"><div><h2 id="how-title">Every report brings hope</h2><p>Four steps from “I lost it” to “I've got it back”.</p></div></div>
+  <ol class="story">
+    <li><span class="dot">{% icon "file" "icon-lg" %}</span><h3>Report</h3><p>Tell the campus community what you lost or found.</p></li>
+    <li><span class="dot">{% icon "link" "icon-lg" %}</span><h3>Discover</h3><p>Our matching looks for related reports by description, category, place and time.</p></li>
+    <li><span class="dot">{% icon "user-check" "icon-lg" %}</span><h3>Verify</h3><p>The claimant answers private ownership questions, and the Lost &amp; Found team reviews the claim.</p></li>
+    <li><span class="dot">{% icon "heart" "icon-lg" %}</span><h3>Reconnect</h3><p>The team supervises the handover and records the return.</p></li>
+  </ol>
+</section>
+
+{# G. Community kindness and rewards #}
+<section class="showcase" aria-labelledby="rewards-title">
+  <div>
+    <span class="eyebrow" style="color:#c2410c">{% icon "award" %}Community rewards</span>
+    <h2 id="rewards-title">Good deeds deserve recognition.</h2>
+    <p>Returning something that isn't yours is a powerful act of honesty. Earn Community Points for verified contributions and celebrate the difference you make on campus.</p>
+    <ul class="checks">
+      <li>{% icon "check" %}<span><strong>+{{ policy.points_found_report }}</strong> when your found report is verified, <strong>+{{ policy.points_custody }}</strong> when you hand it in</span></li>
+      <li>{% icon "check" %}<span><strong>+{{ policy.points_return }}</strong> when it reaches its verified owner</span></li>
+      <li>{% icon "check" %}<span>Badges and tiers for verified helpful actions{% if policy.leaderboard_enabled %}, plus an opt-in monthly leaderboard{% endif %}</span></li>
+    </ul>
+    <p class="small muted">Points are recognition within the platform, not cash or prizes, and they never affect who gets an item back.</p>
+    <a class="btn btn-found" href="{% url 'rewards' %}">Explore community rewards {% icon "arrow-right" %}</a>
+  </div>
+  <div>
+    <div class="tier-row">{% for t in tiers %}<div class="tier-tile metal-{{ t.style }}">{% include "partials/points_badge.html" with badge=t %}<strong>{{ t.name }}</strong><small>{{ t.threshold }} verified action{{ t.threshold|pluralize }}</small></div>{% endfor %}</div>
+    {% if leaders %}
+    <div class="panel mt-1 mb-0"><div class="panel-head"><h3 class="mb-0">{% icon "trophy" %} Top contributors this period</h3></div>
+      <ol class="leader-list">{% for r in leaders %}<li><span class="rank r{{ r.rank }}">{{ r.rank }}</span><span class="who"><strong>{{ r.name }}</strong></span><span class="small muted">{{ r.returns }} return{{ r.returns|pluralize }}</span><span class="pts">{{ r.points }}</span></li>{% endfor %}</ol></div>
+    {% endif %}
+  </div>
+</section>
+
+{# H. Trust and privacy #}
+<section class="privacy-split" id="privacy" aria-labelledby="privacy-title">
+  <div>
+    <span class="eyebrow">{% icon "lock" %}Privacy &amp; safety</span>
+    <h2 id="privacy-title">Your item. Your privacy. A safer return.</h2>
+    <p class="muted">Every return follows the same careful process, whoever you are and however many points you have.</p>
+  </div>
+  <div class="grid grid-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
+    <div class="trust-item"><span class="figure-icon green">{% icon "eye-off" "icon-lg" %}</span><div><h3>Private details stay private</h3><p>Identifying details recorded by finders are encrypted and never shown on the public board.</p></div></div>
+    <div class="trust-item"><span class="figure-icon">{% icon "user-check" "icon-lg" %}</span><div><h3>Ownership is verified</h3><p>Claimants answer questions only the owner could know, with limited attempts.</p></div></div>
+    <div class="trust-item"><span class="figure-icon amber">{% icon "shield" "icon-lg" %}</span><div><h3>Supervised handovers</h3><p>The Lost &amp; Found team checks photo ID and a one-time code or signature before release.</p></div></div>
+    <div class="trust-item"><span class="figure-icon navy">{% icon "history" "icon-lg" %}</span><div><h3>Accountable custody</h3><p>Every receipt, transfer and release is recorded in a custody history that can't be edited.</p></div></div>
+  </div>
+</section>
+
 <section class="section" id="guidance" aria-labelledby="guidance-title">
-  <div class="section-head"><div><h2 id="guidance-title">Using the board responsibly</h2></div></div>
+  <div class="section-head"><div><h2 id="guidance-title">Reporting guidance</h2></div></div>
   <div class="grid grid-3">
-    <div class="panel mb-0"><h3>{% icon "package" %} Found something?</h3><p class="small muted mb-0">Report it, then hand it to the campus security office. Don't arrange handovers directly with people from the board.</p></div>
-    <div class="panel mb-0"><h3>{% icon "lock" %} Keep proof to yourself</h3><p class="small muted mb-0">Never put serial codes, engravings, stickers or bag contents in a public description. They're how the real owner proves it's theirs.</p></div>
-    <div class="panel mb-0"><h3>{% icon "hourglass" %} Unclaimed items</h3><p class="small muted mb-0">Items are held for a set retention period. After that, security reviews them and an administrator authorises disposal or donation.</p></div>
+    <div class="panel mb-0"><h3>{% icon "package" %} Found something?</h3><p class="small muted mb-0">Report it, then hand it to the campus security office. Please don't arrange handovers directly with people from the board.</p></div>
+    <div class="panel mb-0"><h3>{% icon "lock" %} Keep proof to yourself</h3><p class="small muted mb-0">Leave serial codes, engravings, stickers and contents out of public descriptions. They're how the real owner proves it's theirs.</p></div>
+    <div class="panel mb-0"><h3>{% icon "hourglass" %} Unclaimed items</h3><p class="small muted mb-0">Items are held for a set retention period. After that the team reviews them and an administrator authorises disposal or donation.</p></div>
+  </div>
+</section>
+
+{# I. Final call to action #}
+<section class="final-cta" aria-labelledby="cta-title">
+  <h2 id="cta-title">Someone on campus might be looking for what you found.</h2>
+  <p>One responsible report can make a real difference.</p>
+  <div class="btn-row">
+    <a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "package" %}Report a found item</a>
+    <a class="btn btn-ghost" href="{% url 'board' %}">{% icon "search" %}Search for my item</a>
   </div>
 </section>
 {% endblock %}

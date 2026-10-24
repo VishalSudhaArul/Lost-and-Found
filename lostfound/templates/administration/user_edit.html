@@ -1,11 +1,37 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load lf %}
 {% block title %}{{ target.username }}{% endblock %}
 {% block content %}
-<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_users' %}">Users</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ target.username }}</span></nav>
-<h1>{{ target.get_full_name|default:target.username }}</h1>
-<form method="post" class="panel" style="max-width:640px">{% csrf_token %}
-  <fieldset><legend>Roles</legend><ul class="check-list">{% for choice in form.roles %}<li><label>{{ choice.tag }} <strong>{{ choice.choice_label }}</strong></label>{% for name, d in descriptions.items %}{% if name == choice.data.value %}<div class="muted small" style="margin-left:1.6rem">{{ d }}</div>{% endif %}{% endfor %}</li>{% endfor %}</ul></fieldset>
-  <div class="field"><label>{{ form.is_active }} {{ form.is_active.label }}</label></div>
-  <button class="btn" type="submit">Save roles</button>
-</form>
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_users' %}">Accounts</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ target.username }}</span></nav>
+<div class="page-head">
+  <div style="display:flex;gap:1rem;align-items:center"><span class="avatar" style="width:52px;height:52px;font-size:1rem" aria-hidden="true">{{ target|initials }}</span>
+  <div><h1 class="mb-0">{{ target.get_full_name|default:target.username }}</h1><p>{{ target.username }} · {{ member.get_member_type_display }} · joined {{ target.date_joined|date:"j M Y" }}{% if target.last_login %} · last sign-in {{ target.last_login|date:"j M Y, H:i" }}{% endif %}</p></div></div>
+  {% if target.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-bad">Inactive</span>{% endif %}
+</div>
+<div class="figures">
+  <div class="figure"><span class="figure-icon">{% icon "file" "icon-lg" %}</span><div><strong>{{ activity.reports }}</strong><span>Reports</span></div></div>
+  <div class="figure"><span class="figure-icon amber">{% icon "clipboard-check" "icon-lg" %}</span><div><strong>{{ activity.claims }}</strong><span>Claims</span></div></div>
+  <div class="figure"><span class="figure-icon green">{% icon "award" "icon-lg" %}</span><div><strong>{{ activity.points }}</strong><span>Community points</span></div></div>
+</div>
+<div class="grid grid-2">
+  <form method="post" class="panel" novalidate>{% csrf_token %}<input type="hidden" name="action" value="details">
+    <h2>{% icon "user" %} Details</h2>
+    <div class="form-row">{% field details_form.first_name %}{% field details_form.last_name %}</div>
+    {% field details_form.email %}
+    <div class="form-row">{% field details_form.member_type %}{% field details_form.department %}</div>
+    <button class="btn btn-primary" type="submit">Save details</button>
+  </form>
+  <div>
+    <form method="post" class="panel">{% csrf_token %}<input type="hidden" name="action" value="roles">
+      <h2>{% icon "shield" %} Roles &amp; access</h2>
+      <ul class="check-list">{% for choice in form.roles %}<li><label>{{ choice.tag }} <strong>{% if choice.choice_label == "Security Personnel" %}Lost &amp; Found team (Security Personnel){% else %}{{ choice.choice_label }}{% endif %}</strong></label>{% for name, d in descriptions.items %}{% if name == choice.data.value %}<div class="muted small" style="margin-left:1.6rem">{{ d }}</div>{% endif %}{% endfor %}</li>{% endfor %}</ul>
+      <div class="field mt-1"><label>{{ form.is_active }} {{ form.is_active.label }}</label><div class="help">Inactive accounts can't sign in. Their reports and history are kept.</div></div>
+      <button class="btn btn-primary" type="submit">Save roles</button>
+    </form>
+    <form method="post" class="panel" data-confirm="Send a password reset link to {{ target.email }}?">{% csrf_token %}<input type="hidden" name="action" value="reset">
+      <h2>{% icon "key" %} Password</h2>
+      <p class="small muted">Administrators never see passwords. Send a one-time reset link to the account's email instead.</p>
+      <button class="btn btn-ghost" type="submit">{% icon "mail" %}Send reset link</button>
+    </form>
+  </div>
+</div>
 {% endblock %}

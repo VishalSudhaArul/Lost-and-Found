@@ -16,17 +16,19 @@ One place to report lost and found items on campus. Finders record identifying d
 | M6 Custody & handover | Receive/transfer/correct (append-only, DB trigger on PostgreSQL), scheduling, OTP (hashed, expiring, attempt-limited, single-use) or drawn signature, ID check confirmation, optional proof photo, receipt |
 | M7 Ageing & disposal | Configurable retention, warnings, disposal-review queue, escalation, two-person disposal (security review + authorised decision), protection for claimed/returned items |
 | M8 Public board | Redacted board, PostgreSQL full-text + trigram search, filters, sorting, pagination, live filtering, JSON endpoint `/api/board/` |
+| Report review | Every new report is reviewed by the Lost & Found team (verify / reject with a reason, duplicate hints). Optional setting holds reports off the board until verified; receiving an item into custody verifies it |
+| Community rewards | Append-only points ledger with unique event references (no double awards), configurable policy, achievement tiers and badges, opt-out leaderboard with nicknames, staff-authorised corrections and community awards |
 
-Plus dashboards for students/staff, security and administrators, analytics from live data, in-app notifications, an audit log, user and role management.
+Plus dashboards for students/staff, the Lost & Found team and administrators, analytics from live data, in-app notifications, an audit log, a separate staff sign-in (`/staff/login/`) and full account management (create, edit, roles, deactivate, send reset link).
 
 ## Roles
 
 | Role (Django group) | Can do |
 |---|---|
 | Students & Staff | Browse, report lost/found items, claim, answer verification, see own reports/claims/notifications |
-| Security Personnel | Security dashboard, intake/custody/transfers, add private details, review verification evidence, approve/reject claims, schedule and complete handovers, disposal review |
-| Campus Administrator | Categories, locations, retention policy, authorise disposal, analytics, audit log |
-| System Administrator | Users and roles, matching weights/thresholds, verification and OTP limits, audit log |
+| Security Personnel (shown as **Lost & Found team**) | Verify or reject new reports, team dashboard, intake/custody/transfers, add private details, review verification evidence, approve/reject claims, schedule and complete handovers, disposal review |
+| Campus Administrator | Categories, locations, retention and report-review policy, reward policy, badges and points corrections, authorise disposal, analytics, audit log |
+| System Administrator | Create and manage every account (students, staff, team, administrators), roles, matching weights/thresholds, verification and OTP limits, audit log |
 
 Roles are additive. Permissions are enforced in views (decorators) **and** again in each service function.
 
@@ -43,7 +45,7 @@ lostfound/
   static/          app.css (design system), app.js (progressive enhancement only)
   management/commands/  refresh_matches, check_ageing, seed_demo, rotate_encryption_keys
   migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
-  tests/           115 tests
+  tests/           137 tests
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
 
@@ -113,6 +115,13 @@ Then, as an administrator: add your campus locations (mark the security office a
 
 See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler and cron examples. No Celery/Redis is required.
 
+## Community rewards rules
+
+* Points are awarded only after a confirmed event: a team-verified found report (+10), the item received into custody (+5), the item returned to its verified owner (+25), or a reviewer bonus (+5). Values are configurable under Administration → Rewards & badges.
+* Each event has a unique ledger reference, so it can never pay twice. Rejected reports earn nothing, and nobody earns return points for an item returned to themselves.
+* Ledger entries are never edited or deleted (also enforced by a PostgreSQL trigger); corrections are new, staff-authorised entries and may revoke badges.
+* Points are recognition only, not cash, and never affect claims or verification. The leaderboard shows nicknames or first names to signed-in members only, and members can opt out.
+
 ## Interface
 
 * **Two shells, one template tree.** Visitors get a public site (header with Browse items / How it works / Sign in / Create account, full footer). Signed-in users get the app shell: role-aware sidebar (a drawer on phones), top bar with section title, board search, notifications and profile menu.
@@ -128,7 +137,7 @@ python manage.py test lostfound            # against PostgreSQL (recommended)
 set DB_BACKEND=sqlite && python manage.py test lostfound   # fallback; 3 PostgreSQL-only tests skip
 ```
 
-Latest results (Oct 2026): 115 tests. **All 115 pass on PostgreSQL 16** in GitHub Actions (commit `25bfefa`); locally on SQLite 112 pass and the 3 PostgreSQL-only tests skip. The workflow runs on every push (`.github/workflows/ci.yml`).
+Latest results (Oct 2026): 137 tests; locally on SQLite 134 pass and the 3 PostgreSQL-only tests skip. GitHub Actions runs the suite on PostgreSQL 16 for every push; check the Actions tab for the latest result. The workflow runs on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 

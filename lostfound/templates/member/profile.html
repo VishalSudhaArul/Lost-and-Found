@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Profile &amp; privacy{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Profile &amp; privacy</h1><p>Your details and how you appear in community features.</p></div></div>
+<div class="split">
+  <form method="post" class="panel" novalidate>{% csrf_token %}
+    <fieldset><legend>{% icon "user" %} About you</legend>
+      <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
+      {% field form.department %}
+      <p class="small muted">Account: <strong>{{ user.username }}</strong> · {{ user.email }} · {{ member.get_member_type_display }}. Ask an administrator to change your email or member type.</p>
+    </fieldset>
+    <fieldset><legend>{% icon "trophy" %} Leaderboard privacy</legend>
+      {% field form.show_on_leaderboard %}
+      {% field form.display_name %}
+      <p class="small muted">The leaderboard never shows your email, username or anything about your reports and claims.</p>
+    </fieldset>
+    <div class="btn-row"><button class="btn btn-primary" type="submit">Save profile</button><a class="btn btn-quiet" href="{% url 'password_change' %}">{% icon "key" %}Change password</a></div>
+  </form>
+  <aside class="panel">
+    <h3>Shown on the leaderboard as</h3>
+    <p class="mb-1"><strong>{% if reward_profile.show_on_leaderboard %}{{ reward_profile.public_name }}{% else %}Hidden{% endif %}</strong></p>
+    <p class="small muted">Points are recognition only and are never shared with other members beyond this name and your period total.</p>
+    <a class="btn btn-ghost btn-small" href="{% url 'rewards' %}">{% icon "award" %}View my rewards</a>
+  </aside>
+</div>
+{% endblock %}

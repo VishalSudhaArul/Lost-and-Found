@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Staff sign-in{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card staff-entry" style="--w:480px">
+    <div class="auth-head">
+      <span class="auth-icon">{% icon "shield" "icon-lg" %}</span>
+      <h1>Staff sign-in</h1>
+      <p>For the Lost &amp; Found team and campus administrators.</p>
+    </div>
+    <form method="post" class="panel" novalidate>{% csrf_token %}
+      {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
+      {% field form.username %}{% field form.password %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="btn btn-found btn-block" type="submit">{% icon "log-in" %}Sign in to the staff console</button>
+      <p class="small mt-1 mb-0" style="text-align:center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+    </form>
+    <p class="auth-alt">Student or staff member? <a href="{% url 'login' %}">Use the main sign-in</a></p>
+  </div>
+</div>
+{% endblock %}

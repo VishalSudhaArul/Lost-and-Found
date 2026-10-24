@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Edit {{ badge.name }}{% endblock %}
+{% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_rewards' %}">Rewards &amp; badges</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ badge.name }}</span></nav>
+<div class="narrow" style="--w:640px">
+  <div class="page-head"><div style="display:flex;gap:1rem;align-items:center">{% include "partials/points_badge.html" with badge=badge size="lg" %}<div><h1 class="mb-0">{{ badge.name }}</h1><p>{{ badge.get_kind_display }} · code <span class="mono">{{ badge.code }}</span></p></div></div></div>
+  <form method="post" class="panel" novalidate>{% csrf_token %}
+    {% field form.name %}{% field form.description %}
+    <div class="form-row">{% field form.metric %}{% field form.threshold %}</div>
+    {% field form.style %}{% field form.is_active %}
+    <p class="small muted">Members who already hold this badge keep it. New criteria apply from their next verified action.</p>
+    <div class="btn-row"><button class="btn btn-primary" type="submit">Save badge</button><a class="btn btn-quiet" href="{% url 'admin_rewards' %}">Cancel</a></div>
+  </form>
+</div>
+{% endblock %}

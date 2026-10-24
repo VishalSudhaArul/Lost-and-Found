@@ -18,6 +18,8 @@
           <div class="role-chips">{% for g in user.groups.all %}<span class="badge">{{ g.name }}</span>{% empty %}<span class="badge">Member</span>{% endfor %}</div>
         </div>
         <a href="{% url 'dashboard' %}">{% icon "dashboard" %}My dashboard</a>
+        <a href="{% url 'rewards' %}">{% icon "award" %}Community rewards</a>
+        <a href="{% url 'profile' %}">{% icon "user" %}Profile &amp; privacy</a>
         <a href="{% url 'password_change' %}">{% icon "key" %}Change password</a>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="signout">{% icon "log-out" %}Sign out</button></form>
       </div>

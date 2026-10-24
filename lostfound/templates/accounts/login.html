@@ -16,6 +16,7 @@
       <p class="small mt-1 mb-0" style="text-align:center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
     </form>
     <p class="auth-alt">New here? <a href="{% url 'register' %}">Create an account</a></p>
+    <p class="auth-alt small">{% icon "shield" %} Lost &amp; Found team or administrator? <a href="{% url 'staff_login' %}">Staff sign-in</a></p>
   </div>
 </div>
 {% endblock %}

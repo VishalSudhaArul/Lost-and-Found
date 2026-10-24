@@ -24,7 +24,11 @@ class ItemQuerySet(models.QuerySet):
         return self.filter(report_type=Item.ReportType.FOUND)
 
     def publicly_listed(self):
-        return self.filter(status__in=Item.PUBLIC_STATUSES, is_hidden=False)
+        qs = self.filter(status__in=Item.PUBLIC_STATUSES, is_hidden=False).exclude(review_status=Item.Review.REJECTED)
+        from .settings import OperationalSettings
+        if OperationalSettings.load().hold_reports_for_review:
+            qs = qs.filter(review_status=Item.Review.VERIFIED)
+        return qs
 
     def owned_by(self, user):
         return self.filter(reporter=user)
@@ -43,6 +47,11 @@ class Item(models.Model):
         DISPOSAL_REVIEW = "disposal_review", "Disposal review"
         DISPOSED = "disposed", "Disposed"
         CLOSED = "closed", "Closed"                    # withdrawn by reporter / resolved elsewhere
+
+    class Review(models.TextChoices):
+        PENDING = "pending", "Awaiting team review"
+        VERIFIED = "verified", "Verified by Lost & Found team"
+        REJECTED = "rejected", "Rejected"
 
     PUBLIC_STATUSES = (Status.OPEN, Status.IN_CUSTODY, Status.AWAITING_HANDOVER)
     TERMINAL_STATUSES = (Status.RETURNED, Status.DISPOSED, Status.CLOSED)
@@ -73,6 +82,11 @@ class Item(models.Model):
     reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="reports")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
     is_hidden = models.BooleanField(default=False, help_text="Hidden from the public board by moderators.")
+    review_status = models.CharField(max_length=10, choices=Review.choices, default=Review.PENDING, db_index=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+                                    related_name="+", editable=False)
+    reviewed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    review_note = models.CharField(max_length=300, blank=True, editable=False)
     search_text = models.TextField(blank=True, editable=False)
     custody_since = models.DateTimeField(null=True, blank=True, editable=False)
     current_custody_location = models.ForeignKey(

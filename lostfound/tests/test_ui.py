@@ -151,9 +151,9 @@ class BoardAndHomeTests(UIFixture):
     def test_home_counts_come_from_the_database_and_label_sample_data(self):
         r = self.client.get(reverse("home"))
         self.assertEqual(r.context["stats"]["open_found"], Item.objects.found().publicly_listed().count())
-        self.assertNotContains(r, "Includes labelled sample data")
+        self.assertNotContains(r, "clearly labelled sample data")
         self.found_item(title="[Sample] Red umbrella", details=False)
-        self.assertContains(self.client.get(reverse("home")), "Includes labelled sample data")
+        self.assertContains(self.client.get(reverse("home")), "clearly labelled sample data")
 
     def test_member_dashboard_lists_real_matches(self):
         r = self.get(self.student, "dashboard")

@@ -8,6 +8,7 @@
   </div>
   <div class="tag-body">
     <h3>{{ item.title }}</h3>
+    {% if item.verified %}<span class="verified-chip">{% icon "check-circle" %}Verified by Lost &amp; Found team</span>{% endif %}
     <div class="tag-meta">{% icon "tag" %}<span>{{ item.category }}</span></div>
     <div class="tag-meta">{% icon "pin" %}<span>{{ item.location }}</span></div>
     <div class="tag-meta">{% icon "calendar" %}<span>{{ item.occurred_at|date:"j M Y, H:i" }}</span></div>

@@ -32,6 +32,10 @@ class OperationalSettings(models.Model):
     otp_ttl_minutes = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1), MaxValueValidator(60)])
     otp_max_attempts = models.PositiveIntegerField(default=5, validators=[MinValueValidator(1), MaxValueValidator(10)])
 
+    # Report review (campus administrator)
+    hold_reports_for_review = models.BooleanField(
+        default=False, help_text="Keep new reports off the public board until the Lost & Found team verifies them.")
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

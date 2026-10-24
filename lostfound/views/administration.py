@@ -3,15 +3,19 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .. import roles
-from ..forms import AttributeForm, CategoryForm, LocationForm, MatchingSettingsForm, RetentionSettingsForm, UserRolesForm
-from ..models import AuditEntry, CategoryAttribute, ItemCategory, Location, OperationalSettings
+from ..forms import (AdminCreateUserForm, AttributeForm, BadgeForm, CategoryForm, CommunityAwardForm, LedgerReverseForm,
+                     LocationForm, MatchingSettingsForm, RetentionSettingsForm, RewardPolicyForm, UserDetailsForm,
+                     UserRolesForm)
+from ..models import (AchievementBadge, AuditEntry, CategoryAttribute, Claim, Item, ItemCategory, Location,
+                      OperationalSettings, PointsLedgerEntry, UserProfile)
+from ..services.errors import WorkflowError
 from ..permissions import any_perm_required, perm_required
-from ..services import analytics, audit, matching
+from ..services import analytics, audit, matching, rewards
 
 User = get_user_model()
 
@@ -100,40 +104,170 @@ def run_matching(request):
     return redirect("admin_settings")
 
 
+ROLE_TABS = {
+    "students": ("Students", Q(profile__member_type=UserProfile.MemberType.STUDENT)),
+    "staff": ("Staff members", Q(profile__member_type=UserProfile.MemberType.STAFF)),
+    "team": ("Lost & Found team", Q(groups__name=roles.SECURITY)),
+    "admins": ("Administrators", Q(groups__name__in=[roles.CAMPUS_ADMIN, roles.SYSTEM_ADMIN]) | Q(is_superuser=True)),
+    "inactive": ("Inactive", Q(is_active=False)),
+}
+
+
 @perm_required("manage_users")
 def users(request):
     q = request.GET.get("q", "").strip()
-    qs = User.objects.prefetch_related("groups").order_by("username")
+    tab = request.GET.get("tab", "")
+    qs = User.objects.select_related("profile").prefetch_related("groups").order_by("username")
+    if tab in ROLE_TABS:
+        qs = qs.filter(ROLE_TABS[tab][1]).distinct()
     if q:
-        qs = qs.filter(Q(username__icontains=q) | Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
-    role = request.GET.get("role")
-    if role:
-        qs = qs.filter(groups__name=role)
+        qs = qs.filter(Q(username__icontains=q) | Q(email__icontains=q) | Q(first_name__icontains=q)
+                       | Q(last_name__icontains=q))
+    counts = {key: User.objects.filter(cond).distinct().count() for key, (_, cond) in ROLE_TABS.items()}
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
-    return render(request, "administration/users.html", {"page": page, "q": q, "role": role,
-                                                         "roles": roles.ROLE_DESCRIPTIONS})
+    return render(request, "administration/users.html", {
+        "page": page, "q": q, "tab": tab, "tabs": [(k, label, counts[k]) for k, (label, _) in ROLE_TABS.items()],
+        "total": User.objects.count(), "querystring": f"tab={tab}&q={q}"})
+
+
+@perm_required("manage_users")
+def user_create(request):
+    form = AdminCreateUserForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        audit.record(request.user, "users.created", f"Account {user.username} created by an administrator",
+                     target=user, request=request, roles=sorted(form.cleaned_data["roles"]))
+        messages.success(request, f"Account {user.username} created. Share the temporary password privately "
+                                  f"and ask them to change it after signing in.")
+        return redirect("admin_user_edit", pk=user.pk)
+    return render(request, "administration/user_create.html", {"form": form, "descriptions": roles.ROLE_DESCRIPTIONS})
 
 
 @perm_required("manage_users")
 def user_edit(request, pk):
     target = get_object_or_404(User, pk=pk)
-    form = UserRolesForm(request.POST or None, initial={
+    member, _ = UserProfile.objects.get_or_create(user=target)
+    action = request.POST.get("action", "roles") if request.method == "POST" else None
+    roles_form = UserRolesForm(request.POST if action == "roles" else None, initial={
         "roles": list(target.groups.values_list("name", flat=True)), "is_active": target.is_active})
-    if request.method == "POST" and form.is_valid():
-        new_roles = set(form.cleaned_data["roles"])
-        if target.pk == request.user.pk and (roles.SYSTEM_ADMIN not in new_roles or not form.cleaned_data["is_active"]) \
-                and not request.user.is_superuser:
+    details_form = UserDetailsForm(request.POST if action == "details" else None, target=target, initial={
+        "first_name": target.first_name, "last_name": target.last_name, "email": target.email,
+        "member_type": member.member_type, "department": member.department})
+    if action == "roles" and roles_form.is_valid():
+        new_roles = set(roles_form.cleaned_data["roles"])
+        removing_self = target.pk == request.user.pk and (
+            roles.SYSTEM_ADMIN not in new_roles or not roles_form.cleaned_data["is_active"])
+        if removing_self and not request.user.is_superuser:
             messages.error(request, "You cannot remove your own administrator access or deactivate yourself.")
         else:
             target.groups.set(Group.objects.filter(name__in=new_roles))
-            target.is_active = form.cleaned_data["is_active"]
+            target.is_active = roles_form.cleaned_data["is_active"]
             target.save(update_fields=["is_active"])
             audit.record(request.user, "users.roles_changed", f"Roles for {target.username} updated", target=target,
                          request=request, roles=sorted(new_roles), active=target.is_active)
-            messages.success(request, f"Roles for {target.username} updated.")
-            return redirect("admin_users")
-    return render(request, "administration/user_edit.html", {"target": target, "form": form,
-                                                             "descriptions": roles.ROLE_DESCRIPTIONS})
+            messages.success(request, f"Roles and status for {target.username} saved.")
+            return redirect("admin_user_edit", pk=target.pk)
+    elif action == "details" and details_form.is_valid():
+        data = details_form.cleaned_data
+        target.first_name, target.last_name, target.email = data["first_name"], data["last_name"], data["email"]
+        target.save(update_fields=["first_name", "last_name", "email"])
+        member.member_type, member.department = data["member_type"], data["department"]
+        member.save(update_fields=["member_type", "department", "updated_at"])
+        audit.record(request.user, "users.details_changed", f"Details for {target.username} updated", target=target,
+                     request=request, fields=sorted(details_form.changed_data))
+        messages.success(request, f"Details for {target.username} saved.")
+        return redirect("admin_user_edit", pk=target.pk)
+    elif action == "reset":
+        from django.contrib.auth.forms import PasswordResetForm
+        reset = PasswordResetForm({"email": target.email})
+        if target.email and target.is_active and reset.is_valid():
+            reset.save(request=request, use_https=request.is_secure(),
+                       email_template_name="accounts/password_reset_email.txt",
+                       subject_template_name="accounts/password_reset_subject.txt")
+            audit.record(request.user, "users.reset_sent", f"Password reset link sent to {target.username}",
+                         target=target, request=request)
+            messages.success(request, f"A password reset link was sent to {target.email}.")
+        else:
+            messages.error(request, "This account needs to be active and have an email address.")
+        return redirect("admin_user_edit", pk=target.pk)
+    activity = {
+        "reports": Item.objects.filter(reporter=target).count(),
+        "claims": Claim.objects.filter(claimant=target).count(),
+        "points": rewards.summary(target)["balance"],
+    }
+    return render(request, "administration/user_edit.html", {
+        "target": target, "member": member, "form": roles_form, "details_form": details_form,
+        "descriptions": roles.ROLE_DESCRIPTIONS, "activity": activity})
+
+
+@perm_required("manage_rewards")
+def rewards_admin(request):
+    cfg = rewards.policy()
+    action = request.POST.get("action") if request.method == "POST" else None
+    policy_form = RewardPolicyForm(request.POST if action == "policy" else None, instance=cfg, prefix="pol")
+    award_form = CommunityAwardForm(request.POST if action == "award" else None, prefix="aw")
+    if action == "policy" and policy_form.is_valid():
+        policy_form.save()
+        audit.record(request.user, "rewards.policy_updated", "Reward policy updated", target=cfg, request=request,
+                     fields=sorted(policy_form.changed_data))
+        messages.success(request, "Reward policy saved. New values apply to future awards only.")
+        return redirect("admin_rewards")
+    if action == "award" and award_form.is_valid():
+        try:
+            rewards.award_community(award_form.cleaned_data["username"], award_form.cleaned_data["points"],
+                                    award_form.cleaned_data["reason"], request.user, request=request)
+            messages.success(request, "Community points recorded.")
+            return redirect("admin_rewards")
+        except WorkflowError as exc:
+            messages.error(request, str(exc))
+    totals = PointsLedgerEntry.objects.aggregate(awarded=Sum("points", filter=Q(points__gt=0)),
+                                                 corrected=Sum("points", filter=Q(points__lt=0)))
+    return render(request, "administration/rewards.html", {
+        "policy_form": policy_form, "award_form": award_form, "totals": totals,
+        "badges": AchievementBadge.objects.annotate(holders_count=Count("holders")),
+        "entry_count": PointsLedgerEntry.objects.count(), "leaders": rewards.leaderboard(limit=5)})
+
+
+@perm_required("manage_rewards")
+def badge_edit(request, pk):
+    badge = get_object_or_404(AchievementBadge, pk=pk)
+    form = BadgeForm(request.POST or None, instance=badge)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        audit.record(request.user, "rewards.badge_updated", f"Badge '{badge.name}' updated", target=badge,
+                     request=request, fields=sorted(form.changed_data))
+        messages.success(request, f"{badge.name} saved. Badges members already earned are kept.")
+        return redirect("admin_rewards")
+    return render(request, "administration/badge_edit.html", {"form": form, "badge": badge})
+
+
+@perm_required("manage_rewards")
+def rewards_ledger(request):
+    if request.method == "POST":
+        form = LedgerReverseForm(request.POST)
+        if form.is_valid():
+            try:
+                rewards.reverse_entry(int(request.POST.get("entry", 0)), request.user, form.cleaned_data["reason"],
+                                      request=request)
+                messages.success(request, "Entry reversed. The correction is recorded in the ledger and audit log.")
+            except PointsLedgerEntry.DoesNotExist:
+                messages.error(request, "Entry not found.")
+            except (WorkflowError, ValueError) as exc:
+                messages.error(request, str(exc))
+        else:
+            messages.error(request, "Give a reason for the correction (at least 5 characters).")
+        return redirect(request.get_full_path())
+    qs = PointsLedgerEntry.objects.select_related("user", "item", "awarded_by", "reverses").prefetch_related("reversal")
+    q = request.GET.get("q", "").strip()
+    cat = request.GET.get("category", "")
+    if q:
+        qs = qs.filter(Q(user__username__icontains=q) | Q(reason__icontains=q) | Q(reference__icontains=q))
+    if cat in PointsLedgerEntry.Category.values:
+        qs = qs.filter(category=cat)
+    page = Paginator(qs, 40).get_page(request.GET.get("page"))
+    return render(request, "administration/rewards_ledger.html", {
+        "page": page, "q": q, "category": cat, "categories": PointsLedgerEntry.Category.choices,
+        "querystring": f"q={q}&category={cat}"})
 
 
 @perm_required("view_audit")

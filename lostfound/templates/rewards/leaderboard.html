@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Leaderboard{% endblock %}
+{% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'rewards' %}">Community rewards</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Leaderboard</span></nav>
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "trophy" %}Leaderboard</span><h1>Campus contributors</h1>
+  <p>Points from verified contributions in the last {{ policy.leaderboard_period_days }} days. Only nicknames or first names are shown, never emails or report details.</p></div>
+  <a class="btn btn-ghost" href="{% url 'profile' %}">{% icon "edit" %}My leaderboard settings</a>
+</div>
+{% if not policy.leaderboard_enabled %}
+<div class="panel empty"><span class="empty-icon">{% icon "trophy" "icon-lg" %}</span><h3>The leaderboard is turned off</h3><p>Administrators have paused the leaderboard. Your points and badges are still recorded.</p></div>
+{% else %}
+<div class="split">
+  <section class="panel">
+    {% if rows %}<ol class="leader-list">{% for r in rows %}
+      <li{% if r.user_id == user.pk %} class="me"{% endif %}><span class="rank{% if r.rank <= 3 %} r{{ r.rank }}{% endif %}">{{ r.rank }}</span>
+      <span class="who">{% if r.tier %}{% include "partials/points_badge.html" with badge=r.tier size="sm" %}{% endif %}<span><strong>{{ r.name }}</strong>{% if r.user_id == user.pk %} <span class="badge badge-info">You</span>{% endif %}{% if r.tier %}<div class="muted small">{{ r.tier.name }}</div>{% endif %}</span></span>
+      <span class="small muted nowrap">{{ r.returns }} return{{ r.returns|pluralize }}</span><span class="pts">{{ r.points }} pts</span></li>
+    {% endfor %}</ol>
+    {% else %}<div class="empty"><span class="empty-icon">{% icon "trophy" "icon-lg" %}</span><h3>No contributions yet this period</h3><p>Verified found reports, hand-ins and returns will appear here.</p></div>{% endif %}
+  </section>
+  <aside class="panel">
+    <h3>Your position</h3>
+    {% if not profile.show_on_leaderboard %}<p class="small muted">You've chosen not to appear on the leaderboard. Your points still count toward your own tiers and badges.</p>
+    {% elif my_row %}<p class="small">You're <strong>#{{ my_row.rank }}</strong> with {{ my_row.points }} points this period. Shown as “{{ my_row.name }}”.</p>
+    {% else %}<p class="small muted">You haven't earned points in this period yet.</p>{% endif %}
+    <h3 class="mt-2">Fair play</h3>
+    <ul class="checks small">
+      <li>{% icon "check" %}<span>Only verified events count; rejected or duplicate reports earn nothing.</span></li>
+      <li>{% icon "check" %}<span>No points for returning an item to yourself.</span></li>
+      <li>{% icon "check" %}<span>Points never affect claim decisions.</span></li>
+    </ul>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

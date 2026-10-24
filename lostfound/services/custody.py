@@ -39,6 +39,11 @@ def receive_item(item_id, actor, custody_location, received_from="", notes="", r
         item.current_custody_location = custody_location
         item.save()
     audit.record(actor, "custody.received", f"{item.reference} received at {custody_location}", target=item, request=request)
+    from . import reports, rewards
+    if item.review_status == Item.Review.PENDING:
+        reports.verify(item.pk, actor, note="Verified on receipt into custody.", request=request, auto=True)
+        item.refresh_from_db()
+    rewards.on_custody_received(item, actor)
     notifications.notify([item.reporter], "handover", "Item received by security",
                          f"Thank you — {item.reference} is now held by campus security.", link=f"/my/reports/{item.pk}/")
     matching.refresh_for_item(item)
@@ -238,6 +243,8 @@ def complete_handover(handover_id, actor, *, id_type, id_name_matches, otp_code=
                 lost.transition_to(Item.Status.RETURNED)
         MatchSuggestion.objects.filter(found_item=item, status=MatchSuggestion.Status.SUGGESTED).delete()
 
+    from . import rewards
+    rewards.on_handover_completed(handover)
     audit.record(actor, "handover.completed", f"{item.reference} handed over (receipt {handover.receipt_code})",
                  target=handover, request=request, method=handover.method, id_type=id_type)
     notifications.notify([claim.claimant], "handover", "Item returned",

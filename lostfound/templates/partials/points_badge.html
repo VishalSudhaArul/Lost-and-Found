@@ -1,0 +1,2 @@
+{% load lf %}{# A tier/badge medallion. Expects `badge` (AchievementBadge); optional `size` (sm|lg) and `locked`. #}
+<span class="medal{% if size %} medal-{{ size }}{% endif %} metal-{{ badge.style }}{% if locked %} locked{% endif %}" title="{{ badge.name }}: {{ badge.description }}" role="img" aria-label="{{ badge.name }}{% if locked %} (not yet earned){% endif %}">{% if badge.kind == "tier" %}{% icon "award" %}{% elif badge.metric == "returns" %}{% icon "heart" %}{% else %}{% icon "star" %}{% endif %}</span>

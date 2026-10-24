@@ -1,10 +1,31 @@
-{% extends "base.html" %}
-{% block title %}Users &amp; roles{% endblock %}
+{% extends "base.html" %}{% load lf %}
+{% block title %}Accounts &amp; roles{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Users &amp; roles</h1></div>
-<form method="get" class="btn-row"><input type="search" name="q" value="{{ q }}" placeholder="Name, username or email" aria-label="Search users"><select name="role" aria-label="Role"><option value="">Any role</option>{% for r in roles %}<option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select><button class="btn btn-small" type="submit">Filter</button></form></div>
-<div class="panel table-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Roles</th><th>Status</th></tr></thead><tbody>
-{% for u in page %}<tr><td><a href="{% url 'admin_user_edit' u.pk %}">{{ u.username }}</a><div class="muted small">{{ u.get_full_name }}</div></td><td>{{ u.email }}</td><td class="small">{% for g in u.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}{% if u.is_superuser %} (superuser){% endif %}</td><td>{% if u.is_active %}Active{% else %}<span class="badge badge-bad">Inactive</span>{% endif %}</td></tr>
-{% empty %}<tr><td colspan="4" class="muted">No users match.</td></tr>{% endfor %}</tbody></table></div>
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "users" %}Administration</span><h1>Accounts &amp; roles</h1><p>Every student, staff member, Lost &amp; Found team member and administrator, {{ total }} account{{ total|pluralize }} in all.</p></div>
+  <a class="btn btn-primary" href="{% url 'admin_user_create' %}">{% icon "user-plus" %}Create account</a>
+</div>
+<nav class="tabs" aria-label="Account type">
+  <a href="?q={{ q }}" {% if not tab %}aria-current="page"{% endif %}>All ({{ total }})</a>
+  {% for key, label, count in tabs %}<a href="?tab={{ key }}&amp;q={{ q }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }} ({{ count }})</a>{% endfor %}
+</nav>
+<form method="get" class="toolbar" role="search">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <div class="input-icon" style="flex:1;max-width:420px">{% icon "search" %}<label class="visually-hidden" for="user-q">Search accounts</label><input type="search" id="user-q" name="q" value="{{ q }}" placeholder="Name, username or email"></div>
+  <button class="btn btn-ghost btn-small" type="submit">Search</button>
+</form>
+<div class="panel table-wrap"><table>
+  <thead><tr><th>Account</th><th>Type</th><th>Roles</th><th>Joined</th><th>Status</th><th><span class="visually-hidden">Manage</span></th></tr></thead>
+  <tbody>
+  {% for u in page %}<tr>
+    <td><div style="display:flex;gap:.65rem;align-items:center"><span class="avatar" aria-hidden="true">{{ u|initials }}</span><div><a href="{% url 'admin_user_edit' u.pk %}">{{ u.get_full_name|default:u.username }}</a><div class="muted small">{{ u.username }} · {{ u.email|default:"no email" }}</div></div></div></td>
+    <td>{% if u.profile %}{{ u.profile.get_member_type_display }}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td class="small">{% for g in u.groups.all %}<span class="badge{% if g.name == 'Security Personnel' %} badge-info{% elif 'Administrator' in g.name %} badge-warn{% endif %}">{% if g.name == "Security Personnel" %}Lost &amp; Found team{% else %}{{ g.name }}{% endif %}</span> {% empty %}—{% endfor %}{% if u.is_superuser %}<span class="badge badge-bad">Superuser</span>{% endif %}</td>
+    <td class="nowrap small">{{ u.date_joined|date:"j M Y" }}</td>
+    <td>{% if u.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-bad">Inactive</span>{% endif %}</td>
+    <td><a class="btn btn-ghost btn-small" href="{% url 'admin_user_edit' u.pk %}">{% icon "edit" %}Manage</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="6"><div class="empty"><p>No accounts match.</p></div></td></tr>{% endfor %}
+  </tbody></table></div>
 {% include "partials/pagination.html" %}
 {% endblock %}

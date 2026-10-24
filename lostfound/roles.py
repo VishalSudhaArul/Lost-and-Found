@@ -13,11 +13,11 @@ ROLE_PERMISSIONS = {
     MEMBERS: [],
     SECURITY: [
         "access_security_dashboard", "review_claims", "decide_claims", "view_private_details", "manage_custody",
-        "conduct_handover", "review_disposal", "view_audit",
+        "conduct_handover", "review_disposal", "view_audit", "review_reports",
     ],
     CAMPUS_ADMIN: [
         "access_security_dashboard", "manage_taxonomy", "manage_retention", "view_analytics", "view_audit",
-        "authorize_disposal", "review_disposal",
+        "authorize_disposal", "review_disposal", "manage_rewards", "review_reports",
     ],
     SYSTEM_ADMIN: [
         "access_security_dashboard", "manage_matching", "manage_users", "view_analytics", "view_audit",
@@ -27,8 +27,8 @@ ROLE_PERMISSIONS = {
 
 ROLE_DESCRIPTIONS = {
     MEMBERS: "Report items, browse the board, submit claims.",
-    SECURITY: "Custody, verification review, claim decisions, supervised handovers.",
-    CAMPUS_ADMIN: "Categories, locations, retention policy, disposal authorisation, analytics.",
+    SECURITY: "Lost & Found team: verifies reports, custody, claim decisions, supervised handovers.",
+    CAMPUS_ADMIN: "Categories, locations, retention, rewards policy, disposal authorisation, analytics.",
     SYSTEM_ADMIN: "Users and roles, matching and verification configuration.",
 }
 

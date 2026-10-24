@@ -6,9 +6,16 @@
   <div><div class="btn-row mb-1">{% badge item.report_type item.get_report_type_display %}<span class="mono muted small">{{ item.reference }}</span></div><h1>{{ item.title }}</h1></div>
   {% badge item.status item.get_status_display %}
 </div>
+{% if item.review_status == "pending" %}
+<div class="notice warn callout">{% icon "clock" %}<div><strong>Report received. Reference {{ item.reference }}.</strong><div class="small">The Lost &amp; Found team will review it shortly.{% if item.is_found %} Once it's verified you'll earn Community Points, and more when you hand the item in.{% endif %}</div></div></div>
+{% elif item.review_status == "verified" %}
+<div class="notice ok callout">{% icon "check-circle" %}<div><strong>Verified by the Lost &amp; Found team</strong>{% if item.reviewed_at %}<div class="small">{{ item.reviewed_at|date:"j M Y, H:i" }}</div>{% endif %}</div></div>
+{% else %}
+<div class="notice bad callout">{% icon "x-circle" %}<div><strong>This report wasn't published</strong><div class="small">{{ item.review_note|default:"The Lost & Found team couldn't verify it." }} If you think this is a mistake, visit the security office.</div></div></div>
+{% endif %}
 {% if item.is_found %}{% with s=item.status %}
 <ol class="track" style="--n:4" aria-label="Item progress">
-  <li class="done">Reported</li>
+  <li class="{% if item.review_status == 'rejected' %}stopped{% else %}done{% endif %}">Reported</li>
   <li class="{% if s == 'open' %}current{% elif s == 'closed' %}stopped{% else %}done{% endif %}">With security</li>
   <li class="{% if s == 'awaiting_handover' %}current{% elif s == 'returned' %}done{% elif s == 'disposal_review' or s == 'disposed' %}stopped{% endif %}">Claim approved</li>
   <li class="{% if s == 'returned' %}done{% endif %}">Returned to owner</li>

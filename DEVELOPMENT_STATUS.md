@@ -8,7 +8,8 @@ _Last updated: 23 Oct 2026._
 * UI redesign: shared layout partials, public vs. signed-in shells, design system and icon sprite, redesigned homepage, board (date range, grid/list), report forms, dashboards, claim/handover progress, password reset, error pages.
 * Checked in a desktop browser and a 375 px phone viewport: no horizontal scrolling; mobile drawer opens and closes with Esc.
 * Migrations apply on PostgreSQL 16 (pg_trgm, GIN indexes, append-only triggers) and on SQLite; `makemigrations --check` is clean.
-* Test suite: 115 tests; on SQLite 112 pass + 3 PostgreSQL-only skipped. All 115 pass on PostgreSQL 16 in GitHub Actions (commit `25bfefa`), which runs on every push.
+* Lost & Found team report review, community points ledger, tiers/badges, opt-out leaderboard, staff sign-in and administrator account management (tests in `tests/test_rewards.py`).
+* Test suite: 137 tests; on SQLite 134 pass + 3 PostgreSQL-only skipped. GitHub Actions runs them on PostgreSQL 16 on every push.
 * `manage.py check --deploy` with production settings: only the optional HSTS-preload warning remains (plus a key warning when using a dummy key).
 * Management commands `refresh_matches`, `check_ageing`, `seed_demo`, `rotate_encryption_keys` run successfully.
 

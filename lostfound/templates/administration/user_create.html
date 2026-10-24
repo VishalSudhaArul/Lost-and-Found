@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'admin_users' %}">Accounts</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">New account</span></nav>
+<div class="page-head"><div><h1>Create an account</h1><p>For Lost &amp; Found team members, administrators, or students and staff who can't self-register.</p></div></div>
+<form method="post" class="split" novalidate autocomplete="off">{% csrf_token %}
+  <div>
+    {% for e in form.non_field_errors %}<p class="notice bad">{{ e }}</p>{% endfor %}
+    <fieldset><legend><span class="step-num" aria-hidden="true">1</span>Person</legend>
+      <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
+      {% field form.email %}
+      <div class="form-row">{% field form.member_type %}{% field form.department %}</div>
+    </fieldset>
+    <fieldset><legend><span class="step-num" aria-hidden="true">2</span>Sign-in</legend>
+      {% field form.username %}
+      <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
+      <p class="small muted">Share the temporary password privately. They can change it under Profile → Change password, or you can send them a reset link from their account page.</p>
+    </fieldset>
+  </div>
+  <aside class="panel">
+    <h2>Roles</h2>
+    <ul class="check-list">{% for choice in form.roles %}<li><label>{{ choice.tag }} <strong>{% if choice.choice_label == "Security Personnel" %}Lost &amp; Found team (Security Personnel){% else %}{{ choice.choice_label }}{% endif %}</strong></label>{% for name, d in descriptions.items %}{% if name == choice.data.value %}<div class="muted small" style="margin-left:1.6rem">{{ d }}</div>{% endif %}{% endfor %}</li>{% endfor %}</ul>
+    <p class="small muted">Every account also gets the Students &amp; Staff role so they can use the board.</p>
+    <button class="btn btn-primary btn-block" type="submit">{% icon "user-plus" %}Create account</button>
+  </aside>
+</form>
+{% endblock %}

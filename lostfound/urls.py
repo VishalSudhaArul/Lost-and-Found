@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from .views import accounts, administration, member, public, security
+from .views import accounts, administration, member, public, rewards, reviews, security
 
 urlpatterns = [
     # Public
@@ -13,6 +13,7 @@ urlpatterns = [
 
     # Accounts
     path("accounts/login/", accounts.SignInView.as_view(), name="login"),
+    path("staff/login/", accounts.StaffSignInView.as_view(), name="staff_login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/register/", accounts.register, name="register"),
     path("accounts/password/", auth_views.PasswordChangeView.as_view(template_name="accounts/password_change.html"),
@@ -44,10 +45,17 @@ urlpatterns = [
     path("my/claims/<int:pk>/withdraw/", member.claim_withdraw, name="claim_withdraw"),
     path("my/claims/<int:pk>/handover-code/", member.handover_code, name="handover_code"),
     path("notifications/", member.notifications_view, name="notifications"),
+    path("my/profile/", rewards.profile, name="profile"),
+    path("rewards/", rewards.rewards_page, name="rewards"),
+    path("rewards/leaderboard/", rewards.leaderboard, name="leaderboard"),
     path("notifications/<int:pk>/", member.notification_open, name="notification_open"),
 
     # Security
     path("security/", security.dashboard, name="security_dashboard"),
+    path("security/reports/", reviews.queue, name="security_reports"),
+    path("security/reports/<int:pk>/", reviews.review, name="security_report"),
+    path("security/reports/<int:pk>/verify/", reviews.verify, name="security_report_verify"),
+    path("security/reports/<int:pk>/reject/", reviews.reject, name="security_report_reject"),
     path("security/items/", security.items, name="security_items"),
     path("security/items/<int:pk>/", security.item_detail, name="security_item"),
     path("security/items/<int:pk>/receive/", security.item_receive, name="security_item_receive"),
@@ -79,6 +87,10 @@ urlpatterns = [
     path("manage/settings/", administration.settings_view, name="admin_settings"),
     path("manage/settings/run-matching/", administration.run_matching, name="admin_run_matching"),
     path("manage/users/", administration.users, name="admin_users"),
+    path("manage/users/new/", administration.user_create, name="admin_user_create"),
     path("manage/users/<int:pk>/", administration.user_edit, name="admin_user_edit"),
+    path("manage/rewards/", administration.rewards_admin, name="admin_rewards"),
+    path("manage/rewards/badges/<int:pk>/", administration.badge_edit, name="admin_badge_edit"),
+    path("manage/rewards/ledger/", administration.rewards_ledger, name="admin_rewards_ledger"),
     path("manage/audit/", administration.audit_log, name="admin_audit"),
 ]

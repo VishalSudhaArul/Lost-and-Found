@@ -23,4 +23,6 @@ class RolePermissions(models.Model):
             ("manage_users", "Can manage users and roles"),
             ("view_analytics", "Can view reports and analytics"),
             ("view_audit", "Can view the audit log"),
+            ("review_reports", "Can verify or reject lost and found reports"),
+            ("manage_rewards", "Can configure rewards and correct the points ledger"),
         ]

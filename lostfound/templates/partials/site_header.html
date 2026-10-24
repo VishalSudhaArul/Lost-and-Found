@@ -4,10 +4,12 @@
     <a class="brand" href="{% url 'home' %}"><span class="brand-mark" aria-hidden="true"></span><span>Campus Lost &amp; Found</span></a>
     <button class="icon-btn menu-toggle" type="button" data-nav-toggle aria-controls="site-nav" aria-expanded="false" aria-label="Open menu">{% icon "menu" %}</button>
     <nav class="site-nav" id="site-nav" aria-label="Main">
+      <a href="{% url 'home' %}" {% nav_current 'home' %}>Home</a>
       <a href="{% url 'board' %}" {% nav_current 'board' 'item_detail' %}>Browse items</a>
       <a href="{% url 'home' %}#how-it-works">How it works</a>
+      <a href="{% url 'rewards' %}" {% nav_current 'rewards' %}>Community rewards</a>
       <a href="{% url 'login' %}" {% nav_current 'login' %}>Sign in</a>
-      <a class="btn btn-primary btn-small" href="{% url 'register' %}">{% icon "user-plus" %}Create account</a>
+      <a class="btn btn-primary btn-small" href="{% url 'login' %}?next={% url 'report_item' 'found' %}">{% icon "plus" %}Report an item</a>
     </nav>
   </div>
 </header>

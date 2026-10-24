@@ -1,0 +1,103 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Community rewards{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "award" %}Community rewards</span><h1>Good deeds deserve recognition</h1>
+  <p>Returning something that isn't yours is a powerful act of honesty. Earn Community Points for verified contributions and see the difference you make on campus.</p></div>
+  {% if user.is_authenticated and policy.leaderboard_enabled %}<a class="btn btn-ghost" href="{% url 'leaderboard' %}">{% icon "trophy" %}Leaderboard</a>{% endif %}
+</div>
+
+{% if not policy.rewards_enabled %}
+<div class="notice warn callout">{% icon "info" %}<span>Community rewards are currently paused by the campus administrators. Reporting, claiming and returns work as normal.</span></div>
+{% endif %}
+
+{% if me %}
+{% with tier=me.current_tier %}
+<section class="points-card metal-{% if tier %}{{ tier.style }}{% else %}bronze{% endif %}" aria-label="Your points">
+  <div class="points-card-grid">
+    <div><p class="label">Available points</p><div class="big">{{ me.balance }}</div></div>
+    <div style="display:grid;justify-items:center">
+      {% if tier %}{% include "partials/points_badge.html" with badge=tier size="lg" %}<div class="tier-name">{{ tier.name }}</div>
+      {% else %}<span class="medal medal-lg metal-bronze locked" role="img" aria-label="No tier yet">{% icon "award" %}</span><div class="tier-name">Getting started</div>{% endif %}
+    </div>
+    <div class="right"><p class="label">Lifetime earned</p><div class="big">{{ me.lifetime }}</div></div>
+  </div>
+  {% if me.progress %}
+  <div class="progress" role="progressbar" aria-valuenow="{{ me.progress.pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to {{ me.progress.tier.name }}"><i style="width:{{ me.progress.pct }}%"></i></div>
+  <div class="progress-meta"><span>{{ me.metrics.verified_actions }} verified action{{ me.metrics.verified_actions|pluralize }}</span><span>{{ me.progress.remaining }} more to {{ me.progress.tier.name }}</span></div>
+  {% else %}<div class="progress-meta" style="margin-top:1rem"><span>{{ me.metrics.verified_actions }} verified actions · every tier reached</span></div>{% endif %}
+</section>
+{% endwith %}
+
+<div class="promo">
+  <p>Found something on campus? Report it and hand it in to earn recognition for helping it home.</p>
+  <a class="btn" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report a found item</a>
+</div>
+
+<section class="section">
+  <div class="section-head"><div><h2>Points by activity</h2><p>{{ me.metrics.returns }} verified return{{ me.metrics.returns|pluralize }} completed{% if me.corrections %} · {{ me.corrections }} in corrections{% endif %}.</p></div></div>
+  <div class="cat-tiles">
+    {% for c in me.by_category %}<div class="cat-tile"><span class="ring">{% if c.key == "report" %}{% icon "file" "icon-lg" %}{% elif c.key == "custody" %}{% icon "shield" "icon-lg" %}{% elif c.key == "return" %}{% icon "heart" "icon-lg" %}{% elif c.key == "bonus" %}{% icon "star" "icon-lg" %}{% else %}{% icon "users" "icon-lg" %}{% endif %}</span><strong>{{ c.points }}</strong><span>{{ c.label }}</span></div>{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section-head"><div><h2>Achievement tiers</h2><p>Reached through verified helpful actions: a verified found report, handing an item in, a completed return, or an approved community contribution.</p></div></div>
+  <div class="tier-row">
+    {% for t in tiers %}
+    <div class="tier-tile metal-{{ t.style }}{% if me %}{% if t.pk in me.earned_ids %}{% if me.current_tier and me.current_tier.pk == t.pk %} current{% endif %}{% else %} locked{% endif %}{% endif %}">
+      {% include "partials/points_badge.html" with badge=t %}
+      <strong>{{ t.name }}</strong>
+      <small>{% if me %}{% if t.pk in me.earned_ids %}Earned{% else %}Locked · {{ t.threshold }} action{{ t.threshold|pluralize }}{% endif %}{% else %}{{ t.threshold }} verified action{{ t.threshold|pluralize }}{% endif %}</small>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="grid grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "star" %}Badges</h2></div>
+    <div class="badge-grid">
+      {% for b in badges %}<div class="badge-card{% if me and b.pk not in me.earned_ids %} locked{% endif %}">{% if me %}{% if b.pk in me.earned_ids %}{% include "partials/points_badge.html" with badge=b size="sm" %}{% else %}{% include "partials/points_badge.html" with badge=b size="sm" locked=True %}{% endif %}{% else %}{% include "partials/points_badge.html" with badge=b size="sm" %}{% endif %}<div><h3>{{ b.name }}</h3><p>{{ b.description }}</p></div></div>
+      {% empty %}<p class="muted">No badges are configured.</p>{% endfor %}
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "info" %}How points are earned</h2></div>
+    <ul class="summary mb-1">
+      <li>{% icon "file" %}<div><span>Found report verified by the team</span><strong>+{{ policy.points_found_report }} points</strong></div></li>
+      <li>{% icon "shield" %}<div><span>Item handed in and received by security</span><strong>+{{ policy.points_custody }} points</strong></div></li>
+      <li>{% icon "heart" %}<div><span>Item returned to its verified owner</span><strong>+{{ policy.points_return }} points</strong></div></li>
+      <li>{% icon "star" %}<div><span>Exceptionally complete report (reviewer's choice)</span><strong>+{{ policy.points_quality_bonus }} bonus</strong></div></li>
+      <li>{% icon "users" %}<div><span>Approved community contribution</span><strong>Set by administrators</strong></div></li>
+    </ul>
+    <p class="small muted mb-0">Points are recognition inside this platform. They aren't cash, vouchers or prizes, and they never affect claims: every owner goes through the same verification. Rejected or duplicate reports earn nothing, and you can't earn return points for an item returned to yourself.</p>
+  </section>
+</div>
+
+{% if me %}
+<div class="grid grid-2">
+  <section class="panel panel-flush">
+    <div class="panel-head"><h2>{% icon "clipboard-list" %}Recent points</h2></div>
+    {% if me.ledger %}<div class="table-wrap mt-1"><table><thead><tr><th>When</th><th>Activity</th><th>Points</th></tr></thead><tbody>
+      {% for e in me.ledger %}<tr><td class="nowrap small">{{ e.created_at|date:"j M Y" }}</td><td>{{ e.reason }}{% if e.is_reversed %} <span class="badge">Reversed</span>{% endif %}<div class="muted small">{{ e.get_category_display }}</div></td><td class="mono" style="font-weight:700;color:{% if e.points > 0 %}var(--ok){% else %}var(--bad){% endif %}">{% if e.points > 0 %}+{% endif %}{{ e.points }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty"><span class="empty-icon">{% icon "coins" "icon-lg" %}</span><p>No points yet. Report something you find and hand it in to get started.</p></div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% icon "trophy" %}Top contributors</h2>{% if policy.leaderboard_enabled %}<a href="{% url 'leaderboard' %}">Full leaderboard {% icon "arrow-right" %}</a>{% endif %}</div>
+    {% if not policy.leaderboard_enabled %}<p class="muted">The leaderboard is turned off.</p>
+    {% elif leaders %}<ol class="leader-list">{% for r in leaders %}<li{% if r.user_id == user.pk %} class="me"{% endif %}><span class="rank{% if r.rank <= 3 %} r{{ r.rank }}{% endif %}">{{ r.rank }}</span><span class="who">{% if r.tier %}{% include "partials/points_badge.html" with badge=r.tier size="sm" %}{% endif %}<strong>{{ r.name }}</strong></span><span class="small muted">{{ r.returns }} return{{ r.returns|pluralize }}</span><span class="pts">{{ r.points }}</span></li>{% endfor %}</ol>
+    {% else %}<div class="empty"><p>No contributions in the current period yet.</p></div>{% endif %}
+    <p class="small muted mt-1 mb-0">Prefer to stay private? <a href="{% url 'profile' %}">Change your leaderboard setting</a>.</p>
+  </section>
+</div>
+{% else %}
+<div class="final-cta">
+  <h2>Join the campus community</h2>
+  <p>Sign in to see your points, badges and progress.</p>
+  <div class="btn-row"><a class="btn btn-found" href="{% url 'login' %}?next={% url 'rewards' %}">Sign in</a><a class="btn btn-ghost" href="{% url 'register' %}">Create account</a></div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load lf %}
+{% block title %}Report review{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">{% icon "clipboard-check" %}Lost &amp; Found team</span><h1>Report review</h1>
+  <p>Check each new lost or found report. Verified reports stay on the board and finders earn recognition; rejected reports are hidden and the reporter is told why.</p></div>
+</div>
+<nav class="tabs" aria-label="Review status">
+  <a href="?tab=pending&amp;type={{ type }}" {% if tab == "pending" %}aria-current="page"{% endif %}>Awaiting review ({{ counts.pending }})</a>
+  <a href="?tab=verified&amp;type={{ type }}" {% if tab == "verified" %}aria-current="page"{% endif %}>Verified ({{ counts.verified }})</a>
+  <a href="?tab=rejected&amp;type={{ type }}" {% if tab == "rejected" %}aria-current="page"{% endif %}>Rejected ({{ counts.rejected }})</a>
+</nav>
+<div class="toolbar">
+  <div class="segmented" role="group" aria-label="Report type">
+    <a href="?tab={{ tab }}" {% if not type %}aria-current="page"{% endif %}>All</a>
+    <a href="?tab={{ tab }}&amp;type=found" {% if type == "found" %}aria-current="page"{% endif %}>{% icon "package" %}Found</a>
+    <a href="?tab={{ tab }}&amp;type=lost" {% if type == "lost" %}aria-current="page"{% endif %}>{% icon "search" %}Lost</a>
+  </div>
+</div>
+{% if page.object_list %}
+<div class="panel table-wrap"><table>
+  <thead><tr><th>Ref</th><th>Item</th><th>Reported by</th><th>Where / when</th><th>{% if tab == "pending" %}Waiting{% else %}Reviewed{% endif %}</th><th><span class="visually-hidden">Action</span></th></tr></thead>
+  <tbody>{% for i in page %}<tr>
+    <td class="mono">{{ i.reference }}</td>
+    <td><a href="{% url 'security_report' i.pk %}">{{ i.title }}</a><div class="muted small">{% badge i.report_type i.get_report_type_display %} {{ i.category }}</div></td>
+    <td>{{ i.reporter.get_full_name|default:i.reporter.username }}</td>
+    <td>{{ i.location.name }}<div class="muted small">{{ i.occurred_at|date:"j M, H:i" }}</div></td>
+    <td class="small">{% if tab == "pending" %}{{ i.created_at|timesince }}{% else %}{{ i.reviewed_at|date:"j M, H:i" }}<div class="muted">{{ i.reviewed_by.get_full_name|default:i.reviewed_by.username }}</div>{% endif %}</td>
+    <td><a class="btn btn-small {% if tab == 'pending' %}btn-primary{% else %}btn-ghost{% endif %}" href="{% url 'security_report' i.pk %}">{% if tab == "pending" %}Review{% else %}Open{% endif %}</a></td>
+  </tr>{% endfor %}</tbody></table></div>
+{% include "partials/pagination.html" %}
+{% else %}
+<div class="panel empty"><span class="empty-icon">{% icon "check-circle" "icon-lg" %}</span><h3>{% if tab == "pending" %}All caught up{% else %}Nothing here yet{% endif %}</h3><p>{% if tab == "pending" %}New reports will appear here as soon as they're submitted.{% else %}Reviewed reports will be listed here.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

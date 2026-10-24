@@ -7,8 +7,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from . import roles
-from .models import (CategoryAttribute, DisposalRecord, Handover, Item, ItemCategory, Location, OperationalSettings,
-                     PrivateDetail, UserProfile)
+from .models import (AchievementBadge, CategoryAttribute, DisposalRecord, Handover, Item, ItemCategory, Location,
+                     OperationalSettings, PrivateDetail, RewardPolicy, UserProfile, UserRewardProfile)
 from .services import images, ratelimit
 
 User = get_user_model()
@@ -314,7 +314,7 @@ class LocationForm(forms.ModelForm):
 class RetentionSettingsForm(forms.ModelForm):
     class Meta:
         model = OperationalSettings
-        fields = ["default_retention_days", "expiry_warning_days", "escalation_days"]
+        fields = ["default_retention_days", "expiry_warning_days", "escalation_days", "hold_reports_for_review"]
 
 
 class MatchingSettingsForm(forms.ModelForm):
@@ -329,3 +329,137 @@ class UserRolesForm(forms.Form):
     roles = forms.MultipleChoiceField(choices=[(r, r) for r in roles.ROLE_PERMISSIONS], required=False,
                                       widget=forms.CheckboxSelectMultiple)
     is_active = forms.BooleanField(required=False, label="Account active")
+
+
+# --- Staff sign-in ---------------------------------------------------------------
+
+class StaffLoginForm(RateLimitedLoginForm):
+    """Same checks as the member sign-in, plus the account must hold a staff role."""
+    STAFF_PERMS = ("access_security_dashboard", "review_reports", "manage_users", "manage_taxonomy", "view_analytics")
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        if not (user.is_superuser or any(user.has_perm(f"lostfound.{p}") for p in self.STAFF_PERMS)):
+            raise ValidationError("This sign-in is for the Lost & Found team and administrators. "
+                                  "Students and staff members should use the main sign-in.", code="not_staff")
+
+
+# --- Report review -----------------------------------------------------------------
+
+class ReportVerifyForm(forms.Form):
+    note = forms.CharField(max_length=300, required=False, label="Note for the record (optional)")
+    quality_bonus = forms.BooleanField(required=False, label="Exceptionally complete report (award the reviewer bonus)")
+
+
+class ReportRejectForm(forms.Form):
+    reason = forms.CharField(max_length=300, min_length=5, label="Reason (sent to the reporter)",
+                             widget=forms.TextInput(attrs={"placeholder": "e.g. Duplicate of F-00012, or not a campus item"}))
+
+
+# --- Profile & rewards -------------------------------------------------------------
+
+class ProfileForm(forms.Form):
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150, required=False)
+    department = forms.CharField(max_length=120, required=False)
+    display_name = forms.CharField(max_length=40, required=False, label="Leaderboard nickname",
+                                   help_text="Shown instead of your name on the leaderboard. Leave blank to use your first name and initial.")
+    show_on_leaderboard = forms.BooleanField(required=False, label="Show me on the community leaderboard")
+
+    def clean_display_name(self):
+        name = self.cleaned_data["display_name"].strip()
+        if name and "@" in name:
+            raise ValidationError("Don't use an email address as your nickname.")
+        if name and UserRewardProfile.objects.filter(display_name__iexact=name).exclude(user=self.initial.get("user")).exists():
+            raise ValidationError("That nickname is already taken.")
+        return name
+
+
+class RewardPolicyForm(forms.ModelForm):
+    class Meta:
+        model = RewardPolicy
+        fields = ["rewards_enabled", "points_found_report", "points_custody", "points_return", "points_quality_bonus",
+                  "max_community_award", "leaderboard_enabled", "leaderboard_period_days"]
+
+
+class BadgeForm(forms.ModelForm):
+    class Meta:
+        model = AchievementBadge
+        fields = ["name", "description", "metric", "threshold", "style", "is_active"]
+
+
+class CommunityAwardForm(forms.Form):
+    username = forms.CharField(max_length=150, label="Member username")
+    points = forms.IntegerField(min_value=1, max_value=1000)
+    reason = forms.CharField(max_length=200, min_length=5,
+                             widget=forms.TextInput(attrs={"placeholder": "e.g. Ran the lost-property awareness stall"}))
+
+    def clean_username(self):
+        try:
+            return User.objects.get(username=self.cleaned_data["username"].strip(), is_active=True)
+        except User.DoesNotExist:
+            raise ValidationError("No active member with that username.")
+
+
+class LedgerReverseForm(forms.Form):
+    reason = forms.CharField(max_length=180, min_length=5, label="Reason for correction")
+
+
+# --- Account management (administrators) ---------------------------------------------
+
+class UserDetailsForm(forms.Form):
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150, required=False)
+    email = forms.EmailField()
+    member_type = forms.ChoiceField(choices=UserProfile.MemberType.choices, label="Member type")
+    department = forms.CharField(max_length=120, required=False)
+
+    def __init__(self, *args, target=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target = target
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        qs = User.objects.filter(email__iexact=email)
+        if self.target is not None:
+            qs = qs.exclude(pk=self.target.pk)
+        if qs.exists():
+            raise ValidationError("Another account already uses this email.")
+        return email
+
+
+class AdminCreateUserForm(UserDetailsForm):
+    username = forms.CharField(max_length=150, help_text="Letters, digits and @/./+/-/_ only.")
+    roles = forms.MultipleChoiceField(choices=[(r, r) for r in roles.ROLE_PERMISSIONS], required=False,
+                                      widget=forms.CheckboxSelectMultiple, initial=[roles.MEMBERS])
+    password1 = forms.CharField(label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    password2 = forms.CharField(label="Repeat temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+
+    def clean_username(self):
+        name = self.cleaned_data["username"].strip()
+        from django.contrib.auth.validators import UnicodeUsernameValidator
+        UnicodeUsernameValidator()(name)
+        if User.objects.filter(username__iexact=name).exists():
+            raise ValidationError("That username is taken.")
+        return name
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "The two passwords don't match.")
+        elif p1:
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(p1, User(username=cleaned.get("username", ""), email=cleaned.get("email", "")))
+            except ValidationError as exc:
+                self.add_error("password1", exc)
+        return cleaned
+
+    def save(self):
+        data = self.cleaned_data
+        user = User.objects.create_user(data["username"], data["email"], data["password1"],
+                                        first_name=data["first_name"], last_name=data.get("last_name", ""))
+        UserProfile.objects.create(user=user, member_type=data["member_type"], department=data.get("department", ""))
+        user.groups.set(Group.objects.filter(name__in=set(data["roles"]) | {roles.MEMBERS}))
+        return user
