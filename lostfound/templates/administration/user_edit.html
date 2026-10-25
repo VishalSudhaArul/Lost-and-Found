@@ -36,4 +36,33 @@
     </form>
   </div>
 </div>
+
+{% if target.pk != user.pk and not target.is_superuser %}
+<section class="panel danger-zone" aria-labelledby="danger-title">
+  <h2 id="danger-title">{% icon "alert" %} Danger zone</h2>
+  <div class="grid grid-2">
+    {% if target.is_active %}
+    <form method="post" action="{% url 'admin_user_block' target.pk %}" class="danger-card" data-confirm="Block {{ target.username }}? They'll be signed out everywhere and can't sign in until unblocked.">{% csrf_token %}
+      <h3>{% icon "lock" %} Block this account</h3>
+      <p class="small muted">Stops {{ target.get_full_name|default:target.username }} from signing in and ends all their sessions now. Reports, claims and history are kept. You can unblock at any time.</p>
+      <div class="field"><label for="block-reason">Reason (kept in the audit log)</label><input id="block-reason" type="text" name="reason" minlength="5" maxlength="200" required placeholder="e.g. Fake reports submitted repeatedly"></div>
+      <button class="btn btn-ghost" type="submit">{% icon "lock" %}Block account</button>
+    </form>
+    {% else %}
+    <form method="post" action="{% url 'admin_user_block' target.pk %}" class="danger-card">{% csrf_token %}<input type="hidden" name="action" value="unblock">
+      <h3>{% icon "key" %} Unblock this account</h3>
+      <p class="small muted">{% if awaiting_activation %}This account hasn't been activated yet; unblocking lets them sign in once they set a password.{% else %}{{ target.get_full_name|default:target.username }} will be able to sign in again.{% endif %}</p>
+      <button class="btn btn-primary" type="submit">Unblock account</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'admin_user_delete' target.pk %}" class="danger-card" autocomplete="off" data-confirm="Permanently delete {{ target.username }}? This can't be undone.">{% csrf_token %}
+      <h3>{% icon "x-circle" %} Delete this account</h3>
+      <p class="small muted">Permanent. If they have reports, claims or custody records, those are kept anonymously for accountability and only their personal details are erased.</p>
+      <div class="field"><label for="del-user">Type <strong>{{ target.username }}</strong> to confirm</label><input id="del-user" type="text" name="confirm_username" required autocomplete="off"></div>
+      <div class="field"><label for="del-pw">Your password</label><input id="del-pw" type="password" name="confirm_password" required autocomplete="current-password"></div>
+      <button class="btn btn-danger" type="submit">{% icon "x-circle" %}Delete account</button>
+    </form>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

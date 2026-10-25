@@ -300,6 +300,46 @@ def user_edit(request, pk):
         "descriptions": roles.ROLE_DESCRIPTIONS, "activity": activity})
 
 
+@perm_required("manage_users")
+@require_POST
+def user_block(request, pk):
+    from ..services import accounts
+    target = get_object_or_404(User, pk=pk)
+    try:
+        if request.POST.get("action") == "unblock":
+            accounts.unblock(target, request.user, request=request)
+            messages.success(request, f"{target.username} can sign in again.")
+        else:
+            ended = accounts.block(target, request.user, request.POST.get("reason"), request=request)
+            messages.success(request, f"{target.username} is blocked and was signed out of {ended} active "
+                                      f"session{'s' if ended != 1 else ''}.")
+    except WorkflowError as exc:
+        messages.error(request, str(exc))
+    return redirect("admin_user_edit", pk=target.pk)
+
+
+@perm_required("manage_users")
+@require_POST
+def user_delete(request, pk):
+    from ..services import accounts
+    target = get_object_or_404(User, pk=pk)
+    if not request.user.check_password(request.POST.get("confirm_password") or ""):
+        messages.error(request, "Your password is incorrect, so the account was not deleted.")
+        return redirect("admin_user_edit", pk=target.pk)
+    username = target.username
+    try:
+        outcome = accounts.delete(target, request.user, request.POST.get("confirm_username"), request=request)
+    except WorkflowError as exc:
+        messages.error(request, str(exc))
+        return redirect("admin_user_edit", pk=target.pk)
+    if outcome == "deleted":
+        messages.success(request, f"Account {username} was deleted.")
+    else:
+        messages.success(request, f"Account {username} was deleted. Their personal details were erased; "
+                                  "their reports and custody history are kept anonymously for accountability.")
+    return redirect("admin_users")
+
+
 @perm_required("manage_rewards")
 def rewards_admin(request):
     cfg = rewards.policy()

@@ -210,3 +210,9 @@ body.is-public { overflow-x: clip; }
 
 /* ---------- Footer ---------- */
 .site-footer { background: #0d1730; }
+
+/* Danger zone (account page) */
+.danger-zone { border-color: #f4c2c2; margin-top: .5rem; }
+.danger-zone > h2 { display: flex; align-items: center; gap: .5rem; color: var(--bad); }
+.danger-card { border: 1px solid var(--line); border-radius: var(--radius-m); padding: 1.15rem 1.25rem; background: #fff; }
+.danger-card h3 { display: flex; align-items: center; gap: .45rem; margin-bottom: .35rem; }
