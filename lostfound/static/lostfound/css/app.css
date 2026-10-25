@@ -20,7 +20,7 @@
   --line-2: #cbd3df;
   --text: #0f172a;
   --text-2: #334155;
-  --muted: #64748b;
+  --muted: #556274; /* ≥4.5:1 on white, --bg and --bg-2 (WCAG 2.2 AA) */
   --ok: #15803d;
   --ok-wash: #e9f7ee;
   --bad: #c62828;
@@ -244,7 +244,7 @@ input[type=text], input[type=email], input[type=password], input[type=number], i
   width: 100%; font: inherit; font-size: .95rem; color: var(--text); background: #fff; border: 1px solid var(--line-2); border-radius: var(--radius-s); padding: .6rem .75rem; min-height: 44px; transition: border-color .15s, box-shadow .15s, background .15s; }
 input:hover, select:hover, textarea:hover { border-color: #a9b4c5; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--indigo); box-shadow: var(--focus); border-radius: var(--radius-s); }
-input::placeholder, textarea::placeholder { color: #94a0b4; }
+input::placeholder, textarea::placeholder { color: #6b778b; }
 input[type=file] { padding: .45rem .55rem; background: var(--bg); cursor: pointer; }
 select { appearance: none; -webkit-appearance: none; padding-right: 2.2rem; text-overflow: ellipsis; cursor: pointer;
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right .85rem center; }
@@ -339,7 +339,7 @@ legend + * { clear: both; }
 .tag-photo { position: relative; aspect-ratio: 4 / 3; background: var(--bg); display: grid; place-items: center; overflow: hidden; }
 .tag-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s var(--ease); }
 .tag:hover .tag-photo img { transform: scale(1.03); }
-.placeholder { display: flex; flex-direction: column; align-items: center; gap: .5rem; color: #8a96ab; font-size: .78rem; font-weight: 600; }
+.placeholder { display: flex; flex-direction: column; align-items: center; gap: .5rem; color: var(--muted); font-size: .78rem; font-weight: 600; }
 .placeholder .ph-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: #fff; border: 1px solid var(--line); color: var(--navy); box-shadow: var(--shadow-s); }
 .placeholder .ph-icon .icon { width: 30px; height: 30px; stroke-width: 1.6; }
 .tag.lost .placeholder .ph-icon { color: var(--bad); }
@@ -533,6 +533,18 @@ details.panel > summary { list-style-position: inside; }
 .error-page .empty-icon { width: 64px; height: 64px; }
 .error-page p { margin-inline: auto; color: var(--muted); }
 .error-page .btn-row { justify-content: center; }
+
+/* ================= Quality gates: states & long content ================= */
+/* Long words, emails and references never overflow their card or cell. */
+h1, h2, h3, .tag-body h3, td, dd, .item-row strong, .notice, .messages li { overflow-wrap: anywhere; }
+/* Disabled form controls look disabled and can't be mistaken for read-only text. */
+input:disabled, select:disabled, textarea:disabled { background: var(--bg-2); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
+/* Pressed states for everything clickable that isn't a .btn. */
+.chip:active, .segmented a:active, .segmented label:active, .tabs a:active, .portal-switch a:active, .icon-btn:active { transform: translateY(1px); }
+.shortcut:active, a.figure:active, .portal-card:active, .tag:active { transform: translateY(0); box-shadow: var(--shadow-s); }
+/* Keyboard focus is always visible, including on cards and rows that are links. */
+.tag:focus-visible, .shortcut:focus-visible, a.figure:focus-visible, .portal-card:focus-visible, .item-row:focus-visible, .chip:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; box-shadow: none; }
+a[aria-disabled="true"] { pointer-events: none; opacity: .55; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 @media print { .sidebar, .topbar, .site-header, .site-footer, .app-footer, .btn, form { display: none !important; } .app { display: block; } .panel, .tag { box-shadow: none; } }
