@@ -52,7 +52,9 @@ def report_item(request, report_type):
             matching.refresh_for_item(item)
             messages.success(request, f"Report {item.reference} saved.")
             return redirect("report_detail", pk=item.pk)
+    from ..services import rewards
     return render(request, "member/report_form.html", {
+        "policy": rewards.policy(),
         "form": form, "formset": formset, "is_found": is_found, "report_type": report_type,
         "attribute_map": _category_attribute_map(),
         "attr_values_json": json.dumps({k[5:]: v for k, v in request.POST.items() if k.startswith("attr_")}),

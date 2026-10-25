@@ -1,10 +1,19 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><span class="eyebrow">{% if user.profile.member_type == "staff" %}{% icon "users" %}Teacher dashboard{% else %}{% icon "book" %}Student dashboard{% endif %}</span><h1>Welcome back, {{ user.first_name|default:user.username }}</h1><p>Your reports, claims, matches and updates in one place.</p></div>
-  <div class="btn-row"><a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost item</a><a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found item</a></div>
-</div>
+<section class="welcome" aria-labelledby="welcome-title">
+  <div>
+    <span class="eyebrow">{% if user.profile.member_type == "staff" %}{% icon "users" %}Teacher dashboard{% else %}{% icon "book" %}Student dashboard{% endif %}</span>
+    <h1 id="welcome-title">Welcome back, {{ user.first_name|default:user.username }}</h1>
+    <p>{% if matches %}Good news: {{ matches }} found item{{ matches|pluralize }} may match what you lost. Take a look below.{% elif open_lost %}We're watching for your {{ open_lost }} open lost report{{ open_lost|pluralize }}. You'll be notified the moment a likely match is handed in.{% elif points %}Thank you for helping. You've earned {{ points }} Community Points by bringing things home.{% else %}Lost something, or found something that isn't yours? Start here.{% endif %}</p>
+    <div class="btn-row mt-1"><a class="btn btn-primary" href="{% url 'report_item' 'lost' %}">{% icon "plus" %}Report lost item</a><a class="btn btn-found" href="{% url 'report_item' 'found' %}">{% icon "plus" %}Report found item</a></div>
+  </div>
+  <div class="welcome-stats">
+    <div><strong>{{ open_lost }}</strong><span>Being watched</span></div>
+    <div><strong>{{ matches }}</strong><span>Possible matches</span></div>
+    <div><strong>{{ points }}</strong><span>Your points</span></div>
+  </div>
+</section>
 
 <div class="figures">
   <a class="figure" href="{% url 'my_reports' %}"><span class="figure-icon">{% icon "file" "icon-lg" %}</span><div><strong>{{ active_reports }}</strong><span>Active reports</span></div></a>

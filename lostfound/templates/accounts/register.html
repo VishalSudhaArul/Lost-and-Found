@@ -1,23 +1,21 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}{% if portal_label %}{{ portal_label }} registration{% else %}Create account{% endif %}{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="auth-card{% if portal_slug %} portal-{{ portal_slug }}{% endif %}" style="--w:640px">
+<div class="auth-split{% if portal_slug %} portal-{{ portal_slug }}{% endif %}">
+  {% include "partials/auth_aside.html" with variant=portal_slug|default:"student" %}
+  <div class="auth-main"><div class="inner" style="max-width:520px">
     {% if portal_slug %}
     <nav class="portal-switch" aria-label="Choose account type">
       <a href="{% url 'student_register' %}" {% if portal_slug == "student" %}aria-current="page"{% endif %}>{% icon "book" %}Student</a>
       <a href="{% url 'teacher_register' %}" {% if portal_slug == "teacher" %}aria-current="page"{% endif %}>{% icon "users" %}Teacher</a>
     </nav>
     {% endif %}
-    <div class="auth-head">
-      <span class="auth-icon">{% if portal_slug == "teacher" %}{% icon "users" "icon-lg" %}{% elif portal_slug == "student" %}{% icon "book" "icon-lg" %}{% else %}{% icon "user-plus" "icon-lg" %}{% endif %}</span>
-      <h1>{% if portal_label %}Create a {{ portal_label|lower }} account{% else %}Create your account{% endif %}</h1>
-      <p>Report items, receive match alerts and claim your belongings.</p>
-    </div>
+    <h1>{% if portal_label %}Create a {{ portal_label|lower }} account{% else %}Create your account{% endif %}</h1>
+    <p class="sub">Report items, get match alerts, claim your belongings and earn recognition for returns.</p>
     {% if closed %}
     <div class="panel empty"><span class="empty-icon">{% icon "lock" "icon-lg" %}</span><h3>{{ portal_label }} registration is closed</h3><p>New {{ portal_label|lower }} accounts are created by an administrator for now. Please contact the campus Lost &amp; Found office.</p></div>
     {% else %}
-    <form method="post" class="panel" novalidate>{% csrf_token %}
+    <form method="post" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
       {% field form.email %}
@@ -27,7 +25,7 @@
       <button class="btn btn-primary btn-block" type="submit">Create {% if portal_label %}{{ portal_label|lower }} {% endif %}account</button>
     </form>
     {% endif %}
-    <p class="auth-alt">Already registered? <a href="{% if portal_slug == 'teacher' %}{% url 'teacher_login' %}{% elif portal_slug == 'student' %}{% url 'student_login' %}{% else %}{% url 'login' %}{% endif %}">Sign in</a></p>
-  </div>
+    <div class="auth-foot"><p>Already registered? <a href="{% if portal_slug == 'teacher' %}{% url 'teacher_login' %}{% elif portal_slug == 'student' %}{% url 'student_login' %}{% else %}{% url 'login' %}{% endif %}">Sign in</a></p></div>
+  </div></div>
 </div>
 {% endblock %}

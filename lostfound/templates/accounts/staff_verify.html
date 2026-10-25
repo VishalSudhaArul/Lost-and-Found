@@ -1,22 +1,21 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Enter your sign-in code{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="auth-card staff-entry" style="--w:480px">
-    <div class="auth-head">
-      <span class="auth-icon">{% icon "mail" "icon-lg" %}</span>
-      <h1>Check your email</h1>
-      <p>We sent a 6-digit code to <strong>{{ email }}</strong>. It expires in {{ minutes }} minutes and works once.</p>
-    </div>
-    <ol class="track" style="--n:2;margin-bottom:1rem" aria-label="Sign-in steps"><li class="done" style="color:#c7cfdf">Password</li><li class="current" style="color:#fff">Email code</li></ol>
-    <form method="post" class="panel" autocomplete="off" novalidate>{% csrf_token %}
+<div class="auth-split">
+  {% include "partials/auth_aside.html" with variant="staff" %}
+  <div class="auth-main"><div class="inner">
+    <span class="eyebrow">{% icon "mail" %}Check your email</span>
+    <h1>Enter your sign-in code</h1>
+    <p class="sub">We sent a 6-digit code to <strong>{{ email }}</strong>. It expires in {{ minutes }} minutes and works once.</p>
+    <ol class="track" style="--n:2;margin-bottom:1.25rem" aria-label="Sign-in steps"><li class="done">Password</li><li class="current">Email code</li></ol>
+    <form method="post" autocomplete="off" novalidate>{% csrf_token %}
       {% field form.code %}
       <button class="btn btn-found btn-block" type="submit">{% icon "check" %}Verify and sign in</button>
     </form>
-    <form method="post" class="auth-alt">{% csrf_token %}<input type="hidden" name="action" value="resend">
-      Didn't get it? <button type="submit" class="btn btn-quiet btn-small" style="color:#fff;text-decoration:underline">Send a new code</button>
-    </form>
-    <p class="auth-alt small"><a href="{% url 'staff_login' %}">Start again</a></p>
-  </div>
+    <div class="auth-foot">
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="resend">Didn't get it? Check spam, or <button type="submit" class="btn btn-quiet btn-small" style="padding:0 .2rem;min-height:auto;color:var(--indigo);text-decoration:underline">send a new code</button>.</form>
+      <p><a href="{% url 'staff_login' %}">Start again</a></p>
+    </div>
+  </div></div>
 </div>
 {% endblock %}

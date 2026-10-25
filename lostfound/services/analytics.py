@@ -151,7 +151,12 @@ def member_metrics(user):
     top_matches = [{"suggestion": s, "lost": s.lost_item, "card": card}
                    for s in suggestions if (card := public.summary(s.found_item_id))]
     activity = AuditEntry.objects.filter(actor=user).exclude(action="auth.login").order_by("-created_at")[:6]
+    from django.db.models import Sum
+    from ..models import PointsLedgerEntry
     return {
+        "points": PointsLedgerEntry.objects.filter(user=user).aggregate(t=Sum("points"))["t"] or 0,
+        "open_lost": reports.filter(report_type=Item.ReportType.LOST, status=Item.Status.OPEN).count(),
+        "found_reported": reports.filter(report_type=Item.ReportType.FOUND).count(),
         "top_matches": top_matches,
         "activity": activity,
         "active_claims": Claim.objects.filter(claimant=user, status__in=Claim.ACTIVE_STATUSES).select_related("item")[:5],

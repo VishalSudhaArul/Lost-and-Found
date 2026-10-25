@@ -1,21 +1,23 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Staff sign-in{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="auth-card staff-entry" style="--w:480px">
-    <div class="auth-head">
-      <span class="auth-icon">{% icon "shield" "icon-lg" %}</span>
-      <h1>Staff sign-in</h1>
-      <p>For the Lost &amp; Found team and campus administrators.</p>
-    </div>
-    <form method="post" class="panel" novalidate>{% csrf_token %}
+<div class="auth-split">
+  {% include "partials/auth_aside.html" with variant="staff" %}
+  <div class="auth-main"><div class="inner">
+    <span class="eyebrow">{% icon "shield" %}Staff console</span>
+    <h1>Staff sign-in</h1>
+    <p class="sub">For the Lost &amp; Found team and campus administrators. After your password we'll email you a 6-digit code.</p>
+    <ol class="track" style="--n:2;margin-bottom:1.25rem" aria-label="Sign-in steps"><li class="current">Password</li><li>Email code</li></ol>
+    <form method="post" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       {% field form.username %}{% field form.password %}
       <input type="hidden" name="next" value="{{ next }}">
-      <button class="btn btn-found btn-block" type="submit">{% icon "log-in" %}Sign in to the staff console</button>
-      <p class="small mt-1 mb-0" style="text-align:center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+      <button class="btn btn-found btn-block" type="submit">{% icon "log-in" %}Continue</button>
     </form>
-    <p class="auth-alt">Student or staff member? <a href="{% url 'login' %}">Use the main sign-in</a></p>
-  </div>
+    <div class="auth-foot">
+      <p><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+      <p>Student or teacher? <a href="{% url 'login' %}">Use the main sign-in</a></p>
+    </div>
+  </div></div>
 </div>
 {% endblock %}

@@ -1,0 +1,32 @@
+{% load lf %}{# Brand panel for split-screen sign-in pages. Pass `variant` = student | teacher | staff. #}
+<aside class="auth-aside {{ variant }}" aria-hidden="true">
+  <a class="brand" href="{% url 'home' %}" tabindex="-1"><span class="brand-mark"></span><span>Campus Lost &amp; Found</span></a>
+  <div>
+    {% if variant == "staff" %}
+    <h2>The team that brings belongings home.</h2>
+    <p>Verify reports, keep custody accountable and hand items back to their rightful owners.</p>
+    <ul>
+      <li>{% icon "shield" %}<span>Two-step sign-in: password plus a code sent to your email</span></li>
+      <li>{% icon "clipboard-check" %}<span>Report review, claims and supervised handovers in one place</span></li>
+      <li>{% icon "history" %}<span>Every action recorded in the audit log</span></li>
+    </ul>
+    {% elif variant == "teacher" %}
+    <h2>Classrooms find things. You help them get home.</h2>
+    <p>Report items left behind in lectures and labs, and recover your own belongings through the same verified process.</p>
+    <ul>
+      <li>{% icon "package" %}<span>Hand in finds and earn recognition when they're returned</span></li>
+      <li>{% icon "link" %}<span>Match alerts for anything you've lost</span></li>
+      <li>{% icon "lock" %}<span>Private details never published</span></li>
+    </ul>
+    {% else %}
+    <h2>Lost something important? There's still hope.</h2>
+    <p>Honest people on campus hand in what they find. We help it find its way back to you.</p>
+    <ul>
+      <li>{% icon "search" %}<span>Search everything handed in to the Lost &amp; Found team</span></li>
+      <li>{% icon "bell" %}<span>Get alerted when a likely match arrives</span></li>
+      <li>{% icon "award" %}<span>Found something? Earn points and badges for returning it</span></li>
+    </ul>
+    {% endif %}
+  </div>
+  <p class="quote">Every return is verified and supervised. Points are recognition, never a shortcut.</p>
+</aside>

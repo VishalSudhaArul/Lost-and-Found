@@ -1,26 +1,26 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}{{ portal_label }} sign-in{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="auth-card portal-{{ portal_slug }}">
+<div class="auth-split portal-{{ portal_slug }}">
+  {% include "partials/auth_aside.html" with variant=portal_slug %}
+  <div class="auth-main"><div class="inner">
     <nav class="portal-switch" aria-label="Choose portal">
       <a href="{% url 'student_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" {% if portal_slug == "student" %}aria-current="page"{% endif %}>{% icon "book" %}Student</a>
       <a href="{% url 'teacher_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" {% if portal_slug == "teacher" %}aria-current="page"{% endif %}>{% icon "users" %}Teacher</a>
     </nav>
-    <div class="auth-head">
-      <span class="auth-icon">{% if portal_slug == "student" %}{% icon "book" "icon-lg" %}{% else %}{% icon "users" "icon-lg" %}{% endif %}</span>
-      <h1>{{ portal_label }} sign-in</h1>
-      <p>{% if portal_slug == "student" %}Find your belongings, report what you've found and follow your claims.{% else %}For faculty and teaching staff. Report items and recover your belongings.{% endif %}</p>
-    </div>
-    <form method="post" class="panel" novalidate>{% csrf_token %}
+    <h1>{{ portal_label }} sign-in</h1>
+    <p class="sub">{% if portal_slug == "student" %}Welcome back. Let's see what's been handed in.{% else %}Welcome back. Report finds and recover your belongings.{% endif %}</p>
+    <form method="post" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       {% field form.username %}{% field form.password %}
       <input type="hidden" name="next" value="{{ next }}">
       <button class="btn btn-primary btn-block" type="submit">Sign in as a {{ portal_label|lower }}</button>
-      <p class="small mt-1 mb-0" style="text-align:center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
     </form>
-    <p class="auth-alt">New {{ portal_label|lower }}? <a href="{% if portal_slug == 'student' %}{% url 'student_register' %}{% else %}{% url 'teacher_register' %}{% endif %}">Create a {{ portal_label|lower }} account</a></p>
-    <p class="auth-alt small">{% icon "shield" %} Lost &amp; Found team or administrator? <a href="{% url 'staff_login' %}">Staff sign-in</a></p>
-  </div>
+    <div class="auth-foot">
+      <p><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+      <p>New {{ portal_label|lower }}? <a href="{% if portal_slug == 'student' %}{% url 'student_register' %}{% else %}{% url 'teacher_register' %}{% endif %}">Create a {{ portal_label|lower }} account</a></p>
+      <p class="small">{% icon "shield" %} Lost &amp; Found team or administrator? <a href="{% url 'staff_login' %}">Staff sign-in</a></p>
+    </div>
+  </div></div>
 </div>
 {% endblock %}

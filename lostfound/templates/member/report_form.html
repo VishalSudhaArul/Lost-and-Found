@@ -16,6 +16,18 @@
   </nav>
 </div>
 
+{% if is_found %}
+<div class="callout-card reward">
+  <span class="figure-icon amber">{% icon "award" "icon-lg" %}</span>
+  <div><h2>Thank you. Your honesty will be recognised.</h2><p>Report it, then hand it in to the security office. You earn +{{ policy.points_found_report }} when the team verifies your report, +{{ policy.points_custody }} when it's handed in, and +{{ policy.points_return }} when it reaches its owner.</p></div>
+  <div class="pts">+{{ policy.points_found_report|add:policy.points_custody|add:policy.points_return }}<small>points possible</small></div>
+</div>
+{% else %}
+<div class="callout-card hope-blue">
+  <span class="figure-icon">{% icon "heart" "icon-lg" %}</span>
+  <div><h2>Don't lose hope. We'll keep looking with you.</h2><p>Once you submit, we compare your report with everything handed in, now and every night, and notify you as soon as a likely match arrives. The more detail you give, the better the match.</p></div>
+</div>
+{% endif %}
 <ol class="stepper" aria-label="Steps">
   <li>What is it?</li><li>When and where?</li><li>{% if is_found %}Private details{% else %}Keep proof private{% endif %}</li><li>Review and submit</li>
 </ol>

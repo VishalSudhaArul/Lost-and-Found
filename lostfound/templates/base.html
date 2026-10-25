@@ -8,9 +8,10 @@
   <title>{% block title %}Campus Lost &amp; Found{% endblock %} · Campus Lost &amp; Found</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="{% static 'lostfound/css/app.css' %}">
   <link rel="stylesheet" href="{% static 'lostfound/css/community.css' %}">
+  <link rel="stylesheet" href="{% static 'lostfound/css/theme.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body class="{% if user.is_authenticated %}is-app{% else %}is-public{% endif %}">
