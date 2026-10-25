@@ -140,6 +140,63 @@ class ActivationTests(LFTestCase):
         self.assertTrue(self.student.groups.filter(name=roles.SYSTEM_ADMIN).exists())
 
 
+class AccessPolicyTests(LFTestCase):
+    def save_policy(self, user, **fields):
+        self.client.force_login(user)
+        data = {"access": "1", "acc-allow_student_registration": "on", "acc-allow_teacher_registration": "on",
+                "acc-registration_email_domains": "", "acc-staff_email_domains": "", "acc-staff_email_allowlist": "",
+                "acc-confirm_password": PW}
+        data.update({f"acc-{k}": v for k, v in fields.items()})
+        return self.client.post(reverse("admin_settings"), data)
+
+    def test_admin_restricts_staff_emails_and_sign_in_follows(self):
+        r = self.save_policy(self.sysadmin, staff_email_domains="campus.edu", staff_email_allowlist="sysadmin@uni.test")
+        self.assertRedirects(r, reverse("admin_settings"))
+        self.client.logout()
+        r = self.client.post(reverse("staff_login"), {"username": "guard", "password": PW})
+        self.assertContains(r, "isn&#x27;t on the list allowed for staff")
+        r = self.client.post(reverse("staff_login"), {"username": "sysadmin", "password": PW})
+        self.assertRedirects(r, reverse("staff_login_verify"))
+
+    def test_policy_cannot_lock_out_its_author_and_needs_password(self):
+        r = self.save_policy(self.sysadmin, staff_email_domains="campus.edu")
+        self.assertContains(r, "would block your own email")
+        r = self.save_policy(self.sysadmin, confirm_password="wrong", allow_student_registration="")
+        self.assertContains(r, "Your password is incorrect")
+        from lostfound.models import OperationalSettings
+        self.assertTrue(OperationalSettings.load().allow_student_registration)
+
+    def test_registration_can_be_closed_and_limited_to_domains(self):
+        self.save_policy(self.sysadmin, allow_teacher_registration="", registration_email_domains="uni.test")
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("teacher_register")), "Teacher registration is closed")
+        data = {"username": "s9", "first_name": "S", "email": "s9@gmail.com",
+                "password1": "a-Strong-pass-99", "password2": "a-Strong-pass-99"}
+        self.assertContains(self.client.post(reverse("student_register"), data), "university email")
+        self.client.post(reverse("student_register"), {**data, "email": "s9@uni.test"})
+        self.assertTrue(User.objects.filter(username="s9").exists())
+        self.client.logout()
+        self.client.post(reverse("teacher_register"), {**data, "username": "t9", "email": "t9@uni.test"})
+        self.assertFalse(User.objects.filter(username="t9").exists())
+
+    def test_only_user_managers_change_policy_and_send_test_email(self):
+        self.assertEqual(self.save_policy(self.cadmin).status_code, 403)
+        self.client.force_login(self.sysadmin)
+        r = self.client.post(reverse("admin_test_email"))
+        self.assertRedirects(r, reverse("admin_settings"))
+        self.assertEqual(mail.outbox[-1].to, ["sysadmin@uni.test"])
+        self.client.force_login(self.student)
+        self.assertEqual(self.client.post(reverse("admin_test_email")).status_code, 403)
+
+    def test_email_failure_never_signs_staff_in(self):
+        from unittest import mock
+        with mock.patch("lostfound.views.accounts.send_mail", side_effect=OSError("smtp down")):
+            r = self.client.post(reverse("staff_login"), {"username": "guard", "password": PW})
+        self.assertContains(r, "couldn&#x27;t send your sign-in code")
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertNotIn("staff_2fa", self.client.session)
+
+
 class OverviewCountTests(LFTestCase):
     def test_overview_counts_reports_and_registrations_by_type(self):
         UserProfile.objects.create(user=self.student, member_type="student")

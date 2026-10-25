@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .. import roles
-from ..forms import (AdminCreateUserForm, AttributeForm, BadgeForm, CategoryForm, CommunityAwardForm, LedgerReverseForm,
+from ..forms import (AccessSettingsForm, AdminCreateUserForm, AttributeForm, BadgeForm, CategoryForm, CommunityAwardForm, LedgerReverseForm,
                      LocationForm, MatchingSettingsForm, RetentionSettingsForm, RewardPolicyForm, UserDetailsForm,
                      UserRolesForm)
 from ..models import (AchievementBadge, AuditEntry, CategoryAttribute, Claim, Item, ItemCategory, Location,
@@ -72,11 +72,29 @@ def locations(request, pk=None):
         "form": form, "editing": instance, "locations": Location.objects.all()})
 
 
-@any_perm_required("manage_retention", "manage_matching")
+@any_perm_required("manage_retention", "manage_matching", "manage_users")
 def settings_view(request):
     cfg = OperationalSettings.load()
     can_retention = request.user.has_perm("lostfound.manage_retention")
     can_matching = request.user.has_perm("lostfound.manage_matching")
+    can_access = request.user.has_perm("lostfound.manage_users")
+    access_form = AccessSettingsForm(request.POST if "access" in request.POST else None, instance=cfg,
+                                     prefix="acc", actor=request.user)
+    if request.method == "POST" and "access" in request.POST:
+        if not can_access:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        if access_form.is_valid():
+            access_form.save()
+            audit.record(request.user, "settings.access_updated", "Sign-in and account policy updated", target=cfg,
+                         request=request, fields=sorted(access_form.changed_data))
+            messages.success(request, "Sign-in and account policy saved.")
+            return redirect("admin_settings")
+        return render(request, "administration/settings.html", {
+            "retention_form": RetentionSettingsForm(instance=cfg, prefix="ret"),
+            "matching_form": MatchingSettingsForm(instance=cfg, prefix="mat"), "access_form": access_form,
+            "can_retention": can_retention, "can_matching": can_matching, "can_access": can_access,
+            "email_status": _email_status()})
     retention_form = RetentionSettingsForm(request.POST if "retention" in request.POST else None, instance=cfg, prefix="ret")
     matching_form = MatchingSettingsForm(request.POST if "matching" in request.POST else None, instance=cfg, prefix="mat")
     if request.method == "POST":
@@ -92,8 +110,42 @@ def settings_view(request):
             messages.success(request, f"{label} saved.")
             return redirect("admin_settings")
     return render(request, "administration/settings.html", {
-        "retention_form": retention_form, "matching_form": matching_form,
-        "can_retention": can_retention, "can_matching": can_matching})
+        "retention_form": retention_form, "matching_form": matching_form, "access_form": access_form,
+        "can_retention": can_retention, "can_matching": can_matching, "can_access": can_access,
+        "email_status": _email_status()})
+
+
+def _email_status():
+    from django.conf import settings as dj
+    if getattr(dj, "EMAIL_SMTP_INCOMPLETE", False):
+        return {"ok": False, "label": "Waiting for the app password",
+                "detail": "SMTP is selected in .env but EMAIL_HOST_PASSWORD is empty, so emails are printed in the "
+                          "server console. Paste the Google App password into .env and restart the server."}
+    if dj.EMAIL_BACKEND.endswith("smtp.EmailBackend"):
+        return {"ok": True, "label": f"Sending through {dj.EMAIL_HOST} as {dj.EMAIL_HOST_USER}",
+                "detail": "Use “Send test email” to confirm delivery."}
+    return {"ok": False, "label": "Development mode",
+            "detail": "Emails are printed in the server console. Configure SMTP in .env to deliver them."}
+
+
+@perm_required("manage_users")
+@require_POST
+def send_test_email(request):
+    from django.core.mail import send_mail
+    to = request.user.email
+    if not to:
+        messages.error(request, "Add an email address to your account first.")
+        return redirect("admin_settings")
+    try:
+        send_mail("Campus Lost & Found: test email",
+                  "This is a test from the Campus Lost & Found admin portal. Email delivery is working.", None, [to])
+    except Exception as exc:
+        messages.error(request, f"Test email failed: {exc.__class__.__name__}. Check EMAIL_* values in .env "
+                                "(for Gmail, use an App password) and restart the server.")
+    else:
+        audit.record(request.user, "settings.test_email", "Test email sent", request=request)
+        messages.success(request, f"Test email sent to {to}. Check the inbox (and spam folder).")
+    return redirect("admin_settings")
 
 
 @perm_required("manage_matching")
@@ -145,7 +197,13 @@ def send_activation(request, user):
         "token": default_token_generator.make_token(user), "protocol": "https" if request.is_secure() else "http",
         "domain": request.get_host(), "roles": ", ".join(staff_roles),
         "days": max(1, dj_settings.PASSWORD_RESET_TIMEOUT // 86400)})
-    send_mail("Activate your Campus Lost & Found account", body, None, [user.email])
+    try:
+        send_mail("Activate your Campus Lost & Found account", body, None, [user.email])
+        return True
+    except Exception:
+        messages.error(request, f"The account was saved but the activation email to {user.email} couldn't be sent. "
+                                "Check the email settings, then use “Resend activation link”.")
+        return False
 
 
 @perm_required("manage_users")
@@ -153,11 +211,13 @@ def user_create(request):
     form = AdminCreateUserForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        send_activation(request, user)
-        audit.record(request.user, "users.created", f"Account {user.username} created; activation link emailed",
+        sent = send_activation(request, user)
+        audit.record(request.user, "users.created", f"Account {user.username} created"
+                     f"{'; activation link emailed' if sent else '; activation email failed'}",
                      target=user, request=request, roles=sorted(form.cleaned_data["roles"]))
-        messages.success(request, f"Account {user.username} created and locked. An activation link was sent to "
-                                  f"{user.email}; the account works only after they open it and choose a password.")
+        if sent:
+            messages.success(request, f"Account {user.username} created and locked. An activation link was sent to "
+                                      f"{user.email}; the account works only after they open it and choose a password.")
         return redirect("admin_user_edit", pk=user.pk)
     return render(request, "administration/user_create.html", {"form": form, "descriptions": roles.ROLE_DESCRIPTIONS})
 
@@ -211,10 +271,10 @@ def user_edit(request, pk):
         messages.success(request, f"Details for {target.username} saved.")
         return redirect("admin_user_edit", pk=target.pk)
     elif action == "reset" and not target.is_active and not target.has_usable_password() and target.email:
-        send_activation(request, target)
-        audit.record(request.user, "users.activation_resent", f"Activation link re-sent to {target.username}",
-                     target=target, request=request)
-        messages.success(request, f"A new activation link was sent to {target.email}.")
+        if send_activation(request, target):
+            audit.record(request.user, "users.activation_resent", f"Activation link re-sent to {target.username}",
+                         target=target, request=request)
+            messages.success(request, f"A new activation link was sent to {target.email}.")
         return redirect("admin_user_edit", pk=target.pk)
     elif action == "reset":
         from django.contrib.auth.forms import PasswordResetForm

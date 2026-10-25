@@ -226,6 +226,10 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
 EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "15"))
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@localhost")
+# SMTP selected but no password yet: keep printing emails in the console instead of failing.
+EMAIL_SMTP_INCOMPLETE = EMAIL_BACKEND.endswith("smtp.EmailBackend") and not EMAIL_HOST_PASSWORD
+if EMAIL_SMTP_INCOMPLETE:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 LOGGING = {
     "version": 1,

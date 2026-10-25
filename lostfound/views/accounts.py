@@ -15,7 +15,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordResetView
 from django.core.mail import send_mail
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -28,7 +28,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 
 from ..forms import (RateLimitedLoginForm, RegistrationForm, StaffCodeForm, StaffLoginForm, StudentLoginForm,
                      TeacherLoginForm)
-from ..models import UserProfile
+from ..models import OperationalSettings, UserProfile
 from ..services import audit
 
 User = get_user_model()
@@ -77,8 +77,11 @@ def _register(request, portal=None):
         messages.success(request, "Welcome! Your account is ready.")
         return redirect("dashboard")
     if portal:
+        cfg = OperationalSettings.load()
+        closed = not (cfg.allow_student_registration if portal == UserProfile.MemberType.STUDENT
+                      else cfg.allow_teacher_registration)
         return render(request, "accounts/register.html", {
-            "form": form, "portal": portal, "portal_label": PORTALS[portal]["label"],
+            "form": form, "portal": portal, "portal_label": PORTALS[portal]["label"], "closed": closed,
             "portal_slug": "student" if portal == UserProfile.MemberType.STUDENT else "teacher"})
     if request.method == "POST":  # generic form (kept for older links)
         return render(request, "accounts/register.html", {"form": form})
@@ -115,11 +118,17 @@ def _send_code(request, user, next_url):
         "uid": user.pk, "digest": _digest(user.pk, code), "exp": time.time() + settings.STAFF_CODE_TTL_SECONDS,
         "attempts": 0, "sent": time.time(), "next": next_url}
     minutes = settings.STAFF_CODE_TTL_SECONDS // 60
-    send_mail("Your Campus Lost & Found staff sign-in code",
-              f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes. If you didn't try to "
-              f"sign in, ignore this email and tell your administrator.",
-              None, [user.email])
+    try:
+        send_mail("Your Campus Lost & Found staff sign-in code",
+                  f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes. If you didn't try to "
+                  f"sign in, ignore this email and tell your administrator.",
+                  None, [user.email])
+    except Exception:  # SMTP down or misconfigured: never sign in without the code
+        request.session.pop(SESSION_KEY, None)
+        audit.record(user, "auth.staff_code_failed_to_send", "Staff sign-in code could not be emailed", request=request)
+        return False
     audit.record(user, "auth.staff_code_sent", "Staff sign-in code emailed", request=request)
+    return True
 
 
 def _staff_home(user):
@@ -141,7 +150,9 @@ class StaffSignInView(SignInView):
         if not user.email:
             form.add_error(None, "This account has no email address for the sign-in code. Ask an administrator to add one.")
             return self.form_invalid(form)
-        _send_code(self.request, user, self.get_redirect_url())
+        if not _send_code(self.request, user, self.get_redirect_url()):
+            form.add_error(None, "We couldn't send your sign-in code by email. Check the email settings and try again.")
+            return self.form_invalid(form)
         messages.info(self.request, f"We emailed a 6-digit code to {_mask(user.email)}.")
         return redirect("staff_login_verify")
 
@@ -163,8 +174,11 @@ def staff_login_verify(request):
         if time.time() - pending.get("sent", 0) < 30:
             messages.error(request, "Please wait 30 seconds before asking for another code.")
         else:
-            _send_code(request, user, pending.get("next", ""))
-            messages.info(request, f"A new code was sent to {_mask(user.email)}.")
+            if _send_code(request, user, pending.get("next", "")):
+                messages.info(request, f"A new code was sent to {_mask(user.email)}.")
+            else:
+                messages.error(request, "We couldn't send a new code. Sign in again in a moment.")
+                return redirect("staff_login")
         return redirect("staff_login_verify")
     form = StaffCodeForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -223,3 +237,18 @@ def activate(request, uidb64, token):
         member_type = getattr(getattr(user, "profile", None), "member_type", "student")
         return redirect("teacher_login" if member_type == UserProfile.MemberType.STAFF else "student_login")
     return render(request, "accounts/activate.html", {"valid": True, "form": form, "target": user})
+
+
+class SafePasswordResetView(PasswordResetView):
+    """Password reset that shows a friendly error instead of crashing if email can't be sent."""
+    template_name = "accounts/password_reset.html"
+    email_template_name = "accounts/password_reset_email.txt"
+    subject_template_name = "accounts/password_reset_subject.txt"
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except Exception:
+            form.add_error(None, "We couldn't send the email right now. Please try again later or contact the "
+                                 "campus security office.")
+            return self.form_invalid(form)

@@ -14,6 +14,9 @@
       <h1>{% if portal_label %}Create a {{ portal_label|lower }} account{% else %}Create your account{% endif %}</h1>
       <p>Report items, receive match alerts and claim your belongings.</p>
     </div>
+    {% if closed %}
+    <div class="panel empty"><span class="empty-icon">{% icon "lock" "icon-lg" %}</span><h3>{{ portal_label }} registration is closed</h3><p>New {{ portal_label|lower }} accounts are created by an administrator for now. Please contact the campus Lost &amp; Found office.</p></div>
+    {% else %}
     <form method="post" class="panel" novalidate>{% csrf_token %}
       {% for e in form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
       <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
@@ -23,6 +26,7 @@
       <div class="form-row">{% field form.password1 %}{% field form.password2 %}</div>
       <button class="btn btn-primary btn-block" type="submit">Create {% if portal_label %}{{ portal_label|lower }} {% endif %}account</button>
     </form>
+    {% endif %}
     <p class="auth-alt">Already registered? <a href="{% if portal_slug == 'teacher' %}{% url 'teacher_login' %}{% elif portal_slug == 'student' %}{% url 'student_login' %}{% else %}{% url 'login' %}{% endif %}">Sign in</a></p>
   </div>
 </div>

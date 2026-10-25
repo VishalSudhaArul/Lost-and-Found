@@ -36,7 +36,42 @@ class OperationalSettings(models.Model):
     hold_reports_for_review = models.BooleanField(
         default=False, help_text="Keep new reports off the public board until the Lost & Found team verifies them.")
 
+    # Sign-in & accounts (system administrator)
+    allow_student_registration = models.BooleanField(default=True, help_text="Students can create their own accounts.")
+    allow_teacher_registration = models.BooleanField(default=True, help_text="Teachers can create their own accounts.")
+    registration_email_domains = models.CharField(
+        max_length=300, blank=True,
+        help_text="Comma-separated domains students and teachers must register with, e.g. campus.edu. Empty = any.")
+    staff_email_domains = models.CharField(
+        max_length=300, blank=True,
+        help_text="Comma-separated domains allowed for Lost & Found team and administrator accounts. Empty = any.")
+    staff_email_allowlist = models.TextField(
+        blank=True, help_text="Specific email addresses always allowed for team/administrator accounts, one per line.")
+
     updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def _split(value):
+        return [v.strip().lower().lstrip("@") for v in value.replace("\n", ",").split(",") if v.strip()]
+
+    def registration_domains(self):
+        from django.conf import settings
+        return self._split(self.registration_email_domains) or list(getattr(settings, "ALLOWED_EMAIL_DOMAINS", []))
+
+    def staff_domains(self):
+        from django.conf import settings
+        return self._split(self.staff_email_domains) or list(getattr(settings, "ALLOWED_STAFF_EMAIL_DOMAINS", []))
+
+    def staff_allowlist(self):
+        return self._split(self.staff_email_allowlist)
+
+    def staff_email_allowed(self, email):
+        """No rules configured means any address may hold a staff role."""
+        email = (email or "").strip().lower()
+        domains, allow = self.staff_domains(), self.staff_allowlist()
+        if not domains and not allow:
+            return True
+        return email in allow or email.rsplit("@", 1)[-1] in domains
 
     class Meta:
         verbose_name = "operational settings"

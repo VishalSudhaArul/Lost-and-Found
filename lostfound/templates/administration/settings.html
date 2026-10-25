@@ -1,7 +1,39 @@
 {% extends "base.html" %}{% load lf %}
 {% block title %}Policies &amp; settings{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Policies &amp; settings</h1></div></div>
+<div class="page-head"><div><span class="eyebrow">{% icon "sliders" %}Administration</span><h1>Policies &amp; settings</h1><p>Sign-in rules, email delivery, retention and matching.</p></div></div>
+
+{% if can_access %}
+<section class="grid grid-2">
+  <form method="post" class="panel" novalidate autocomplete="off">{% csrf_token %}<input type="hidden" name="access" value="1">
+    <h2>{% icon "shield" %} Sign-in &amp; accounts</h2>
+    <p class="small muted">Who can create accounts, and which email addresses may hold Lost &amp; Found team or administrator access. Staff always sign in with their password plus a code sent to their email.</p>
+    {% for e in access_form.non_field_errors %}<p class="notice bad callout">{% icon "alert" %}<span>{{ e }}</span></p>{% endfor %}
+    <h3 class="mt-1">Students &amp; teachers</h3>
+    {% field access_form.allow_student_registration %}{% field access_form.allow_teacher_registration %}
+    {% field access_form.registration_email_domains %}
+    <h3 class="mt-1">Lost &amp; Found team and administrators</h3>
+    {% field access_form.staff_email_domains %}{% field access_form.staff_email_allowlist %}
+    <p class="small muted">Leave both empty to allow any address. Accounts whose email doesn't match are refused at staff sign-in (server superusers are exempt, so you can't lock yourself out).</p>
+    {% field access_form.confirm_password %}
+    <button class="btn btn-primary" type="submit">Save sign-in policy</button>
+  </form>
+  <div>
+    <section class="panel">
+      <h2>{% icon "mail" %} Email delivery</h2>
+      <p class="notice {% if email_status.ok %}ok{% else %}warn{% endif %} callout">{% if email_status.ok %}{% icon "check-circle" %}{% else %}{% icon "alert" %}{% endif %}<span><strong>{{ email_status.label }}</strong><br><span class="small">{{ email_status.detail }}</span></span></p>
+      <p class="small muted">Sign-in codes, activation links and password resets are sent by email.</p>
+      <form method="post" action="{% url 'admin_test_email' %}">{% csrf_token %}<button class="btn btn-ghost" type="submit">{% icon "mail" %}Send test email to {{ user.email|default:"my address" }}</button></form>
+    </section>
+    <section class="panel">
+      <h2>{% icon "user-plus" %} Add an administrator</h2>
+      <p class="small muted">Create the account under Accounts &amp; roles with the Campus or System Administrator role. They receive a one-time activation link at their own email and choose their own password.</p>
+      <a class="btn btn-ghost btn-small" href="{% url 'admin_user_create' %}">{% icon "user-plus" %}Create account</a>
+    </section>
+  </div>
+</section>
+{% endif %}
+
 <div class="grid grid-2">
   {% if can_retention %}<form method="post" class="panel">{% csrf_token %}<input type="hidden" name="retention" value="1"><h2>Retention &amp; report review</h2><p class="small muted">Category overrides take precedence over the default retention. Holding reports keeps them off the public board until the Lost &amp; Found team verifies them.</p>{% for f in retention_form %}{% field f %}{% endfor %}<button class="btn" type="submit">Save retention policy</button></form>{% endif %}
   {% if can_matching %}<div>

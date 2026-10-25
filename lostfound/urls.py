@@ -27,9 +27,7 @@ urlpatterns = [
     path("accounts/password/done/", auth_views.PasswordChangeDoneView.as_view(template_name="accounts/password_done.html"),
          name="password_change_done"),
     # Password reset by email (EMAIL_BACKEND decides delivery; console backend in development).
-    path("accounts/password/reset/", auth_views.PasswordResetView.as_view(
-        template_name="accounts/password_reset.html", email_template_name="accounts/password_reset_email.txt",
-        subject_template_name="accounts/password_reset_subject.txt"), name="password_reset"),
+    path("accounts/password/reset/", accounts.SafePasswordResetView.as_view(), name="password_reset"),
     path("accounts/password/reset/sent/", auth_views.PasswordResetDoneView.as_view(
         template_name="accounts/password_reset_done.html"), name="password_reset_done"),
     path("accounts/password/reset/<uidb64>/<token>/", auth_views.PasswordResetConfirmView.as_view(
@@ -92,6 +90,7 @@ urlpatterns = [
     path("manage/locations/<int:pk>/", administration.locations, name="admin_location_edit"),
     path("manage/settings/", administration.settings_view, name="admin_settings"),
     path("manage/settings/run-matching/", administration.run_matching, name="admin_run_matching"),
+    path("manage/settings/test-email/", administration.send_test_email, name="admin_test_email"),
     path("manage/users/", administration.users, name="admin_users"),
     path("manage/users/new/", administration.user_create, name="admin_user_create"),
     path("manage/users/<int:pk>/", administration.user_edit, name="admin_user_edit"),

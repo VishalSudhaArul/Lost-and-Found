@@ -39,12 +39,22 @@ class RegistrationForm(UserCreationForm):
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
-        domains = settings.ALLOWED_EMAIL_DOMAINS
+        domains = OperationalSettings.load().registration_domains()
         if domains and email.rsplit("@", 1)[-1] not in domains:
             raise ValidationError("Registration is limited to university email addresses.")
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("An account with this email already exists.")
         return email
+
+    def clean(self):
+        cleaned = super().clean()
+        member_type = self.portal or cleaned.get("member_type")
+        cfg = OperationalSettings.load()
+        if member_type == UserProfile.MemberType.STUDENT and not cfg.allow_student_registration:
+            raise ValidationError("Student self-registration is closed. Ask an administrator for an account.")
+        if member_type == UserProfile.MemberType.STAFF and not cfg.allow_teacher_registration:
+            raise ValidationError("Teacher self-registration is closed. Ask an administrator for an account.")
+        return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -352,7 +362,11 @@ class StaffLoginForm(RateLimitedLoginForm):
         super().confirm_login_allowed(user)
         if not (user.is_superuser or any(user.has_perm(f"lostfound.{p}") for p in self.STAFF_PERMS)):
             raise ValidationError("This sign-in is for the Lost & Found team and administrators. "
-                                  "Students and staff members should use the main sign-in.", code="not_staff")
+                                  "Students and teachers should use their own sign-in.", code="not_staff")
+        # Superusers (created on the server with manage.py) stay exempt so the system can't be locked out.
+        if not user.is_superuser and not OperationalSettings.load().staff_email_allowed(user.email):
+            raise ValidationError("Your email address isn't on the list allowed for staff accounts. "
+                                  "Ask an administrator to update the sign-in policy.", code="staff_email_blocked")
 
 
 # --- Report review -----------------------------------------------------------------
@@ -527,7 +541,41 @@ STAFF_ROLES = (roles.SECURITY, roles.CAMPUS_ADMIN, roles.SYSTEM_ADMIN)
 
 
 def check_staff_email(email, chosen_roles):
-    """Team and administrator accounts may be limited to official email domains."""
-    domains = getattr(settings, "ALLOWED_STAFF_EMAIL_DOMAINS", [])
-    if domains and set(chosen_roles) & set(STAFF_ROLES) and email.rsplit("@", 1)[-1] not in domains:
-        raise ValidationError("Lost & Found team and administrator accounts must use an official campus email address.")
+    """Team and administrator accounts are limited to the emails/domains in the sign-in policy."""
+    if set(chosen_roles) & set(STAFF_ROLES) and not OperationalSettings.load().staff_email_allowed(email):
+        raise ValidationError("Lost & Found team and administrator accounts must use an official campus email "
+                              "address allowed by the sign-in policy.")
+
+
+class AccessSettingsForm(forms.ModelForm):
+    """Sign-in and account policy, edited by user managers from the admin portal."""
+    confirm_password = forms.CharField(label="Your password (to confirm the change)",
+                                       widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))
+
+    class Meta:
+        model = OperationalSettings
+        fields = ["allow_student_registration", "allow_teacher_registration", "registration_email_domains",
+                  "staff_email_domains", "staff_email_allowlist"]
+        widgets = {"staff_email_allowlist": forms.Textarea(attrs={"rows": 3, "placeholder": "admin@campus.edu"})}
+
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actor = actor
+
+    def clean_confirm_password(self):
+        pw = self.cleaned_data["confirm_password"]
+        if self.actor is None or not self.actor.check_password(pw):
+            raise ValidationError("Your password is incorrect.")
+        return pw
+
+    def clean(self):
+        cleaned = super().clean()
+        probe = OperationalSettings(staff_email_domains=cleaned.get("staff_email_domains", ""),
+                                    staff_email_allowlist=cleaned.get("staff_email_allowlist", ""))
+        for raw in probe._split(probe.staff_email_allowlist):
+            if "@" not in raw:
+                self.add_error("staff_email_allowlist", f"“{raw}” isn't an email address.")
+        if self.actor is not None and not self.actor.is_superuser and not probe.staff_email_allowed(self.actor.email):
+            raise ValidationError("This policy would block your own email from staff sign-in. "
+                                  "Add your address to the allowed list first.")
+        return cleaned

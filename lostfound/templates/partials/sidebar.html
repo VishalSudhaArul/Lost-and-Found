@@ -40,7 +40,7 @@
     {% if nav.manage_rewards %}<a href="{% url 'admin_rewards' %}" {% nav_current 'admin_rewards' 'admin_badge_edit' 'admin_rewards_ledger' %}>{% icon "award" %}Rewards &amp; badges</a>{% endif %}
     {% if nav.manage_taxonomy %}<a href="{% url 'admin_categories' %}" {% nav_current 'admin_categories' 'admin_category_edit' %}>{% icon "layers" %}Categories</a>
     <a href="{% url 'admin_locations' %}" {% nav_current 'admin_locations' 'admin_location_edit' %}>{% icon "map" %}Campus locations</a>{% endif %}
-    {% if nav.manage_retention or nav.manage_matching %}<a href="{% url 'admin_settings' %}" {% nav_current 'admin_settings' %}>{% icon "sliders" %}Policies &amp; settings</a>{% endif %}
+    {% if nav.manage_retention or nav.manage_matching or nav.manage_users %}<a href="{% url 'admin_settings' %}" {% nav_current 'admin_settings' %}>{% icon "sliders" %}Policies &amp; settings</a>{% endif %}
     {% if nav.view_audit %}<a href="{% url 'admin_audit' %}" {% nav_current 'admin_audit' %}>{% icon "clipboard-list" %}Audit log</a>{% endif %}
   </div>
   {% endif %}
