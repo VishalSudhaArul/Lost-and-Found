@@ -39,27 +39,47 @@ def items(request):
     states = {
         "intake": [Item.Status.OPEN],
         "custody": [Item.Status.IN_CUSTODY],
+        "claims": [Item.Status.IN_CUSTODY, Item.Status.DISPOSAL_REVIEW],
         "handover": [Item.Status.AWAITING_HANDOVER],
         "review": [Item.Status.DISPOSAL_REVIEW],
         "closed": [Item.Status.RETURNED, Item.Status.DISPOSED, Item.Status.CLOSED],
     }
+    pending = Claim.objects.filter(status__in=[Claim.Status.PENDING_VERIFICATION, Claim.Status.UNDER_REVIEW,
+                                               Claim.Status.INFO_REQUESTED]).values("item_id")
     qs = qs.filter(status__in=states.get(state, states["intake"]))
+    if state == "claims":
+        qs = qs.filter(pk__in=pending)
+    elif state == "custody":
+        qs = qs.exclude(pk__in=pending)
+    counts = {
+        "intake": Item.objects.found().filter(status=Item.Status.OPEN).count(),
+        "custody": Item.objects.found().filter(status=Item.Status.IN_CUSTODY).exclude(pk__in=pending).count(),
+        "claims": Item.objects.found().filter(status__in=states["claims"], pk__in=pending).count(),
+        "handover": Item.objects.found().filter(status=Item.Status.AWAITING_HANDOVER).count(),
+        "review": Item.objects.found().filter(status=Item.Status.DISPOSAL_REVIEW).count(),
+    }
     q = request.GET.get("q", "").strip()
     if q:
         ref = q.upper().lstrip("F-").lstrip("0")
         qs = qs.filter(Q(title__icontains=q) | Q(pk=int(ref)) if ref.isdigit() else Q(title__icontains=q))
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
-    return render(request, "security/items.html", {"page": page, "state": state, "q": q})
+    return render(request, "security/items.html", {"page": page, "state": state, "q": q, "counts": counts})
 
 
 @any_perm_required("manage_custody", "review_claims")
 def item_detail(request, pk):
     item = get_object_or_404(Item.objects.select_related("category__parent", "location", "reporter",
                                                          "current_custody_location"), pk=pk)
+    item_claims = list(Claim.objects.filter(item=item).select_related("claimant"))
+    open_claims = [c for c in item_claims if c.status in (Claim.Status.PENDING_VERIFICATION, Claim.Status.UNDER_REVIEW,
+                                                          Claim.Status.INFO_REQUESTED)]
+    approved = next((c for c in item_claims if c.status in (Claim.Status.APPROVED, Claim.Status.COMPLETED)), None)
+    handover = Handover.objects.filter(claim=approved).select_related("location", "officer", "completed_by").first() \
+        if approved else None
     context = {
-        "item": item,
+        "item": item, "open_claims": open_claims, "approved": approved, "handover": handover,
         "records": CustodyRecord.objects.filter(item=item).select_related("from_location", "to_location", "accepted_by", "corrects"),
-        "claims": Claim.objects.filter(item=item).select_related("claimant"),
+        "claims": item_claims,
         "private_count": PrivateDetail.vault.for_item(item).count(),
         "receive_form": ReceiveItemForm(),
         "transfer_form": TransferForm(),

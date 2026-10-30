@@ -42,6 +42,7 @@ class Notification(models.Model):
         AGEING = "ageing", "Ageing / retention"
         DISPOSAL = "disposal", "Disposal"
         SYSTEM = "system", "System"
+        REWARD = "reward", "Community points"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=14, choices=Kind.choices)

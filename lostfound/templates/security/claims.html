@@ -11,7 +11,7 @@
 {% if page.object_list %}
 <div class="panel table-wrap"><table><thead><tr><th>Claim</th><th>Item</th><th>Claimant</th><th>Verification</th><th>Status</th><th>Submitted</th></tr></thead>
 <tbody>{% for c in page %}<tr><td class="mono"><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a></td><td>{{ c.item.title }} <span class="mono muted small">{{ c.item.reference }}</span></td>
-<td>{{ c.claimant.get_full_name|default:c.claimant.username }}</td><td>{% badge c.verification_status c.get_verification_status_display %}</td><td>{% badge c.status c.get_status_display %}</td><td>{{ c.created_at|date:"j M, H:i" }}</td></tr>{% endfor %}</tbody></table></div>
+<td>{{ c.claimant.get_full_name|default:c.claimant.username }}</td><td>{% if c.verification_status == "failed" %}<span class="muted small">Old quiz failed (manual review)</span>{% else %}—{% endif %}</td><td>{% badge c.display_code c.display_status %}</td><td>{{ c.created_at|date:"j M, H:i" }}</td></tr>{% endfor %}</tbody></table></div>
 {% include "partials/pagination.html" %}
 {% else %}<div class="panel empty"><h3>Queue is empty</h3></div>{% endif %}
 {% endblock %}

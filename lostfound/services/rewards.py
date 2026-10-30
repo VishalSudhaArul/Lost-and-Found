@@ -39,8 +39,10 @@ def _award(user, category, points, reference, reason, item=None, handover=None, 
     except IntegrityError:
         return None  # already awarded for this event
     evaluate_badges(user)
-    notifications.notify([user], "system", f"+{points} community points",
-                         f"{reason}. Thank you for helping someone on campus.", link="/rewards/")
+    # Tell the user only once the award is committed (it may run inside a handover transaction).
+    transaction.on_commit(lambda: notifications.notify(
+        [user], "reward", f"+{points} community points",
+        f"{reason}. Thank you for helping someone on campus.", link="/rewards/"))
     return entry
 
 

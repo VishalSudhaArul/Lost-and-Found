@@ -14,9 +14,10 @@
         <dt>Private details</dt><dd>{{ private_count }} recorded (shown only on the claim review screen)</dd>
       </dl>
       <p style="margin-top:1rem">{{ item.description|linebreaksbr }}</p>
+      {% if item.photo %}<img src="{{ item.photo.url }}" alt="Photo of {{ item.title }}" style="max-width:100%;max-height:260px;border-radius:8px">{% endif %}
     </section>
     <section class="panel">
-      <h2>Custody chain</h2>
+      <h2 id="custody-chain">Custody chain</h2>
       {% if records %}<ol class="timeline">{% for r in records %}
         <li class="{% if r.action == 'correction' %}correction{% endif %}"><strong>{{ r.get_action_display }}</strong>{% if r.to_location %} to {{ r.to_location.name }}{% endif %}{% if r.from_location %} from {{ r.from_location.name }}{% endif %}
           <div class="muted small">{{ r.created_at|date:"j M Y, H:i" }}, accepted by {{ r.accepted_by.get_full_name|default:r.accepted_by.username }}{% if r.received_from %}, handed in by {{ r.received_from }}{% endif %}</div>
@@ -29,11 +30,33 @@
     </section>
     <section class="panel">
       <h2>Claims</h2>
-      {% if claims %}<ul class="rows">{% for c in claims %}<li><div><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a> <span class="muted small">by {{ c.claimant.get_full_name|default:c.claimant.username }}</span></div>{% badge c.status c.get_status_display %}</li>{% endfor %}</ul>
+      {% if claims %}<ul class="rows">{% for c in claims %}<li><div><a href="{% url 'security_claim' c.pk %}">{{ c.reference }}</a> <span class="muted small">by {{ c.claimant.get_full_name|default:c.claimant.username }}</span></div>{% badge c.display_code c.display_status %}</li>{% endfor %}</ul>
       {% else %}<p class="muted">No claims yet.</p>{% endif %}
     </section>
   </div>
   <aside>
+    <section class="panel">
+      <h2>{% icon "arrow-right" %} Next step</h2>
+      {% if item.status == "open" %}
+        <p class="small">Waiting for the finder to drop the item off. Record it below when it arrives.</p>
+      {% elif approved and approved.status == "completed" %}
+        <p class="small">Returned to {{ approved.claimant.get_full_name|default:approved.claimant.username }}{% if handover %} on {{ handover.completed_at|date:"j M Y, H:i" }}, released by {{ handover.completed_by.get_full_name|default:handover.completed_by.username }} (receipt <span class="mono">{{ handover.receipt_code }}</span>){% endif %}.</p>
+      {% elif approved %}
+        <p class="small">Claim <a href="{% url 'security_claim' approved.pk %}">{{ approved.reference }}</a> approved for {{ approved.claimant.get_full_name|default:approved.claimant.username }}. The item stays in custody until the handover is completed.</p>
+        {% if handover and handover.status == "scheduled" %}
+          <p class="small">Collection: {{ handover.scheduled_for|date:"j M Y, H:i" }} at {{ handover.location.name }}.</p>
+          {% if nav.conduct_handover %}<a class="btn btn-found" href="{% url 'security_handover' handover.pk %}">{% icon "check" %}Complete handover</a>{% endif %}
+        {% elif nav.conduct_handover %}<a class="btn" href="{% url 'security_claim' approved.pk %}">{% icon "calendar" %}Schedule collection</a>{% endif %}
+      {% elif open_claims %}
+        <p class="small">{{ open_claims|length }} claim{{ open_claims|length|pluralize }} waiting for review.</p>
+        {% for c in open_claims %}<a class="btn btn-small{% if forloop.first %} btn-primary{% endif %}" href="{% url 'security_claim' c.pk %}">Review {{ c.reference }}</a> {% endfor %}
+      {% elif item.status == "in_custody" %}
+        <p class="small mb-0">In custody. Nothing to do until someone claims it.</p>
+      {% elif item.status == "disposal_review" %}
+        <p class="small mb-0">Retention period reached. <a href="{% url 'security_ageing' %}">Open the disposal queue</a>.</p>
+      {% else %}<p class="small mb-0">{{ item.get_status_display }}.</p>{% endif %}
+      <p class="small mt-1 mb-0"><a href="#custody-chain">View custody history</a></p>
+    </section>
     {% if nav.manage_custody %}
       {% if item.status == "open" %}
       <form method="post" action="{% url 'security_item_receive' item.pk %}" class="panel">{% csrf_token %}<h2>Receive into custody</h2>{% field receive_form.location %}{% field receive_form.received_from %}{% field receive_form.notes %}<button class="btn" type="submit">Record receipt</button></form>

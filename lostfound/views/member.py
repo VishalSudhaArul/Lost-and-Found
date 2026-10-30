@@ -128,13 +128,14 @@ def claim_create(request, item_pk):
         try:
             d = form.cleaned_data
             claim = claims.submit_claim(item, request.user, d["statement"], d.get("lost_report"), request=request,
-                                        where_when=d["where_when"], extra_info=d.get("extra_info", ""),
+                                        where_when=d["where_when"], lost_when=d["lost_when"],
+                                        extra_info=d.get("extra_info", ""),
                                         attachment=d.get("attachment"))
         except WorkflowError as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, f"Claim {claim.reference} submitted for review. Campus security will compare it "
-                                      f"with the finder's record and let you know.")
+            messages.success(request, "Your claim has been submitted successfully. Campus security will review "
+                                      "your information and contact you.")
             return redirect("claim_detail", pk=claim.pk)
     return render(request, "member/claim_form.html", {"form": form, "card": card})
 

@@ -3,7 +3,8 @@
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_claims' %}">Verification review</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>{{ claim.item.title }} (<a href="{% url 'security_item' claim.item.pk %}">{{ claim.item.reference }}</a>), {{ claim.item.get_status_display|lower }}</p></div>
-<div class="btn-row">{% badge claim.verification_status claim.get_verification_status_display %}{% badge claim.status claim.get_status_display %}</div></div>
+<div class="btn-row">{% badge claim.display_code claim.display_status %}</div></div>
+{% if claim.verification_status == "failed" %}<p class="notice small callout">{% icon "info" %}<span>This claimant did not pass the old verification quiz. That no longer blocks the claim: review the evidence below and decide manually (recorded as a manual decision in the audit log).</span></p>{% endif %}
 {% with s=claim.status %}<ol class="track" style="--n:4" aria-label="Claim progress">
   <li class="{% if s == 'pending_verification' or s == 'under_review' or s == 'info_requested' %}current{% elif s == 'rejected' or s == 'withdrawn' %}stopped{% else %}done{% endif %}">Ownership review{% if s == 'info_requested' %} (waiting for claimant){% endif %}</li>
   <li class="{% if s == 'approved' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Decision</li>
@@ -20,7 +21,8 @@
     <div class="grid grid-2">
     <section class="panel"><h2>{% icon "user" %} Claimant's description</h2>
       <h3>What it looks like</h3><p>{{ claim.statement|linebreaksbr }}</p>
-      <h3>Where and when it was lost</h3><p>{{ claim.lost_where_when|default:"Not given" }}</p>
+      <h3>Where it was lost</h3><p>{{ claim.lost_where_when|default:"Not given" }}</p>
+      <h3>Approximately when</h3><p>{{ claim.lost_when|default:"Not given" }}</p>
       {% if claim.extra_info %}<h3>Additional information</h3><p>{{ claim.extra_info|linebreaksbr }}</p>{% endif %}
       {% if claim.attachment %}<h3>Supporting photo</h3><a href="{% url 'security_private_file' 'claim' claim.pk %}" target="_blank" rel="noopener"><img src="{% url 'security_private_file' 'claim' claim.pk %}" alt="Photo supplied by the claimant" style="max-width:100%;border-radius:8px"></a>{% endif %}
     </section>
@@ -51,9 +53,9 @@
   <aside>
     {% if claim.decision_reason %}<div class="panel"><h3>Decision note</h3><p class="small">{{ claim.decision_reason }}</p><p class="muted small">{{ claim.decided_by.username }}, {{ claim.decided_at|date:"j M Y, H:i" }}</p></div>{% endif %}
     {% if user.pk != claim.claimant_id %}
-    {% if claim.status == "under_review" and nav.review_claims %}
+    {% if claim.status == "under_review" or claim.status == "pending_verification" %}{% if nav.review_claims %}
       <form method="post" action="{% url 'security_claim_approve' claim.pk %}" class="panel" data-confirm="Approve this claim{% if competing %} and reject {{ competing|length }} competing claim(s){% endif %}?">{% csrf_token %}<h2>Approve</h2>{% field approve_form.confirm_compared %}{% field approve_form.reason %}{% if competing %}{% field approve_form.confirm_competing %}{% endif %}<button class="btn" type="submit">Approve claim</button></form>
-    {% endif %}
+    {% endif %}{% endif %}
     {% if claim.status == "under_review" or claim.status == "pending_verification" %}{% if nav.review_claims %}
       <form method="post" action="{% url 'security_claim_request_info' claim.pk %}" class="panel">{% csrf_token %}<h2>Request more information</h2>{% field info_form.message %}<button class="btn btn-ghost" type="submit">Send question</button></form>
     {% endif %}{% elif claim.status == "info_requested" %}<p class="notice small">Waiting for the claimant to answer your question.</p>{% endif %}

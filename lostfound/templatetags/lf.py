@@ -8,7 +8,7 @@ register = template.Library()
 STATUS_CLASS = {
     "open": "badge-lost", "in_custody": "badge-info", "awaiting_handover": "badge-warn", "returned": "badge-ok",
     "disposal_review": "badge-warn", "disposed": "", "closed": "",
-    "pending_verification": "badge-warn", "under_review": "badge-warn", "info_requested": "badge-info", "approved": "badge-ok", "rejected": "badge-bad",
+    "pending_verification": "badge-warn", "under_review": "badge-warn", "info_requested": "badge-info", "awaiting_collection": "badge-info", "approved": "badge-ok", "rejected": "badge-bad",
     "withdrawn": "", "completed": "badge-ok", "scheduled": "badge-info", "cancelled": "",
     "passed": "badge-ok", "failed": "badge-bad", "not_started": "",
     "suggested": "badge-info", "dismissed": "", "claimed": "badge-ok",

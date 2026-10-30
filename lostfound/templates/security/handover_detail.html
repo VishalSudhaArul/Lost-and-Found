@@ -39,7 +39,7 @@
         <fieldset><legend><span class="step-num" aria-hidden="true">3</span>Record and release</legend>
           {% field form.proof_photo %}{% field form.notes %}
         </fieldset>
-        <button class="btn btn-primary" type="submit" {% if blockers %}disabled{% endif %}>{% icon "check" %}Release item and issue receipt</button>
+        <button class="btn btn-primary" type="submit" {% if blockers %}disabled{% endif %}>{% icon "check" %}Complete Handover</button>
       </form>
       <form method="post" action="{% url 'security_handover_cancel' handover.pk %}" class="panel" data-confirm="Cancel this appointment?">{% csrf_token %}<h3>Cancel appointment</h3><div class="field"><label for="reason">Reason</label><input id="reason" type="text" name="reason" maxlength="300"></div><button class="btn btn-ghost" type="submit">Cancel handover</button></form>
     {% else %}<div class="panel notice callout">{% icon "x-circle" %}<div><h2>Cancelled</h2><p>{{ handover.cancelled_reason|default:"No reason recorded." }}</p><a class="btn btn-ghost" href="{% url 'security_claim' handover.claim_id %}">Reschedule from the claim</a></div></div>{% endif %}

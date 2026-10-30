@@ -41,7 +41,7 @@
     <div class="panel-head"><h2>{% icon "clipboard-check" %}My pending claims</h2><a href="{% url 'my_claims' %}">All claims {% icon "arrow-right" %}</a></div>
     {% if active_claims %}<ul class="rows">{% for c in active_claims %}
       <li><div><a href="{% url 'claim_detail' c.pk %}">{{ c.item.title }}</a><div class="muted small mono">{{ c.reference }} · {{ c.created_at|date:"j M" }}</div></div>
-      <div class="btn-row">{% badge c.status c.get_status_display %}{% if c.status == "pending_verification" %}<a class="btn btn-primary btn-small" href="{% url 'claim_verify' c.pk %}">Verify</a>{% endif %}</div></li>
+      <div class="btn-row">{% badge c.display_code c.display_status %}</div></li>
     {% endfor %}</ul>{% else %}<div class="empty"><span class="empty-icon">{% icon "clipboard-check" "icon-lg" %}</span><p>No claims in progress. Found your item on the board? Open it and choose “Start a claim”.</p><div class="btn-row"><a class="btn btn-ghost btn-small" href="{% url 'board' %}?type=found">Browse found items</a></div></div>{% endif %}
   </section>
 </div>

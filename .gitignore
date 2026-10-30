@@ -65,3 +65,6 @@ htmlcov/
 
 # Local editor/tool settings
 .claude/
+
+# Local database backups
+backups/

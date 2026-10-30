@@ -18,23 +18,23 @@ class SimpleClaimTests(LFTestCase):
         item = self.found_item()
         self.client.force_login(self.student)
         r = self.client.post(reverse("claim_create", args=[item.pk]), {
-            "statement": "Black backpack with a laptop sleeve", "where_when": "Reading hall, Monday morning",
+            "statement": "Black backpack with a laptop sleeve", "where_when": "Reading hall", "lost_when": "Monday morning",
             "extra_info": "", "attachment": upload()})
         claim = Claim.objects.get(item=item, claimant=self.student)
         self.assertRedirects(r, reverse("claim_detail", args=[claim.pk]))
         self.assertEqual(claim.status, Claim.Status.UNDER_REVIEW)
-        self.assertEqual(claim.lost_where_when, "Reading hall, Monday morning")
+        self.assertEqual((claim.lost_where_when, claim.lost_when), ("Reading hall", "Monday morning"))
         self.assertTrue(claim.attachment)
         self.assertFalse(VerificationChallenge.objects.filter(claim=claim).exists())
         page = self.client.get(reverse("claim_detail", args=[claim.pk]))
-        self.assertContains(page, "Pending review by campus security")
+        self.assertContains(page, "Under review by campus security")
         self.assertNotContains(page, SECRET_ANSWER)
         self.assertNotContains(page, SECRET_SERIAL)
 
     def test_form_shows_new_questions_and_button(self):
         self.client.force_login(self.student)
         r = self.client.get(reverse("claim_create", args=[self.found_item().pk]))
-        for text in ("What does the item look like?", "Where and approximately when did you lose it?",
+        for text in ("What does the item look like?", "Where did you last see or lose it?", "Approximately when did you lose it?",
                      "Any additional information?", "Submit Claim for Review"):
             self.assertContains(r, text)
         self.assertNotContains(r, SECRET_ANSWER)
@@ -105,7 +105,7 @@ class SimpleClaimTests(LFTestCase):
         item = self.found_item()
         self.client.force_login(self.student)
         self.client.post(reverse("claim_create", args=[item.pk]), {
-            "statement": "Black backpack with a laptop sleeve", "where_when": "Reading hall, Monday",
+            "statement": "Black backpack with a laptop sleeve", "where_when": "Reading hall", "lost_when": "Monday",
             "attachment": upload()})
         claim = Claim.objects.get(item=item)
         url = reverse("security_private_file", args=["claim", claim.pk])

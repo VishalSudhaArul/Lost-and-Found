@@ -4,29 +4,23 @@
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'my_claims' %}">My claims</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head">
   <div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>For {{ card.title }} <span class="mono">({{ card.reference }})</span></p></div>
-  {% badge claim.status claim.get_status_display %}
+  {% badge claim.display_code claim.display_status %}
 </div>
 
-{% with s=claim.status %}
+{% with s=claim.display_code %}
 <ol class="track" style="--n:5" aria-label="Claim progress">
   <li class="done">Submitted</li>
-  <li class="{% if s == 'pending_verification' or s == 'under_review' or s == 'info_requested' %}current{% elif s == 'withdrawn' or s == 'rejected' %}stopped{% else %}done{% endif %}">Pending review</li>
-  <li class="{% if s == 'approved' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Approved</li>
-  <li class="{% if s == 'approved' %}current{% elif s == 'completed' %}done{% endif %}">Handover</li>
+  <li class="{% if s == 'under_review' or s == 'info_requested' %}current{% elif s == 'withdrawn' or s == 'rejected' %}stopped{% else %}done{% endif %}">Under review</li>
+  <li class="{% if s == 'approved' %}current{% elif s == 'awaiting_collection' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Approved</li>
+  <li class="{% if s == 'awaiting_collection' %}current{% elif s == 'completed' %}done{% endif %}">Awaiting collection</li>
   <li class="{% if s == 'completed' %}done{% endif %}">Returned</li>
 </ol>
 {% endwith %}
 
 <div class="split">
   <div>
-    {% if claim.status == "pending_verification" %}
-      {% if challenge and challenge.status == "open" %}
-      <div class="panel callout"><span class="figure-icon">{% icon "clipboard-check" "icon-lg" %}</span><div><h2>Next: answer the verification questions</h2><p class="small muted">You have {{ challenge.attempts_remaining }} attempt{{ challenge.attempts_remaining|pluralize }} remaining. You won't be told which answer didn't match.</p><a class="btn btn-primary" href="{% url 'claim_verify' claim.pk %}">Answer questions</a></div></div>
-      {% else %}
-      <div class="panel notice warn callout">{% icon "clock" %}<div><h2>Waiting for verification questions</h2><p class="small mb-0">Campus security is preparing questions for this item. You'll be notified when they're ready.</p></div></div>
-      {% endif %}
-    {% elif claim.status == "under_review" %}
-      <div class="panel callout"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><h2>Pending review by campus security</h2><p class="small muted mb-0">Thank you, your claim was submitted. A member of the Lost &amp; Found team will compare it with the finder's record. Claims are never approved automatically; you'll be notified of the decision here and by email.</p></div></div>
+    {% if claim.status == "under_review" or claim.status == "pending_verification" %}
+      <div class="panel callout"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><h2>Under review by campus security</h2><p class="small muted mb-0">Your claim has been submitted successfully. A member of the Lost &amp; Found team will compare it with the finder's record. Claims are never approved automatically; you'll be notified of the decision here and by email.</p></div></div>
     {% elif claim.status == "info_requested" %}
       <div class="panel notice warn callout">{% icon "info" %}<div><h2>Campus security needs a little more information</h2><p class="small mb-0">Answer the question below. Your claim goes back for review as soon as you reply.</p></div></div>
     {% elif claim.status == "approved" %}
@@ -73,7 +67,8 @@
     <div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/item_card.html" %}{% endwith %}</div>
     <div class="panel mt-1">
       <h3>What you told us</h3><p class="small muted">{{ claim.statement|linebreaksbr }}</p>
-      {% if claim.lost_where_when %}<p class="small"><strong>Where and when:</strong> {{ claim.lost_where_when }}</p>{% endif %}
+      {% if claim.lost_where_when %}<p class="small"><strong>Where:</strong> {{ claim.lost_where_when }}</p>{% endif %}
+      {% if claim.lost_when %}<p class="small"><strong>When:</strong> {{ claim.lost_when }}</p>{% endif %}
       {% if claim.extra_info %}<p class="small"><strong>Additional information:</strong> {{ claim.extra_info|linebreaksbr }}</p>{% endif %}
       {% if claim.attachment %}<p class="small muted">Supporting photo attached (visible to campus security only).</p>{% endif %}
       {% if claim.lost_report %}<p class="small mb-0">Linked lost report: <a href="{% url 'report_detail' claim.lost_report_id %}">{{ claim.lost_report.reference }}</a></p>{% endif %}

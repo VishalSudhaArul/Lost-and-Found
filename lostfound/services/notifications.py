@@ -25,7 +25,7 @@ def notify(users, kind, title, message, link="", dedupe_key=""):
     return created
 
 
-EMAIL_KINDS = {"claim", "handover", "verification", "account", "report"}
+EMAIL_KINDS = {"claim", "handover", "verification", "account", "report", "reward"}
 
 
 def _email(user, kind, title, message, link):

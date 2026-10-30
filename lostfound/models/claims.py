@@ -13,13 +13,13 @@ def _claim_ref():
 
 class Claim(models.Model):
     class Status(models.TextChoices):
-        PENDING_VERIFICATION = "pending_verification", "Pending verification"
-        UNDER_REVIEW = "under_review", "Pending review"
+        PENDING_VERIFICATION = "pending_verification", "Under review"  # legacy quiz state
+        UNDER_REVIEW = "under_review", "Under review"
         INFO_REQUESTED = "info_requested", "More information requested"
-        APPROVED = "approved", "Approved — awaiting handover"
+        APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
         WITHDRAWN = "withdrawn", "Withdrawn"
-        COMPLETED = "completed", "Returned to owner"
+        COMPLETED = "completed", "Returned"
 
     class Verification(models.TextChoices):
         NOT_STARTED = "not_started", "Not started"
@@ -36,7 +36,8 @@ class Claim(models.Model):
         "lostfound.Item", null=True, blank=True, on_delete=models.SET_NULL, related_name="claims_as_lost_report",
         help_text="The claimant's own lost report, if any.")
     statement = models.TextField(max_length=1500, help_text="What the item looks like, in the claimant's words. Visible to the claimant and security only.")
-    lost_where_when = models.CharField(max_length=300, blank=True, help_text="Where and roughly when it was lost.")
+    lost_where_when = models.CharField(max_length=300, blank=True, help_text="Where the claimant last saw or lost it.")
+    lost_when = models.CharField(max_length=120, blank=True, help_text="Approximately when it was lost.")
     extra_info = models.TextField(max_length=1500, blank=True, help_text="Anything else the claimant remembers.")
     attachment = models.ImageField(storage=private_storage_factory, upload_to="claims/%Y/%m/", blank=True,
                                    help_text="Optional supporting photo; private to security staff.")
@@ -69,6 +70,23 @@ class Claim(models.Model):
     @property
     def is_active(self):
         return self.status in self.ACTIVE_STATUSES
+
+
+def _display_status(claim):
+    """Simple status shown to people: Submitted / Under review / More information requested /
+    Approved / Awaiting collection / Returned / Rejected / Withdrawn."""
+    if claim.status == Claim.Status.APPROVED:
+        handover = getattr(claim, "handover", None)
+        if handover is not None and handover.status == "scheduled":
+            return "awaiting_collection", "Awaiting collection"
+        return "approved", "Approved"
+    if claim.status == Claim.Status.PENDING_VERIFICATION:
+        return "under_review", "Under review"
+    return claim.status, claim.get_status_display()
+
+
+Claim.display_status = property(lambda self: _display_status(self)[1])
+Claim.display_code = property(lambda self: _display_status(self)[0])
 
 
 class ClaimMessage(models.Model):

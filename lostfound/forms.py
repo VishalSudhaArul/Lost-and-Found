@@ -209,8 +209,10 @@ class ClaimForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 4}), max_length=1500, min_length=10,
         label="What does the item look like?",
         help_text="Colour, brand, size, marks, stickers, contents... in your own words. Only campus security sees this.")
-    where_when = forms.CharField(max_length=300, min_length=3, label="Where and approximately when did you lose it?",
-                                 help_text="For example: Library 2nd floor, Tuesday afternoon.")
+    where_when = forms.CharField(max_length=300, min_length=2, label="Where did you last see or lose it?",
+                                 help_text="For example: Library, 2nd floor reading area.")
+    lost_when = forms.CharField(max_length=120, min_length=2, label="Approximately when did you lose it?",
+                                help_text="A rough time is fine, e.g. Tuesday afternoon.")
     extra_info = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), max_length=1500, required=False,
                                  label="Any additional information? (optional)")
     attachment = forms.ImageField(required=False, label="Supporting photo (optional)",

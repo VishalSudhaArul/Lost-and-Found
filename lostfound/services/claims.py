@@ -32,7 +32,7 @@ def _cancel_open_challenge(claim):
 
 
 def submit_claim(item, user, statement, lost_report=None, request=None, where_when="", extra_info="",
-                 attachment=None, with_challenge=False):
+                 attachment=None, with_challenge=False, lost_when=""):
     """Create a claim. By default it goes straight to security review (staff verify ownership
     against the private details); ``with_challenge`` keeps the legacy self-service quiz."""
     if lost_report is not None and (lost_report.reporter_id != user.pk or not lost_report.is_lost):
@@ -49,7 +49,8 @@ def submit_claim(item, user, statement, lost_report=None, request=None, where_wh
             if not ok:
                 raise WorkflowError(why)
             claim = Claim(item=item, claimant=user, statement=statement.strip(), lost_report=lost_report,
-                          lost_where_when=(where_when or "").strip()[:300], extra_info=(extra_info or "").strip(),
+                          lost_where_when=(where_when or "").strip()[:300], lost_when=(lost_when or "").strip()[:120],
+                          extra_info=(extra_info or "").strip(),
                           status=Claim.Status.PENDING_VERIFICATION if with_challenge else Claim.Status.UNDER_REVIEW)
             if attachment:
                 claim.attachment.save(attachment.name, attachment, save=False)
@@ -134,8 +135,12 @@ def approve_claim(claim_id, actor, reason="", confirm_competing=False, request=N
         others = list(Claim.objects.select_for_update().filter(item=item, status__in=Claim.ACTIVE_STATUSES).exclude(pk=claim.pk))
         if claim.claimant_id == actor.pk:
             raise PermissionDenied("You cannot decide your own claim.")
-        if claim.status != Claim.Status.UNDER_REVIEW:
-            raise WorkflowError("Only claims pending review can be approved (not while waiting for the claimant).")
+        if claim.status not in (Claim.Status.UNDER_REVIEW, Claim.Status.PENDING_VERIFICATION):
+            raise WorkflowError("Only claims under review can be approved (not while waiting for the claimant).")
+        # A legacy quiz result never blocks manual review: staff compare the evidence themselves.
+        override = verified_by_staff and claim.verification_status != Claim.Verification.PASSED
+        legacy_result = claim.verification_status
+        _cancel_open_challenge(claim)
         if not verified_by_staff and claim.verification_status != Claim.Verification.PASSED:
             raise WorkflowError("Confirm that you compared the claim with the item's private identifying details.")
         if any(o.status == Claim.Status.APPROVED for o in others):
@@ -159,7 +164,8 @@ def approve_claim(claim_id, actor, reason="", confirm_competing=False, request=N
         claim.save()
         item.transition_to(Item.Status.AWAITING_HANDOVER)
     audit.record(actor, "claim.approved", f"Claim {claim.reference} approved", target=claim, request=request,
-                 competing_rejected=[o.reference for o in others])
+                 competing_rejected=[o.reference for o in others], manual_review=bool(verified_by_staff),
+                 legacy_quiz_override=override, legacy_quiz_result=legacy_result)
     notifications.notify([claim.claimant], "claim", "Claim approved",
                          f"Your claim {claim.reference} was approved. Security will schedule a supervised handover.",
                          link=f"/my/claims/{claim.pk}/")

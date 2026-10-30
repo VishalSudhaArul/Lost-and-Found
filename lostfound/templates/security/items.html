@@ -4,11 +4,12 @@
 <div class="page-head"><div><h1>Found items &amp; custody</h1></div>
 <form method="get" class="btn-row"><input type="hidden" name="state" value="{{ state }}"><input type="search" name="q" value="{{ q }}" placeholder="Title or F-00012" aria-label="Search items"><button class="btn btn-small" type="submit">Search</button></form></div>
 <nav class="tabs" aria-label="Item state">
-  <a href="?state=intake" {% if state == "intake" %}aria-current="page"{% endif %}>Awaiting drop-off</a>
-  <a href="?state=custody" {% if state == "custody" %}aria-current="page"{% endif %}>In custody</a>
-  <a href="?state=handover" {% if state == "handover" %}aria-current="page"{% endif %}>Awaiting handover</a>
-  <a href="?state=review" {% if state == "review" %}aria-current="page"{% endif %}>Disposal review</a>
-  <a href="?state=closed" {% if state == "closed" %}aria-current="page"{% endif %}>Closed</a>
+  <a href="?state=intake" {% if state == "intake" %}aria-current="page"{% endif %}>Awaiting drop-off ({{ counts.intake }})</a>
+  <a href="?state=custody" {% if state == "custody" %}aria-current="page"{% endif %}>In custody ({{ counts.custody }})</a>
+  <a href="?state=claims" {% if state == "claims" %}aria-current="page"{% endif %}>Claims pending review ({{ counts.claims }})</a>
+  <a href="?state=handover" {% if state == "handover" %}aria-current="page"{% endif %}>Approved — awaiting handover ({{ counts.handover }})</a>
+  <a href="?state=closed" {% if state == "closed" %}aria-current="page"{% endif %}>Returned / closed</a>
+  <a href="?state=review" {% if state == "review" %}aria-current="page"{% endif %}>Disposal review ({{ counts.review }})</a>
 </nav>
 {% if page.object_list %}
 <div class="panel table-wrap"><table>

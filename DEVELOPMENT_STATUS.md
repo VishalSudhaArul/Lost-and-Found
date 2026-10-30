@@ -12,7 +12,7 @@ _Last updated: 23 Oct 2026._
 * Separate student and teacher portals, two-step staff sign-in (password + emailed code), email activation for administrator-created accounts, password re-entry for role escalation, admin overview with complaint pipeline and student/teacher breakdown (tests in `tests/test_portals.py`).
 * Test suite: 150 tests; on SQLite 147 pass + 3 PostgreSQL-only skipped. GitHub Actions runs them on PostgreSQL 16 on every push.
 * `manage.py check --deploy` with production settings: only the optional HSTS-preload warning remains (plus a key warning when using a dummy key).
-* Management commands `refresh_matches`, `check_ageing`, `seed_demo`, `rotate_encryption_keys` run successfully.
+* Management commands `refresh_matches`, `check_ageing`, `purge_demo_data`, `rotate_encryption_keys` run successfully.
 
 ## Not yet verified
 * Testing on physical phones, Safari and with a screen reader (camera capture, signature pad, Leaflet map with real campus coordinates).

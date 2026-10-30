@@ -8,7 +8,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Claim, CustodyRecord, Handover, Item, Location, MatchSuggestion, OperationalSettings
-from ..models.claims import VerificationChallenge
 from . import audit, images, matching, notifications, ratelimit
 from .errors import WorkflowError
 
@@ -163,8 +162,9 @@ def handover_blockers(handover):
         reasons.append("The handover is not scheduled.")
     if claim.status != Claim.Status.APPROVED:
         reasons.append("The claim is not approved.")
-    challenge = VerificationChallenge.objects.filter(claim=claim).first()
-    if claim.verification_status != Claim.Verification.PASSED or not challenge or challenge.status != VerificationChallenge.Status.PASSED:
+    # PASSED is set only when an authorised officer approves after comparing the evidence
+    # (or, for legacy claims, by the old quiz). The quiz itself is no longer required.
+    if claim.verification_status != Claim.Verification.PASSED:
         reasons.append("Ownership verification has not been passed.")
     if item.status != Item.Status.AWAITING_HANDOVER:
         reasons.append("The item is not awaiting handover.")
@@ -242,9 +242,10 @@ def complete_handover(handover_id, actor, *, id_type, id_name_matches, otp_code=
             if lost.status == Item.Status.OPEN:
                 lost.transition_to(Item.Status.RETURNED)
         MatchSuggestion.objects.filter(found_item=item, status=MatchSuggestion.Status.SUGGESTED).delete()
-
-    from . import rewards
-    rewards.on_handover_completed(handover)
+        # Finder's return bonus is part of the same transaction; its unique ledger
+        # reference ("return:<item>") makes a repeated completion award nothing.
+        from . import rewards
+        rewards.on_handover_completed(handover)
     audit.record(actor, "handover.completed", f"{item.reference} handed over (receipt {handover.receipt_code})",
                  target=handover, request=request, method=handover.method, id_type=id_type)
     notifications.notify([claim.claimant], "handover", "Item returned",

@@ -19,7 +19,7 @@ class RewardPolicy(models.Model):
     points_custody = models.PositiveIntegerField(
         default=5, validators=[MaxValueValidator(500)], help_text="Item handed in and received into custody.")
     points_return = models.PositiveIntegerField(
-        default=25, validators=[MaxValueValidator(500)], help_text="Item returned to its verified owner.")
+        default=40, validators=[MaxValueValidator(500)], help_text="Extra points for the finder once the item is handed back to its owner.")
     points_quality_bonus = models.PositiveIntegerField(
         default=5, validators=[MaxValueValidator(500)], help_text="Bonus a reviewer may give for an exceptionally complete report.")
     max_community_award = models.PositiveIntegerField(

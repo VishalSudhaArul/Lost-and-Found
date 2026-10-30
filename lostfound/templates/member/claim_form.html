@@ -6,7 +6,7 @@
 <div class="split">
   <form method="post" enctype="multipart/form-data" class="panel" novalidate>{% csrf_token %}
     <div class="notice callout small">{% icon "info" %}<span>Answer in your own words. There are no trick questions. Security may ask you for more information before deciding, and you'll collect the item in person with photo ID.</span></div>
-    {% field form.statement %}{% field form.where_when %}{% field form.extra_info %}{% field form.attachment %}
+    {% field form.statement %}{% field form.where_when %}{% field form.lost_when %}{% field form.extra_info %}{% field form.attachment %}
     {% if form.lost_report.field.queryset.exists %}{% field form.lost_report %}{% endif %}
     <button class="btn btn-primary" type="submit">{% icon "check-circle" %}Submit Claim for Review</button>
   </form>

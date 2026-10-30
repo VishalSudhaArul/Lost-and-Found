@@ -43,7 +43,7 @@ lostfound/
   templates/       base.html + partials/ (sidebar, topbar, site header/footer, messages,
                    item_card, status_badge, pagination, field, icons) + one folder per area
   static/          app.css (design system), app.js (progressive enhancement only)
-  management/commands/  refresh_matches, check_ageing, seed_demo, rotate_encryption_keys
+  management/commands/  refresh_matches, check_ageing, purge_demo_data, rotate_encryption_keys
   migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
   tests/           150 tests
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
@@ -94,7 +94,6 @@ Fill in `.env`. **Back up the encryption key**: private details cannot be decryp
 ```bash
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py seed_demo --password "Choose-A-Demo-Pass"   # optional, labelled sample data
 python manage.py runserver
 ```
 
@@ -142,7 +141,7 @@ See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler 
 * **Design system** in `static/lostfound/css/app.css`: navy `#14213D`, indigo actions `#4F46E5`, amber accent `#F5B335`, red for lost/urgent, amber for pending, green for returned. Icons are an inline SVG sprite (`partials/icons.html`, `{% icon "name" %}`); items without photos get a category icon placeholder.
 * **Screens:** homepage with search and category chips, board with type/category/location/date-range filters, sort and grid/list views, item detail, lost and found report forms with photo preview and a live review panel, member/security/admin dashboards built from live queries, claim and handover screens with a progress track, password reset, and branded 403/404/500 pages.
 * **No JavaScript required:** filters, view toggle, forms and menus all work as plain HTML; JavaScript only adds live updates, previews and the mobile drawer.
-* Counts on the homepage come from the database. If `seed_demo` sample rows exist, the page says it includes labelled sample data.
+* Counts on the homepage come from the database. The project ships no sample data; `purge_demo_data` removes rows left by the retired seed command.
 
 ## Testing
 
