@@ -1,6 +1,15 @@
 # Campus Lost & Found Platform
 
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Django 6.1](https://img.shields.io/badge/Django-6.1-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![PostgreSQL 14+](https://img.shields.io/badge/PostgreSQL-14%2B%20(only%20database)-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![pg_trgm + full-text search](https://img.shields.io/badge/search-full--text%20%2B%20pg__trgm-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/docs/current/pgtrgm.html)
+[![EduRev P09 · Track P](https://img.shields.io/badge/EduRev%20P09-Track%20P-F5B335)](#technology-stack)
+[![tests](https://github.com/VishalSudhaArul/Lost-and-Found/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/VishalSudhaArul/Lost-and-Found/actions/workflows/ci.yml)
+
 **EduRev P09 — Campus Lost and Found Platform with Ownership Verification and Custody Chain (Track P: Python + Django + PostgreSQL).**
+
+> **Stack at a glance:** a Django 6.1 web application written in Python, using Django's ORM, templates, forms and authentication, with **PostgreSQL as its only database**. Search and matching run inside PostgreSQL (full-text search + `pg_trgm`), and the audit, custody and points tables are protected by PostgreSQL triggers. There is no SQLite or other database fallback.
 
 One place to report lost and found items on campus. Finders record identifying details that are **never shown publicly**; the claimant then visits the Lost & Found / Security Desk, where staff question them face to face against those hidden details and record their decision in the portal. Every handover is supervised and recorded in an append-only custody chain.
 
@@ -68,7 +77,26 @@ Views stay thin; every state change goes through `lostfound/services/`.
 
 ## Technology stack
 
-Python 3.12+ (developed on 3.14, CI on 3.12) · Django 6.1 · **PostgreSQL 14+** (developed on 18, CI on 16) with `pg_trgm`, full-text search, GIN indexes and append-only triggers · `psycopg2-binary` (or psycopg 3) · Django Templates, Forms, ORM, auth/groups/permissions · Pillow · `cryptography` (Fernet) · Gmail/SMTP via Django's email backend · HTML/CSS/vanilla JS · Leaflet + OpenStreetMap tiles (optional).
+| Layer | Technology | Role in this project |
+|---|---|---|
+| Language | **Python 3.12+** | All application code (developed on 3.14, CI on 3.12) |
+| Web framework / backend | **Django 6.1** | URL routing, views, Django Templates, Forms, ORM, migrations, authentication, groups and permissions, cache framework, email backend |
+| Database | **PostgreSQL 14+** (the only supported database; developed on 18, CI on 16) | All application data; full-text search, `pg_trgm` trigram similarity, GIN indexes, partial unique constraints, append-only triggers |
+| PostgreSQL driver | `psycopg2-binary` (psycopg 3 also works) | Django ↔ PostgreSQL connection |
+| PostgreSQL integration | `django.contrib.postgres` | `SearchVector`, `SearchQuery`, `SearchRank`, `TrigramSimilarity`, `TrigramWordSimilarity` |
+| Images | Pillow | Resize, re-encode and strip EXIF/GPS from every upload |
+| Encryption | `cryptography` (Fernet) | Encrypts private identifying details at rest |
+| Frontend | Django Templates, HTML, CSS, vanilla JavaScript (progressive enhancement), optional Leaflet map | Server-rendered pages; JavaScript only enhances them |
+| CI | GitHub Actions with a PostgreSQL 16 service | `check`, `makemigrations --check` and the full test suite on every push |
+
+### How Django and PostgreSQL work together here
+
+* **Django ORM.** Every model (`Item`, `ItemCategory`, `Location`, `PrivateDetail`, `MatchSuggestion`, `Claim`, `VerificationChallenge`, `CustodyRecord`, `Handover`, `DisposalRecord`, `AuditEntry`, points ledger, ...) is a Django model in `lostfound/models/`, and the schema is created by Django migrations in `lostfound/migrations/`. Business rules in `lostfound/services/` use the ORM with transactions and row locks (`select_for_update`) for claims, handovers and rewards; PostgreSQL enforces foreign keys and constraints such as "one approved claim per item".
+* **PostgreSQL full-text search.** The public board search (`services/public.py`) builds a weighted `SearchVector` over the title and a denormalised search text, matches it with a `websearch` `SearchQuery` (English stemming, so "bottles" finds "bottle") and orders by `SearchRank`. A GIN index (`item_fulltext`, migration 0002) keeps it fast.
+* **`pg_trgm` trigram matching.** The extension is installed by migration 0002 with a GIN trigram index (`item_search_text_trgm`). `TrigramWordSimilarity` lets the board tolerate typos, and the matching engine (`services/matching.py`) uses `TrigramSimilarity` to score the text similarity between lost and found reports, combined with category, attribute, location and time scores.
+* **PostgreSQL triggers.** Migrations install `BEFORE UPDATE OR DELETE` triggers that make the audit log, custody records and points ledger append-only at the database level, in addition to the checks in Django.
+
+Summary: Python 3.12+ (developed on 3.14, CI on 3.12) · Django 6.1 · **PostgreSQL 14+** (developed on 18, CI on 16) with `pg_trgm`, full-text search, GIN indexes and append-only triggers · `psycopg2-binary` (or psycopg 3) · Django Templates, Forms, ORM, auth/groups/permissions · Pillow · `cryptography` (Fernet) · Gmail/SMTP via Django's email backend · HTML/CSS/vanilla JS · Leaflet + OpenStreetMap tiles (optional).
 
 ## Setup
 

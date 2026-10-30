@@ -1,0 +1,2 @@
+# Django templates are Django template language, not plain HTML (GitHub language stats)
+lostfound/templates/** linguist-language=HTML+Django
