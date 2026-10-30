@@ -131,17 +131,15 @@ def _email_status():
 @perm_required("manage_users")
 @require_POST
 def send_test_email(request):
-    from django.core.mail import send_mail
     to = request.user.email
     if not to:
         messages.error(request, "Add an email address to your account first.")
         return redirect("admin_settings")
-    try:
-        send_mail("Campus Lost & Found: test email",
-                  "This is a test from the Campus Lost & Found admin portal. Email delivery is working.", None, [to])
-    except Exception as exc:
-        messages.error(request, f"Test email failed: {exc.__class__.__name__}. Check EMAIL_* values in .env "
-                                "(for Gmail, use an App password) and restart the server.")
+    from ..services import mailer
+    if not mailer.send("Campus Lost & Found: test email",
+                       "This is a test from the Campus Lost & Found admin portal. Email delivery is working.",
+                       to, purpose="test"):
+        messages.error(request, f"Test email failed. {mailer.diagnose()[1]}")
     else:
         audit.record(request.user, "settings.test_email", "Test email sent", request=request)
         messages.success(request, f"Test email sent to {to}. Check the inbox (and spam folder).")
@@ -187,7 +185,6 @@ def send_activation(request, user):
     """Email a one-time activation link to the account's own address."""
     from django.conf import settings as dj_settings
     from django.contrib.auth.tokens import default_token_generator
-    from django.core.mail import send_mail
     from django.template.loader import render_to_string
     from django.utils.encoding import force_bytes
     from django.utils.http import urlsafe_base64_encode
@@ -197,10 +194,10 @@ def send_activation(request, user):
         "token": default_token_generator.make_token(user), "protocol": "https" if request.is_secure() else "http",
         "domain": request.get_host(), "roles": ", ".join(staff_roles),
         "days": max(1, dj_settings.PASSWORD_RESET_TIMEOUT // 86400)})
-    try:
-        send_mail("Activate your Campus Lost & Found account", body, None, [user.email])
+    from ..services import mailer
+    if mailer.send("Activate your Campus Lost & Found account", body, user.email, purpose="account activation"):
         return True
-    except Exception:
+    else:
         messages.error(request, f"The account was saved but the activation email to {user.email} couldn't be sent. "
                                 "Check the email settings, then use “Resend activation link”.")
         return False

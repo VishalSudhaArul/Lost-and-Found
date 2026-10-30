@@ -189,12 +189,44 @@ class AccessPolicyTests(LFTestCase):
         self.assertEqual(self.client.post(reverse("admin_test_email")).status_code, 403)
 
     def test_email_failure_never_signs_staff_in(self):
+        import smtplib
         from unittest import mock
-        with mock.patch("lostfound.views.accounts.send_mail", side_effect=OSError("smtp down")):
+        with mock.patch("lostfound.services.mailer.send_mail", side_effect=OSError("smtp down")):
             r = self.client.post(reverse("staff_login"), {"username": "guard", "password": PW})
         self.assertContains(r, "couldn&#x27;t send your sign-in code")
         self.assertNotIn("_auth_user_id", self.client.session)
         self.assertNotIn("staff_2fa", self.client.session)
+        # A rejected login is logged with its SMTP code, but never the address, code or password.
+        err = smtplib.SMTPAuthenticationError(535, b"5.7.8 Username and Password not accepted")
+        with mock.patch("lostfound.services.mailer.send_mail", side_effect=err), \
+                self.assertLogs("lostfound.email", level="ERROR") as logs:
+            self.client.post(reverse("staff_login"), {"username": "guard", "password": PW})
+        text = " ".join(logs.output)
+        self.assertIn("535", text)
+        self.assertIn("staff sign-in code", text)
+        self.assertNotIn("guard@uni.test", text)
+        self.assertNotIn(PW, text)
+        self.assertIsNone(re.search(r"\b\d{6}\b", text))
+
+    def test_used_code_cannot_be_reused(self):
+        self.client.post(reverse("staff_login"), {"username": "guard", "password": PW})
+        code = code_from_mail()
+        self.client.post(reverse("staff_login_verify"), {"code": code})
+        self.assertIn("_auth_user_id", self.client.session)
+        self.client.post(reverse("logout"))
+        r = self.client.post(reverse("staff_login_verify"), {"code": code})
+        self.assertRedirects(r, reverse("staff_login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_app_password_spaces_are_ignored(self):
+        import importlib
+        import os
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"EMAIL_HOST_PASSWORD": "abcd efgh ijkl mnop"}):
+            import config.settings as cfg
+            importlib.reload(cfg)
+            self.assertEqual(cfg.EMAIL_HOST_PASSWORD, "abcdefghijklmnop")
+        importlib.reload(cfg)
 
 
 class OverviewCountTests(LFTestCase):

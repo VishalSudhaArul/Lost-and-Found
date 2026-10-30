@@ -16,7 +16,6 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import LoginView, PasswordResetView
-from django.core.mail import send_mail
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -118,12 +117,12 @@ def _send_code(request, user, next_url):
         "uid": user.pk, "digest": _digest(user.pk, code), "exp": time.time() + settings.STAFF_CODE_TTL_SECONDS,
         "attempts": 0, "sent": time.time(), "next": next_url}
     minutes = settings.STAFF_CODE_TTL_SECONDS // 60
-    try:
-        send_mail("Your Campus Lost & Found staff sign-in code",
-                  f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes. If you didn't try to "
-                  f"sign in, ignore this email and tell your administrator.",
-                  None, [user.email])
-    except Exception:  # SMTP down or misconfigured: never sign in without the code
+    from ..services import mailer
+    if not mailer.send("Your Campus Lost & Found staff sign-in code",
+                       f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes. If you didn't try "
+                       f"to sign in, ignore this email and tell your administrator.",
+                       user.email, purpose="staff sign-in code"):
+        # SMTP down or misconfigured: never sign in without the code
         request.session.pop(SESSION_KEY, None)
         audit.record(user, "auth.staff_code_failed_to_send", "Staff sign-in code could not be emailed", request=request)
         return False
@@ -248,7 +247,9 @@ class SafePasswordResetView(PasswordResetView):
     def form_valid(self, form):
         try:
             return super().form_valid(form)
-        except Exception:
+        except Exception as exc:
+            import logging
+            logging.getLogger("lostfound.email").error("Email (password reset) not sent: %s.", type(exc).__name__)
             form.add_error(None, "We couldn't send the email right now. Please try again later or contact the "
                                  "campus security office.")
             return self.form_invalid(form)
