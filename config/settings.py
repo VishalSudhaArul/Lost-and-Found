@@ -162,6 +162,9 @@ if env("CACHE_BACKEND", "locmem") == "database":
 else:
     CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
+# Public board pages are cached (redacted DTOs only); any Item/Location change invalidates them.
+BOARD_CACHE_SECONDS = int(env("BOARD_CACHE_SECONDS", "60"))
+
 # --- Application settings --------------------------------------------------
 FIELD_ENCRYPTION_KEYS = env_list("FIELD_ENCRYPTION_KEYS")
 ALLOWED_EMAIL_DOMAINS = [d.lower().lstrip("@") for d in env_list("ALLOWED_EMAIL_DOMAINS")]

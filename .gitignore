@@ -68,3 +68,8 @@ htmlcov/
 
 # Local database backups
 backups/
+
+# Database dumps anywhere in the tree
+*.dump
+*.sql
+*.backup

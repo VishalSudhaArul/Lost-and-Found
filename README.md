@@ -2,7 +2,20 @@
 
 **EduRev P09 — Campus Lost and Found Platform with Ownership Verification and Custody Chain (Track P: Python + Django + PostgreSQL).**
 
-One place to report lost and found items on campus. Finders record identifying details that are **never shown publicly**; a claimant must answer questions drawn from those hidden details, campus security reviews every claim, and every handover is supervised and recorded in an append-only custody chain.
+One place to report lost and found items on campus. Finders record identifying details that are **never shown publicly**; campus security checks every claim against those hidden details before anything is released, and every handover is supervised and recorded in an append-only custody chain.
+
+## Problem statement
+
+Lost property on campus is handled through notice boards and WhatsApp groups: there is no matching between lost and found reports, no check that a claimant really owns an item, and no record of what was handed to whom.
+
+## Objectives
+
+* Capture lost and found reports with photos, category, location and time.
+* Match found items to lost reports on description, attributes, location and time proximity.
+* Hold identifying details privately (encrypted) for ownership verification.
+* Require ownership verification before any handover.
+* Record a supervised handover with a custody chain and proof.
+* Age unclaimed items into a disposal workflow after a configured period.
 
 ## Features
 
@@ -11,15 +24,15 @@ One place to report lost and found items on campus. Finders record identifying d
 | M1 Item reporting | Separate lost/found flows, mobile-first form, camera capture, photo upload (Pillow resize + EXIF/GPS stripping), category attributes, validation |
 | M2 Taxonomy | Two-level categories with public attributes and retention overrides; campus location tree (area › building › floor › room), custody points, searchable selector, optional Leaflet map picker |
 | M3 Matching | Weighted, explainable score from category, text (PostgreSQL `pg_trgm`), attributes, location tree/distance and time; suggestions on create/update and a nightly refresh command |
-| M4 Private details & verification | Separate `PrivateDetail` model, Fernet-encrypted, no reverse accessor; random challenge, exact/keyword/fuzzy scoring, attempt + rate limits, no hint about which answer failed, audited staff review |
-| M5 Claims | Submission, duplicate prevention, competing claims resolved explicitly, row locking + partial unique constraint (only one approved claim per item), reasons visible to claimant only |
-| M6 Custody & handover | Receive/transfer/correct (append-only, DB trigger on PostgreSQL), scheduling, OTP (hashed, expiring, attempt-limited, single-use) or drawn signature, ID check confirmation, optional proof photo, receipt |
+| M4 Private details & verification | Separate `PrivateDetail` model with its own `vault` manager, Fernet-encrypted, no reverse accessor. Ownership is verified by security against these hidden details (every view of them is audited); the scored question challenge (exact/keyword/fuzzy, attempt + rate limits, no hint about which answer failed) remains available |
+| M5 Claims | Short claim form (description, where, when, extra info, optional private photo), statuses Under review / More information requested / Approved / Awaiting collection / Returned / Rejected, staff information requests and claimant replies, never auto-approved, duplicate prevention, competing claims resolved explicitly, one approved claim per item (row locking + partial unique constraint) |
+| M6 Custody & handover | Receive/transfer/correct (append-only, PostgreSQL trigger), scheduling with email + in-app notice, three-step handover page: confirm claimant → verify a collection code emailed to the claimant's registered address (hashed, 10-minute, attempt-limited, single-use) or a drawn signature → Complete Handover with ID check and optional proof photo; item becomes Returned only then, in one transaction with the custody release and the finder's reward |
 | M7 Ageing & disposal | Configurable retention, warnings, disposal-review queue, escalation, two-person disposal (security review + authorised decision), protection for claimed/returned items |
-| M8 Public board | Redacted board, PostgreSQL full-text + trigram search, filters, sorting, pagination, live filtering, JSON endpoint `/api/board/` |
+| M8 Public board | Redacted board built from a public DTO, PostgreSQL full-text + `pg_trgm` search, filters, sorting, infinite scroll (numbered pages without JavaScript), live filtering, cached with Django's cache framework (invalidated on any item change), JSON endpoint `/api/board/` |
 | Report review | Every new report is reviewed by the Lost & Found team (verify / reject with a reason, duplicate hints). Optional setting holds reports off the board until verified; receiving an item into custody verifies it |
-| Community rewards | Append-only points ledger with unique event references (no double awards), configurable policy, achievement tiers and badges, opt-out leaderboard with nicknames, staff-authorised corrections and community awards |
+| Community rewards | Append-only points ledger with unique event references (no double awards), finder points for a verified found report and a return bonus paid only after a completed handover, configurable policy, badges, opt-out leaderboard, staff-authorised corrections |
 
-Plus dashboards for students/staff, the Lost & Found team and administrators, analytics from live data, in-app notifications, an audit log, a separate staff sign-in (`/staff/login/`) and full account management (create, edit, roles, deactivate, send reset link).
+Plus dashboards for students/staff, the Lost & Found team and administrators, analytics from live data (return rate, median time to return, hotspots, category mix, disposals, verification failure rate), in-app and email notifications, an audit log, a separate two-step staff sign-in (`/staff/login/`) and full account management (create, edit, roles, block, delete, send reset link).
 
 ## Roles
 
@@ -43,9 +56,11 @@ lostfound/
   templates/       base.html + partials/ (sidebar, topbar, site header/footer, messages,
                    item_card, status_badge, pagination, field, icons) + one folder per area
   static/          app.css (design system), app.js (progressive enhancement only)
-  management/commands/  refresh_matches, check_ageing, purge_demo_data, rotate_encryption_keys
-  migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
-  tests/           213 tests
+  management/commands/  refresh_matches, check_ageing, check_email, purge_demo_data,
+                   import_sqlite_export, rotate_encryption_keys
+  migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers, 0003–0009 later features
+  tests/           227 tests (run against PostgreSQL)
+scripts/           setup_postgres.ps1 (one-time role + database creation)
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
 
@@ -53,7 +68,7 @@ Views stay thin; every state change goes through `lostfound/services/`.
 
 ## Technology stack
 
-Python 3.12+ (developed against 3.14 locally, tested on 3.12) · Django 6.1 · PostgreSQL 14+ with `pg_trgm` · Django Templates, Forms, ORM, auth/groups/permissions · Pillow · `cryptography` (Fernet) · HTML/CSS/vanilla JS · Leaflet + OpenStreetMap tiles (optional).
+Python 3.12+ (developed on 3.14, CI on 3.12) · Django 6.1 · **PostgreSQL 14+** (developed on 18, CI on 16) with `pg_trgm`, full-text search, GIN indexes and append-only triggers · `psycopg2-binary` (or psycopg 3) · Django Templates, Forms, ORM, auth/groups/permissions · Pillow · `cryptography` (Fernet) · Gmail/SMTP via Django's email backend · HTML/CSS/vanilla JS · Leaflet + OpenStreetMap tiles (optional).
 
 ## Setup
 
@@ -116,14 +131,14 @@ Keep exactly one `DB_BACKEND` and one `EMAIL_BACKEND` line in `.env`: the first 
 
 ### Moving data from an old SQLite database
 
-Older versions could run on SQLite. To copy that data into PostgreSQL (keeps primary keys, timestamps, password hashes and encrypted details; uploaded files stay in `media/`):
+Older versions could run on SQLite. `import_sqlite_export` copies a `dumpdata` export (`backups/sqlite-export-groups.json` and `backups/sqlite-export-data.json`) into the migrated PostgreSQL database:
 
-1. Back up `db.sqlite3`.
-2. Export with a temporary settings module that points `DATABASES` at the SQLite file, then run
-   `dumpdata auth.group --natural-foreign --natural-primary` and
-   `dumpdata --all --natural-foreign -e contenttypes -e auth.permission -e auth.group -e sessions -e lostfound.rolepermissions`.
-3. On the empty, migrated PostgreSQL database: `python manage.py loaddata groups.json data.json`.
-4. Compare row counts per table before deleting anything.
+```bash
+python manage.py import_sqlite_export            # dry run (default): imports, runs every check, rolls back
+python manage.py import_sqlite_export --apply    # pg_dump backup to backups/, then import and commit
+```
+
+It keeps primary keys, timestamps, password hashes and encrypted details (no re-encryption), only inserts rows, skips rows that are already present and identical (so re-runs are safe), stops on any conflict before writing, refuses removed demo records, and checks counts, links, decryption, reward references, audit history and media files before committing. The SQLite file is opened read-only.
 
 ## Scheduled jobs
 
@@ -146,11 +161,13 @@ See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler 
 * Staff codes are stored only as a keyed hash in the session, expire (10 min), are attempt-limited (5) and work once.
 * Granting Lost & Found team or administrator roles to an existing account also requires the administrator's password. Set `ALLOWED_STAFF_EMAIL_DOMAINS` to require official email addresses for those roles.
 * Django's built-in `/admin/` goes through the same two-step staff sign-in.
-* Emails (codes, activation and reset links) use `EMAIL_BACKEND`; in development they are printed in the server console. Configure SMTP for real delivery.
+* Students and teachers can turn on the same emailed sign-in code in their profile.
+* Forgot password accepts a username or email and always sends the link to the account's **registered** address; the response never reveals whether an account exists.
+* All email (codes, activation, reset links, claim/handover/reward notices) goes through one sender, `lostfound/services/mailer.py`, configured by `EMAIL_*` in `.env` (Gmail SMTP with an App password, or the console backend in development). `python manage.py check_email --send-to you@example.com` tests delivery. Failures are logged without recipients, codes or links.
 
 ## Community rewards rules
 
-* Points are awarded only after a confirmed event: a team-verified found report (+10), the item received into custody (+5), the item returned to its verified owner (+25), or a reviewer bonus (+5). Values are configurable under Administration → Rewards & badges.
+* Points are awarded only after a confirmed event: a team-verified found report (+10), the item received into custody (+5), the item returned to its verified owner after a completed handover (+40 return bonus), or a reviewer bonus (+5). Values are configurable under Administration → Rewards & badges.
 * Each event has a unique ledger reference, so it can never pay twice. Rejected reports earn nothing, and nobody earns return points for an item returned to themselves.
 * Ledger entries are never edited or deleted (also enforced by a PostgreSQL trigger); corrections are new, staff-authorised entries and may revoke badges.
 * Points are recognition only, not cash, and never affect claims or verification. The leaderboard shows nicknames or first names to signed-in members only, and members can opt out.
@@ -169,7 +186,7 @@ See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler 
 python manage.py test lostfound            # against PostgreSQL (recommended)
 ```
 
-Latest results (Oct 2026): 213 tests, all passing on PostgreSQL (locally and on GitHub Actions, PostgreSQL 16) with none skipped. The workflow runs on every push (`.github/workflows/ci.yml`).
+The suite needs PostgreSQL (the test runner creates and drops its own `test_lostfound` database, so the role needs `CREATEDB`, which `scripts/setup_postgres.ps1` grants). Latest results (31 Oct 2026): 227 tests, all passing on PostgreSQL 18 locally and PostgreSQL 16 on GitHub Actions, none skipped. The workflow runs `check`, `makemigrations --check` and the suite on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 
@@ -185,21 +202,31 @@ The field-by-field public/private statement for the security office is in [docs/
 
 ## Deployment notes
 
-Set `DJANGO_DEBUG=False`, a long `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`; run `collectstatic`; serve with gunicorn/waitress behind HTTPS. Serve `MEDIA_ROOT` (public item photos only) from the web server or object storage; **never** expose `PRIVATE_MEDIA_ROOT`. Use a shared cache (`CACHE_BACKEND=database` + `createcachetable`) when running several processes so rate limits are shared. The board can be cached with Django's cache framework.
+Set `DJANGO_DEBUG=False`, a long `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`; run `collectstatic`; serve with gunicorn/waitress behind HTTPS. Serve `MEDIA_ROOT` (public item photos only) from the web server or object storage; **never** expose `PRIVATE_MEDIA_ROOT`. Use a shared cache (`CACHE_BACKEND=database` + `createcachetable`) when running several processes so rate limits and the board cache are shared. `BOARD_CACHE_SECONDS` (default 60, `0` disables) controls public board caching.
+
+## Specification coverage (EduRev P09, Track P)
+
+| Requirement | Status |
+|---|---|
+| M1–M8 modules | Implemented (see the table above) |
+| PostgreSQL full-text search + `pg_trgm` matching, Pillow EXIF stripping | Implemented |
+| Private fields encrypted, separate model/manager, public DTO; exhaustive no-leak test across item states | Implemented |
+| Match suggestions on creation and nightly refresh; ≥70% of seeded pairs suggested | Implemented and tested |
+| Handover recorded with custody chain and proof; handover requires the security role | Implemented and tested |
+| Unclaimed items age into the disposal queue at the configured interval | Implemented and tested |
+| Notifications: possible match, claim on your found item, verification, handover scheduled, ageing warning | Implemented (in-app and email) |
+| Claim requires passing verification before handover | Handover is blocked until ownership is verified. By default security verifies the claim against the hidden details (a deliberate usability choice for genuine owners who forget a detail); the claimant-answered question challenge is implemented but not the default path |
+| API endpoints `/items`, `/claims`, `/handovers` | Provided as server-rendered Django pages; only the public board also has a JSON endpoint (`/api/board/`) |
 
 ## Current limitations
 
-* No SSO/ERP, email or SMS integration yet (in-app notifications only; Django's email backend is configured for a future step).
-* Image similarity matching is not implemented (the PDF marks it optional).
-* The UI was checked in a desktop browser and a 375 px phone viewport (Chrome engine); not yet on physical phones, Safari or with a screen reader.
-* Password reset emails use `EMAIL_BACKEND` (console in development); configure SMTP to deliver them for real.
-* Rate limiting uses the local-memory cache by default (per process).
+* No SSO/ERP or SMS integration (email and in-app notifications only).
+* Image similarity matching is not implemented (the specification marks it optional).
+* Only the public board has a JSON API; other features are server-rendered pages.
+* The UI was checked in desktop Chrome and a 375 px phone viewport; not yet on physical phones, Safari or with a screen reader.
+* Rate limiting and the board cache use the local-memory cache by default (per process); use `CACHE_BACKEND=database` for several processes.
+* Scheduled jobs (`refresh_matches`, `check_ageing`) must be added to Task Scheduler or cron by the deployer.
 
-## Screenshots
+## Future scope
 
-_Placeholders — add real screenshots after running locally._
-
-* Public board — `docs/screenshots/board.png`
-* Found-item report with private details — `docs/screenshots/report-found.png`
-* Verification review — `docs/screenshots/claim-review.png`
-* Handover — `docs/screenshots/handover.png`
+Campus SSO, SMS notifications, optional image similarity, a fuller REST API, and object storage for photos.

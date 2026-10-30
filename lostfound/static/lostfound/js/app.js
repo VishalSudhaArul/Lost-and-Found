@@ -234,6 +234,36 @@
     boardForm.addEventListener("submit", function (e) { e.preventDefault(); load(); });
   }
 
+  // Board: infinite scroll. The numbered pagination stays as the no-JS fallback; with JS,
+  // reaching it loads the next page and appends the cards (same redacted partial).
+  if (results && window.fetch && "IntersectionObserver" in window) {
+    var loadingMore = false;
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting || loadingMore) return;
+        var next = results.querySelector(".pagination a[rel=next]");
+        if (!next) return;
+        loadingMore = true;
+        var nav = next.closest(".pagination");
+        nav.setAttribute("aria-busy", "true");
+        fetch(next.href, { headers: { "X-Requested-With": "fetch" } })
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+          .then(function (html) {
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            var list = results.querySelector(".tags");
+            doc.querySelectorAll(".tags > *").forEach(function (card) { list.appendChild(card); });
+            var newNav = doc.querySelector(".pagination");
+            if (newNav) { nav.replaceWith(newNav); observer.observe(newNav); } else { nav.remove(); }
+          })
+          .catch(function () { nav.removeAttribute("aria-busy"); })  // numbered links still work
+          .finally(function () { loadingMore = false; });
+      });
+    }, { rootMargin: "400px 0px" });
+    var watch = function () { var nav = results.querySelector(".pagination"); if (nav) observer.observe(nav); };
+    watch();
+    new MutationObserver(watch).observe(results, { childList: true });  // after a filter reload
+  }
+
   // Signature pad for handover confirmation
   var pad = document.getElementById("signature-pad");
   if (pad) {

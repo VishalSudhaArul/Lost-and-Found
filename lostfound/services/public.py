@@ -8,7 +8,7 @@ reporter's identity — could leak."""
 from dataclasses import asdict, dataclass
 
 from django.core.files.storage import default_storage
-from django.db import connection
+
 from django.db.models import Q
 
 from ..models import Item, ItemCategory, Location
@@ -62,8 +62,36 @@ def _to_public(row):
     )
 
 
+BOARD_VERSION_KEY = "board:version"
+
+
+def board_cache_seconds():
+    from django.conf import settings
+    return int(getattr(settings, "BOARD_CACHE_SECONDS", 60))
+
+
+def board_cache_key(params):
+    """Cache key for one board page, or None when caching is off. Only redacted DTOs are cached."""
+    import hashlib
+
+    from django.core.cache import cache
+    if board_cache_seconds() <= 0:
+        return None
+    version = cache.get_or_set(BOARD_VERSION_KEY, 1, None)
+    query = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
+    return f"board:v{version}:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:32]}"
+
+
+def invalidate_board(**kwargs):
+    from django.core.cache import cache
+    try:
+        cache.incr(BOARD_VERSION_KEY)
+    except ValueError:
+        cache.set(BOARD_VERSION_KEY, 2, None)
+
+
 def search_backend():
-    return "PostgreSQL full-text + pg_trgm" if connection.vendor == "postgresql" else "basic substring (SQLite fallback)"
+    return "PostgreSQL full-text + pg_trgm"
 
 
 def board_queryset(params):
@@ -91,17 +119,13 @@ def board_queryset(params):
     q = (params.get("q") or "").strip()[:100]
     sort = params.get("sort", "newest")
     if q:
-        if connection.vendor == "postgresql":
-            from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector, TrigramWordSimilarity
-            vector = SearchVector("title", weight="A", config="english") + SearchVector("search_text", weight="B", config="english")
-            query = SearchQuery(q, search_type="websearch", config="english")
-            qs = (qs.annotate(rank=SearchRank(vector, query), fuzzy=TrigramWordSimilarity(q, "search_text"))
-                  .filter(Q(rank__gt=0.001) | Q(fuzzy__gte=0.45)))
-            if sort == "relevance":
-                return qs.order_by("-rank", "-fuzzy", "-created_at")
-        else:
-            for word in q.lower().split()[:6]:
-                qs = qs.filter(search_text__icontains=word)
+        from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector, TrigramWordSimilarity
+        vector = SearchVector("title", weight="A", config="english") + SearchVector("search_text", weight="B", config="english")
+        query = SearchQuery(q, search_type="websearch", config="english")
+        qs = (qs.annotate(rank=SearchRank(vector, query), fuzzy=TrigramWordSimilarity(q, "search_text"))
+              .filter(Q(rank__gt=0.001) | Q(fuzzy__gte=0.45)))
+        if sort == "relevance":
+            return qs.order_by("-rank", "-fuzzy", "-created_at")
     if sort == "oldest":
         return qs.order_by("created_at")
     if sort == "occurred":

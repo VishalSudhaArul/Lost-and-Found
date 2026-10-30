@@ -1,6 +1,5 @@
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError, connection, transaction
-from unittest import skipUnless
 
 from lostfound.models import AuditEntry, CustodyRecord
 from lostfound.services import audit, custody
@@ -46,7 +45,6 @@ class CustodyAndAuditTests(LFTestCase):
         self.assertEqual(original.notes, "")
         self.assertEqual(CustodyRecord.objects.filter(corrects=original).count(), 1)
 
-    @skipUnless(connection.vendor == "postgresql", "database trigger exists only on PostgreSQL")
     def test_database_trigger_blocks_update_and_delete(self):
         item = self.found_item()
         for sql in ("UPDATE lostfound_custodyrecord SET notes = 'x'", "DELETE FROM lostfound_custodyrecord",

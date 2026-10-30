@@ -1,7 +1,6 @@
 """Acceptance criterion: match suggestions are returned for at least 70% of
 seeded matching pairs, without flooding owners with false matches."""
 from datetime import timedelta
-from unittest import skipUnless
 
 from django.db import connection
 from django.utils import timezone
@@ -108,14 +107,12 @@ class MatchingTests(LFTestCase):
     def test_python_trigram_matches_pg_trgm_definition(self):
         self.assertAlmostEqual(matching.trigram_similarity("word", "two words"), 0.36363636, places=5)
 
-    @skipUnless(connection.vendor == "postgresql", "pg_trgm only on PostgreSQL")
     def test_python_fallback_agrees_with_pg_trgm(self):
         with connection.cursor() as cur:
             for a, b in [("black backpack", "black wildcraft backpack"), ("phone", "iphone cracked"), ("abc", "xyz")]:
                 cur.execute("SELECT similarity(%s, %s)", [a, b])
                 self.assertAlmostEqual(cur.fetchone()[0], matching.trigram_similarity(a, b), places=4)
 
-    @skipUnless(connection.vendor == "postgresql", "full-text search only on PostgreSQL")
     def test_postgres_board_search_handles_stemming_and_typos(self):
         from lostfound.services import public
         self.seed()

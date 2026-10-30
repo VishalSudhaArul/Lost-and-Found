@@ -12,3 +12,11 @@ class LostfoundConfig(AppConfig):
         from .roles import ensure_roles
 
         post_migrate.connect(ensure_roles, sender=self, dispatch_uid="lostfound_ensure_roles")
+
+        from django.db.models.signals import post_delete, post_save
+
+        from .models import Item, Location
+        from .services.public import invalidate_board
+        for model in (Item, Location):  # anything shown on the public board
+            post_save.connect(invalidate_board, sender=model, dispatch_uid=f"board_cache_{model.__name__}_save")
+            post_delete.connect(invalidate_board, sender=model, dispatch_uid=f"board_cache_{model.__name__}_delete")

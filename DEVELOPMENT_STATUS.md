@@ -10,7 +10,7 @@ _Last updated: 23 Oct 2026._
 * PostgreSQL is the only database (pg_trgm, full-text search, GIN indexes, append-only triggers); `makemigrations --check` and `migrate --check` are clean. No SQLite fallback.
 * Lost & Found team report review, community points ledger, tiers/badges, opt-out leaderboard, staff sign-in and administrator account management (tests in `tests/test_rewards.py`).
 * Separate student and teacher portals, two-step staff sign-in (password + emailed code), email activation for administrator-created accounts, password re-entry for role escalation, admin overview with complaint pipeline and student/teacher breakdown (tests in `tests/test_portals.py`).
-* Test suite: 213 tests, all passing on PostgreSQL (local PostgreSQL 18 and GitHub Actions PostgreSQL 16).
+* Test suite: 227 tests, all passing on PostgreSQL (local PostgreSQL 18 and GitHub Actions PostgreSQL 16).
 * `manage.py check --deploy` with production settings: only the optional HSTS-preload warning remains (plus a key warning when using a dummy key).
 * Management commands `refresh_matches`, `check_ageing`, `purge_demo_data`, `rotate_encryption_keys` run successfully.
 

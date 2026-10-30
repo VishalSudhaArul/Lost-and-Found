@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-from django.db import connection, transaction
+from django.db import transaction
 
 from ..models import Item, MatchSuggestion, OperationalSettings
 
@@ -46,7 +46,8 @@ def trigram_similarity(a, b):
 
 
 def uses_pg_trgm():
-    return connection.vendor == "postgresql"
+    """Candidate text similarity always comes from PostgreSQL pg_trgm (Track P)."""
+    return True
 
 
 @dataclass
@@ -122,7 +123,7 @@ def score_pair(lost, found, cfg=None, text_score=None):
     score = sum(weights[k] * factors[k] for k in factors) / total_weight
     return MatchResult(score=round(min(1.0, max(0.0, score)), 4),
                        components={"factors": factors, "weights": weights, "matched_attributes": matched_attrs,
-                                   "engine": "pg_trgm" if uses_pg_trgm() else "python-trigram"})
+                                   "engine": "pg_trgm"})
 
 
 def _candidates(item, cfg):
@@ -135,9 +136,8 @@ def _candidates(item, cfg):
                               occurred_at__gte=item.occurred_at - window, occurred_at__lte=item.occurred_at + window)
           .exclude(reporter_id=item.reporter_id)
           .select_related("category__parent", "location__parent__parent"))
-    if uses_pg_trgm():
-        from django.contrib.postgres.search import TrigramSimilarity
-        qs = qs.annotate(text_similarity=TrigramSimilarity("search_text", item.search_text))
+    from django.contrib.postgres.search import TrigramSimilarity
+    qs = qs.annotate(text_similarity=TrigramSimilarity("search_text", item.search_text))
     return qs[:500]
 
 

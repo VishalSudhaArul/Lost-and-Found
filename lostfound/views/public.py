@@ -1,12 +1,15 @@
 """Public pages. Nothing here receives a model instance of Item — only
 PublicItem objects built from an explicit field allow-list."""
-from django.core.paginator import Paginator
+from django.core.cache import cache
+from django.core.paginator import Page, Paginator
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
 from ..models import Item, Location
 from ..services import public
+
+BOARD_PAGE_SIZE = 12
 
 
 @require_GET
@@ -35,10 +38,20 @@ def home(request):
 
 
 def _board_page(request):
+    """One page of redacted PublicItem DTOs. Cached with Django's cache framework (Track P);
+    the key includes a version that is bumped whenever any Item is saved or deleted."""
     params = request.GET
-    paginator = Paginator(public.board_queryset(params), 12)
+    key = public.board_cache_key(params)
+    cached = cache.get(key) if key else None
+    if cached is not None:
+        count, number, items = cached
+        page = Page(items, number, Paginator(range(count), BOARD_PAGE_SIZE))
+        return page
+    paginator = Paginator(public.board_queryset(params), BOARD_PAGE_SIZE)
     page = paginator.get_page(params.get("page"))
     page.object_list = public.to_public_items(page.object_list)
+    if key:
+        cache.set(key, (paginator.count, page.number, page.object_list), public.board_cache_seconds())
     return page
 
 

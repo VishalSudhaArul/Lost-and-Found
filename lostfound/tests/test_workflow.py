@@ -211,8 +211,6 @@ class PurgeDemoDataTests(LFTestCase):
 
     def assert_history_still_append_only(self):
         from django.db import DatabaseError, connection, transaction
-        if connection.vendor != "postgresql":
-            return  # the guard triggers exist only on PostgreSQL
         for model in (AuditEntry, CustodyRecord):
             with self.assertRaises(DatabaseError), transaction.atomic():
                 model.objects.all().delete()

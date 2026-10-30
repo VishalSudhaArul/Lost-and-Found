@@ -30,7 +30,7 @@ if (-not $psql) {
 }
 if (-not $psql) { throw "psql.exe not found. Install PostgreSQL or add its bin folder to PATH." }
 
-$super = Read-Host "PostgreSQL superuser name" -Default 'postgres'
+$super = Read-Host "PostgreSQL superuser name (press Enter for postgres)"
 if (-not $super) { $super = 'postgres' }
 $secure = Read-Host "Password for PostgreSQL user '$super'" -AsSecureString
 $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
