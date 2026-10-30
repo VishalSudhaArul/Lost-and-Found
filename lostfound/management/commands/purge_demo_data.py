@@ -9,12 +9,15 @@ Runs as a dry run unless ``--apply`` is given. Everything happens in one
 transaction; if any real record would change, it rolls back."""
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 
 from lostfound.models import (AuditEntry, Claim, ClaimMessage, CustodyRecord, Handover, Item, MatchSuggestion,
                               PointsLedgerEntry, PrivateDetail)
+from lostfound.services import audit
 
+APPEND_ONLY_TRIGGERS = (("lostfound_auditentry", "auditentry_append_only"),
+                        ("lostfound_custodyrecord", "custodyrecord_append_only"))
 SEED_USERNAMES = ("student1", "student2", "staff1", "security1", "campusadmin", "sysadmin")
 
 
@@ -75,6 +78,16 @@ class Command(BaseCommand):
         before = snapshot(users, items)
         try:
             with transaction.atomic():
+                # On PostgreSQL the audit and custody tables are append-only (database triggers).
+                # The seeded rows' own history can only go if those triggers are paused for this one
+                # transaction; DDL is transactional, so a failure or dry run restores them, and they
+                # are re-enabled before commit. Real rows are guarded by the snapshot check below.
+                pause = connection.vendor == "postgresql"
+                if pause:
+                    with connection.cursor() as cur:
+                        cur.execute("SET CONSTRAINTS ALL IMMEDIATE")  # ALTER TABLE needs no pending FK checks
+                        for table, trigger in APPEND_ONLY_TRIGGERS:
+                            cur.execute(f"ALTER TABLE {table} DISABLE TRIGGER {trigger}")
                 counts = {
                     "match suggestions": MatchSuggestion.objects.filter(Q(lost_item_id__in=items) | Q(found_item_id__in=items)).delete()[0],
                     "private details": PrivateDetail._base_manager.filter(item_id__in=items).delete()[0],
@@ -83,8 +96,16 @@ class Command(BaseCommand):
                     "items": Item.objects.filter(pk__in=items).delete()[0],
                     "accounts (+ their profiles and inboxes)": get_user_model().objects.filter(pk__in=users).delete()[0],
                 }
+                if pause:
+                    with connection.cursor() as cur:
+                        for table, trigger in APPEND_ONLY_TRIGGERS:
+                            cur.execute(f"ALTER TABLE {table} ENABLE TRIGGER {trigger}")
+                        cur.execute("SET CONSTRAINTS ALL DEFERRED")
                 if snapshot(users, items) != before:
                     raise CommandError("A real record would have changed; rolled back.")
+                if counts["items"] or counts["accounts (+ their profiles and inboxes)"]:
+                    audit.record(None, "demo_data.purged", "Seeded demo data removed by purge_demo_data",
+                                 **{k.split(" ")[0]: v for k, v in counts.items()})
                 for k, v in counts.items():
                     self.stdout.write(f"  {k}: {v} row(s)")
                 if not opts["apply"]:

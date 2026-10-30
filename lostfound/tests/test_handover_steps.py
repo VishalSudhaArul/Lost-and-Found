@@ -114,3 +114,17 @@ class HandoverStepTests(LFTestCase):
             r = self.post(action="send_code")
         self.assertContains(r, "could not be emailed".replace("could not be emailed", "could not be sent"))
         self.assertTrue(AuditEntry.objects.filter(action="handover.code_email_failed").exists())
+
+    def test_failure_mid_handover_rolls_everything_back(self):
+        code = self.send_code()
+        self.post(action="verify", code=code)
+        with mock.patch("lostfound.services.rewards.on_handover_completed", side_effect=RuntimeError("db down")):
+            with self.assertRaises(RuntimeError):
+                custody.complete_handover(self.handover.pk, self.guard, id_type="student_id", id_name_matches=True)
+        self.assertEqual(Handover.objects.get(pk=self.handover.pk).status, Handover.Status.SCHEDULED)
+        self.assertEqual(Item.objects.get(pk=self.handover.claim.item_id).status, Item.Status.AWAITING_HANDOVER)
+        self.assertEqual(Claim.objects.get(pk=self.handover.claim_id).status, Claim.Status.APPROVED)
+        self.assertFalse(CustodyRecord.objects.filter(item_id=self.handover.claim.item_id, action="released").exists())
+        ok, _ = custody.complete_handover(self.handover.pk, self.guard, id_type="student_id", id_name_matches=True)
+        self.assertTrue(ok)  # retry after the failure succeeds, with the verified code still valid
+        self.assertEqual(PointsLedgerEntry.objects.filter(user=self.finder, category="return").count(), 1)

@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from lostfound import roles
-from lostfound.models import (AuditEntry, Claim, Item, Notification, PointsLedgerEntry, RewardPolicy,
+from lostfound.models import (AuditEntry, Claim, CustodyRecord, Item, Notification, PointsLedgerEntry, RewardPolicy,
                               VerificationChallenge)
 from lostfound.services import claims, custody, verification
 from lostfound.services.errors import WorkflowError
@@ -206,6 +206,16 @@ class PurgeDemoDataTests(LFTestCase):
         self.assertTrue(User.objects.filter(pk=lookalike.pk).exists())
         self.assertTrue(Item.objects.filter(pk=mine.pk).exists())
         self.assertTrue(User.objects.filter(pk=self.student.pk).exists())
+        self.assertTrue(AuditEntry.objects.filter(action="demo_data.purged").exists())
+        self.assert_history_still_append_only()
+
+    def assert_history_still_append_only(self):
+        from django.db import DatabaseError, connection, transaction
+        if connection.vendor != "postgresql":
+            return  # the guard triggers exist only on PostgreSQL
+        for model in (AuditEntry, CustodyRecord):
+            with self.assertRaises(DatabaseError), transaction.atomic():
+                model.objects.all().delete()
 
     def test_stops_when_real_records_depend_on_seeded_ones(self):
         seeded, item = self.make_seed()
