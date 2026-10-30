@@ -1,11 +1,6 @@
 # Campus Lost & Found Platform
 
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Django 6.1](https://img.shields.io/badge/Django-6.1-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![PostgreSQL 14+](https://img.shields.io/badge/PostgreSQL-14%2B%20(only%20database)-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![pg_trgm + full-text search](https://img.shields.io/badge/search-full--text%20%2B%20pg__trgm-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/docs/current/pgtrgm.html)
-[![EduRev P09 · Track P](https://img.shields.io/badge/EduRev%20P09-Track%20P-F5B335)](#technology-stack)
-[![tests](https://github.com/VishalSudhaArul/Lost-and-Found/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/VishalSudhaArul/Lost-and-Found/actions/workflows/ci.yml)
+
 
 **EduRev P09 — Campus Lost and Found Platform with Ownership Verification and Custody Chain (Track P: Python + Django + PostgreSQL).**
 
