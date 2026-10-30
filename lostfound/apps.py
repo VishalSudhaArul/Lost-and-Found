@@ -8,6 +8,7 @@ class LostfoundConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
 
     def ready(self):
+        from . import checks  # noqa: F401  (registers the PostgreSQL startup check)
         from .roles import ensure_roles
 
         post_migrate.connect(ensure_roles, sender=self, dispatch_uid="lostfound_ensure_roles")

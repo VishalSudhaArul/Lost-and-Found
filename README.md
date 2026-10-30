@@ -45,7 +45,7 @@ lostfound/
   static/          app.css (design system), app.js (progressive enhancement only)
   management/commands/  refresh_matches, check_ageing, purge_demo_data, rotate_encryption_keys
   migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers
-  tests/           150 tests
+  tests/           213 tests
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
 
@@ -101,9 +101,29 @@ Open http://127.0.0.1:8000. A superuser has every permission; give real staff th
 
 Then, as an administrator: add your campus locations (mark the security office as a **custody point**) and categories. To enable the map picker set `CAMPUS_MAP_CENTER_LAT/LNG` in `.env` and add coordinates to locations; no campus coordinates are assumed.
 
-### SQLite fallback (development only)
+### PostgreSQL only
 
-`DB_BACKEND=sqlite` runs without PostgreSQL. Search becomes simple substring matching, matching uses the built-in Python trigram implementation, and the append-only database triggers are not installed (ORM-level protection still applies). Do not use it in production.
+The project runs on PostgreSQL only (EduRev P09 Track P): search uses PostgreSQL full-text search and `pg_trgm`, and the audit, custody and points tables are protected by append-only triggers. There is no SQLite fallback. If the database is unreachable, `python manage.py check` (and `runserver`) report `lostfound.E002` with the reason, and pages show a "database not available" message instead of crashing.
+
+First-time setup on Windows (asks for the PostgreSQL superuser password once and creates the role and database named in `.env`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup_postgres.ps1
+python manage.py migrate
+```
+
+Keep exactly one `DB_BACKEND` and one `EMAIL_BACKEND` line in `.env`: the first occurrence of a key wins.
+
+### Moving data from an old SQLite database
+
+Older versions could run on SQLite. To copy that data into PostgreSQL (keeps primary keys, timestamps, password hashes and encrypted details; uploaded files stay in `media/`):
+
+1. Back up `db.sqlite3`.
+2. Export with a temporary settings module that points `DATABASES` at the SQLite file, then run
+   `dumpdata auth.group --natural-foreign --natural-primary` and
+   `dumpdata --all --natural-foreign -e contenttypes -e auth.permission -e auth.group -e sessions -e lostfound.rolepermissions`.
+3. On the empty, migrated PostgreSQL database: `python manage.py loaddata groups.json data.json`.
+4. Compare row counts per table before deleting anything.
 
 ## Scheduled jobs
 
@@ -147,10 +167,9 @@ See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler 
 
 ```bash
 python manage.py test lostfound            # against PostgreSQL (recommended)
-set DB_BACKEND=sqlite && python manage.py test lostfound   # fallback; 3 PostgreSQL-only tests skip
 ```
 
-Latest results (Oct 2026): 150 tests; locally on SQLite 147 pass and the 3 PostgreSQL-only tests skip. GitHub Actions runs the suite on PostgreSQL 16 for every push; check the Actions tab for the latest result. The workflow runs on every push (`.github/workflows/ci.yml`).
+Latest results (Oct 2026): 213 tests, all passing on PostgreSQL (locally and on GitHub Actions, PostgreSQL 16) with none skipped. The workflow runs on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 

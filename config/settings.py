@@ -77,6 +77,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "lostfound.middleware.DatabaseUnavailableMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -100,29 +101,25 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Database -------------------------------------------------------------
+# EduRev P09 Track P: PostgreSQL is the only supported database (pg_trgm, full-text
+# search, GIN indexes and append-only triggers depend on it). There is deliberately no
+# SQLite fallback: if PostgreSQL is unreachable, `lostfound.E002` reports it at startup.
 DB_BACKEND = env("DB_BACKEND", "postgres").lower()
-if DB_BACKEND == "postgres":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB", "lostfound"),
-            "USER": env("POSTGRES_USER", "lostfound"),
-            "PASSWORD": env("POSTGRES_PASSWORD", ""),
-            "HOST": env("POSTGRES_HOST", "localhost"),
-            "PORT": env("POSTGRES_PORT", "5432"),
-            "CONN_MAX_AGE": int(env("POSTGRES_CONN_MAX_AGE", "60")),
-        }
+if DB_BACKEND != "postgres":
+    raise ImproperlyConfigured(f"DB_BACKEND={DB_BACKEND!r} is not supported: this project runs on PostgreSQL only. "
+                               "Set DB_BACKEND=postgres in .env.")
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("POSTGRES_DB", "lostfound"),
+        "USER": env("POSTGRES_USER", "lostfound"),
+        "PASSWORD": env("POSTGRES_PASSWORD", ""),
+        "HOST": env("POSTGRES_HOST", "localhost"),
+        "PORT": env("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(env("POSTGRES_CONN_MAX_AGE", "60")),
+        "OPTIONS": {"connect_timeout": int(env("POSTGRES_CONNECT_TIMEOUT", "5"))},
     }
-elif DB_BACKEND == "sqlite":
-    # Limited development fallback: no pg_trgm/full-text search, no DB triggers.
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-else:
-    raise ImproperlyConfigured("DB_BACKEND must be 'postgres' or 'sqlite'.")
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
