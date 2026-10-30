@@ -144,14 +144,105 @@ def issue_otp(handover_id, user, request=None):
             raise PermissionDenied
         if handover.status != Handover.Status.SCHEDULED or handover.method != Handover.Method.OTP:
             raise WorkflowError("A handover code is not available for this appointment.")
-        code = f"{secrets.randbelow(1_000_000):06d}"
-        handover.otp_hash = make_password(code)
-        handover.otp_expires_at = timezone.now() + timezone.timedelta(minutes=cfg.otp_ttl_minutes)
-        handover.otp_attempts = 0
-        handover.otp_used_at = None
-        handover.save(update_fields=["otp_hash", "otp_expires_at", "otp_attempts", "otp_used_at", "updated_at"])
+        code = _new_code(handover, cfg)
     audit.record(user, "handover.code_issued", f"Handover code issued for {handover.receipt_code}", target=handover, request=request)
     return code, handover.otp_expires_at
+
+
+def _new_code(handover, cfg):
+    """Fresh single-use 6-digit code; only a salted hash is stored. Resets any earlier verification."""
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    handover.otp_hash = make_password(code)
+    handover.otp_expires_at = timezone.now() + timezone.timedelta(minutes=cfg.otp_ttl_minutes)
+    handover.otp_attempts = 0
+    handover.otp_used_at = None
+    handover.code_verified_at, handover.code_verified_by = None, None
+    handover.save(update_fields=["otp_hash", "otp_expires_at", "otp_attempts", "otp_used_at", "code_verified_at",
+                                 "code_verified_by", "updated_at"])
+    return code
+
+
+def email_collection_code(handover_id, actor, request=None):
+    """Officer sends a fresh collection code to the claimant's *registered* email.
+    The code is never shown to the officer, stored in clear, or logged."""
+    _require(actor, "conduct_handover")
+    limit, window = settings.OTP_REVEAL_RATE_LIMIT
+    try:
+        ratelimit.hit("otp-email", handover_id, limit, window)
+    except ratelimit.RateLimited:
+        raise WorkflowError("Too many codes sent for this handover. Please wait before sending another.")
+    cfg = OperationalSettings.load()
+    with transaction.atomic():
+        handover = Handover.objects.select_for_update().select_related("claim__claimant", "claim__item", "location").get(
+            pk=handover_id)
+        claimant = handover.claim.claimant
+        if claimant.pk == actor.pk:
+            raise PermissionDenied("You cannot run your own handover.")
+        if handover.status != Handover.Status.SCHEDULED or handover.method != Handover.Method.OTP:
+            raise WorkflowError("A collection code is not available for this appointment.")
+        if not claimant.email:
+            raise WorkflowError("The claimant has no registered email. Ask them to open their claim and show the code.")
+        code = _new_code(handover, cfg)
+    from . import mailer
+    sent = mailer.send(
+        f"Your collection code for {handover.claim.item.reference}",
+        f"Hello {claimant.get_full_name() or claimant.get_username()},\n\n"
+        f"Your collection code is {code}.\n\nShow it to the Lost & Found officer at {handover.location.name}. "
+        f"It works once and expires in {cfg.otp_ttl_minutes} minutes. Bring your photo ID.\n\n"
+        f"If you are not collecting an item, ignore this email.",
+        claimant.email, purpose="collection code")
+    audit.record(actor, "handover.code_emailed" if sent else "handover.code_email_failed",
+                 f"Collection code {'emailed' if sent else 'could not be emailed'} for {handover.receipt_code}",
+                 target=handover, request=request)
+    if not sent:
+        raise WorkflowError("The email could not be sent. Ask the claimant to open their claim and tap "
+                            "“Show my handover code” instead.")
+    return handover
+
+
+def _check_code(handover, actor, code, cfg, request):
+    """Checks a code against the stored hash. Returns (ok, message); failures are counted."""
+    now = timezone.now()
+    if not handover.otp_hash or handover.otp_used_at:
+        return False, "No active collection code. Email a new code to the claimant, or ask them to show one."
+    if handover.otp_attempts >= cfg.otp_max_attempts:
+        return False, "Too many incorrect codes. Send the claimant a new code."
+    if handover.otp_expires_at is None or handover.otp_expires_at < now:
+        return False, "The collection code has expired. Send the claimant a new code."
+    if not check_password((code or "").strip(), handover.otp_hash):
+        handover.otp_attempts += 1
+        handover.save(update_fields=["otp_attempts", "updated_at"])
+        audit.record(actor, "handover.code_rejected", f"Incorrect code for {handover.receipt_code}", target=handover,
+                     request=request, attempt=handover.otp_attempts)
+        left = cfg.otp_max_attempts - handover.otp_attempts
+        return False, f"That code is incorrect. {left} attempt{'s' if left != 1 else ''} left."
+    return True, ""
+
+
+def verify_collection_code(handover_id, actor, code, request=None):
+    """Step 2 of the handover: confirm the claimant's code. Single use; the code is
+    consumed on success. Returns (ok, message)."""
+    _require(actor, "conduct_handover")
+    cfg = OperationalSettings.load()
+    with transaction.atomic():
+        handover = Handover.objects.select_for_update().get(pk=handover_id)
+        if handover.claim.claimant_id == actor.pk:
+            raise PermissionDenied("You cannot run your own handover.")
+        if handover.status != Handover.Status.SCHEDULED or handover.method != Handover.Method.OTP:
+            raise WorkflowError("This appointment does not use a collection code.")
+        if handover.code_verified_at:
+            return True, "The collection code was already verified."
+        ok, msg = _check_code(handover, actor, code, cfg, request)
+        if not ok:
+            return False, msg
+        now = timezone.now()
+        handover.otp_used_at = handover.code_verified_at = now
+        handover.code_verified_by = actor
+        handover.otp_hash = ""
+        handover.save(update_fields=["otp_used_at", "code_verified_at", "code_verified_by", "otp_hash", "updated_at"])
+    audit.record(actor, "handover.code_verified", f"Collection code verified for {handover.receipt_code}",
+                 target=handover, request=request)
+    return True, "Code verified. You can now complete the handover."
 
 
 def handover_blockers(handover):
@@ -189,19 +280,13 @@ def complete_handover(handover_id, actor, *, id_type, id_name_matches, otp_code=
 
         signature_file = None
         if handover.method == Handover.Method.OTP:
-            now = timezone.now()
-            if not handover.otp_hash or handover.otp_used_at:
-                return False, "The claimant has not generated a handover code yet."
-            if handover.otp_attempts >= cfg.otp_max_attempts:
-                return False, "Too many incorrect codes. Ask the claimant to generate a new code."
-            if handover.otp_expires_at is None or handover.otp_expires_at < now:
-                return False, "The handover code has expired. Ask the claimant to generate a new one."
-            if not check_password((otp_code or "").strip(), handover.otp_hash):
-                handover.otp_attempts += 1
-                handover.save(update_fields=["otp_attempts", "updated_at"])
-                audit.record(actor, "handover.code_rejected", f"Incorrect code for {handover.receipt_code}", target=handover,
-                             request=request, attempt=handover.otp_attempts)
-                return False, "The code is incorrect."
+            if not handover.code_verified_at:
+                if not otp_code:
+                    return False, "Verify the claimant's collection code first (step 2)."
+                ok, msg = _check_code(handover, actor, otp_code, cfg, request)
+                if not ok:
+                    return False, msg
+                handover.code_verified_at, handover.code_verified_by = timezone.now(), actor
         else:
             try:
                 signature_file = images.signature_from_data_url(signature_data)
@@ -223,7 +308,7 @@ def complete_handover(handover_id, actor, *, id_type, id_name_matches, otp_code=
             handover.proof_photo.save(proof_file.name, proof_file, save=False)
         handover.id_type_checked, handover.id_name_matches = id_type, True
         handover.status, handover.completed_by, handover.completed_at = Handover.Status.COMPLETED, actor, now
-        if handover.method == Handover.Method.OTP:
+        if handover.method == Handover.Method.OTP and not handover.otp_used_at:
             handover.otp_used_at = now
         handover.otp_hash = ""
         handover.notes = (notes or "")[:500]
@@ -252,4 +337,4 @@ def complete_handover(handover_id, actor, *, id_type, id_name_matches, otp_code=
                          f"{item.reference} was handed over to you. Receipt {handover.receipt_code}.", link=f"/my/claims/{claim.pk}/")
     notifications.notify([item.reporter], "handover", "The item you found was returned",
                          f"{item.reference} has been returned to its owner. Thank you!", link=f"/my/reports/{item.pk}/")
-    return True, f"Handover complete. Receipt {handover.receipt_code}."
+    return True, f"Handover complete. {item.reference} is now Returned. Receipt {handover.receipt_code}."

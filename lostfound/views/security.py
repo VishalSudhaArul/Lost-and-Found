@@ -6,9 +6,10 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from ..forms import (ApproveForm, RequestInfoForm, CompleteHandoverForm, CorrectionForm, DisposalForm, ExtendRetentionForm,
+from ..forms import (ApproveForm, CollectionCodeForm, RequestInfoForm, CompleteHandoverForm, CorrectionForm, DisposalForm, ExtendRetentionForm,
                      PrivateDetailForm, ReceiveItemForm, RejectForm, ScheduleHandoverForm, TransferForm)
 from ..models import Claim, CustodyRecord, DisposalRecord, Handover, Item, PrivateDetail
 from ..permissions import any_perm_required, perm_required
@@ -234,8 +235,25 @@ def handover_schedule(request, claim_pk):
 def handover_detail(request, pk):
     handover = get_object_or_404(Handover.objects.select_related("claim__item", "claim__claimant", "location", "officer",
                                                                  "completed_by"), pk=pk)
-    form = CompleteHandoverForm(request.POST or None, request.FILES or None)
-    if request.method == "POST" and form.is_valid():
+    action = request.POST.get("action", "complete") if request.method == "POST" else ""
+    code_form = CollectionCodeForm(request.POST if action == "verify" else None)
+    if action == "send_code":
+        _flash(request, custody.email_collection_code, handover.pk, request.user, request=request,
+               success=f"A new collection code was emailed to {handover.claim.claimant.get_full_name() or handover.claim.claimant.username}.")
+        return redirect("security_handover", pk=handover.pk)
+    if action == "verify":
+        if code_form.is_valid():
+            try:
+                ok, msg = custody.verify_collection_code(handover.pk, request.user, code_form.cleaned_data["code"],
+                                                         request=request)
+            except WorkflowError as exc:
+                ok, msg = False, str(exc)
+            (messages.success if ok else messages.error)(request, msg)
+            return redirect("security_handover", pk=handover.pk)
+        messages.error(request, "Enter the 6-digit collection code.")
+    form = CompleteHandoverForm(request.POST if action == "complete" else None,
+                                request.FILES if action == "complete" else None)
+    if action == "complete" and form.is_valid():
         d = form.cleaned_data
         try:
             ok, msg = custody.complete_handover(
@@ -247,7 +265,9 @@ def handover_detail(request, pk):
         (messages.success if ok else messages.error)(request, msg)
         return redirect("security_handover", pk=handover.pk)
     return render(request, "security/handover_detail.html", {
-        "handover": handover, "form": form, "blockers": custody.handover_blockers(handover)})
+        "handover": handover, "form": form, "code_form": code_form, "blockers": custody.handover_blockers(handover),
+        "code_active": bool(handover.otp_hash and not handover.otp_used_at and handover.otp_expires_at
+                            and handover.otp_expires_at > timezone.now())})
 
 
 @perm_required("conduct_handover")

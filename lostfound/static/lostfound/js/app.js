@@ -96,15 +96,47 @@
     });
   });
 
-  // Confirmation for sensitive actions
-  document.addEventListener("submit", function (e) {
-    var form = e.target;
-    var msg = form.getAttribute("data-confirm");
-    if (msg && !window.confirm(msg)) { e.preventDefault(); return; }
+  // Confirmation for sensitive actions, in the app's own dialog (not the browser popup)
+  var confirmDialog = null;
+  function askConfirm(msg, onYes) {
+    if (!window.HTMLDialogElement) { if (window.confirm(msg)) onYes(); return; }
+    if (!confirmDialog) {
+      confirmDialog = document.createElement("dialog");
+      confirmDialog.className = "confirm-dialog";
+      confirmDialog.setAttribute("aria-labelledby", "confirm-dialog-title");
+      confirmDialog.innerHTML = '<form method="dialog"><h2 id="confirm-dialog-title">Please confirm</h2>' +
+        '<p class="confirm-msg"></p><div class="btn-row">' +
+        '<button class="btn btn-ghost" value="cancel">Go back</button>' +
+        '<button class="btn btn-primary" value="ok">Yes, continue</button></div></form>';
+      document.body.appendChild(confirmDialog);
+    }
+    confirmDialog.querySelector(".confirm-msg").textContent = msg;
+    confirmDialog.onclose = function () { if (confirmDialog.returnValue === "ok") onYes(); };
+    confirmDialog.returnValue = "";
+    confirmDialog.showModal();
+    confirmDialog.querySelector("button[value=ok]").focus();
+  }
+  function markBusy(form) {
     var btn = form.querySelector("button[type=submit]");
     if (btn && !form.hasAttribute("data-no-busy")) {
       setTimeout(function () { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }, 0);
     }
+  }
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (form.method === "dialog") return;
+    if (form.dataset.busy === "1") { e.preventDefault(); return; }  // no double submissions
+    var msg = form.getAttribute("data-confirm");
+    if (msg && form.dataset.confirmed !== "1") {
+      e.preventDefault();
+      askConfirm(msg, function () {
+        form.dataset.confirmed = "1";
+        if (form.requestSubmit) form.requestSubmit(e.submitter || undefined); else form.submit();
+      });
+      return;
+    }
+    form.dataset.busy = "1";
+    markBusy(form);
   });
 
   // Category-specific attribute fields on the report form

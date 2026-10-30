@@ -549,3 +549,13 @@ a[aria-disabled="true"] { pointer-events: none; opacity: .55; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 @media print { .sidebar, .topbar, .site-header, .site-footer, .app-footer, .btn, form { display: none !important; } .app { display: block; } .panel, .tag { box-shadow: none; } }
 .panel fieldset { box-shadow: none; background: transparent; }
+
+/* In-app confirmation dialog (replaces the browser's confirm popup) */
+.confirm-dialog { border: 1px solid var(--line); border-radius: var(--radius-l); padding: 1.5rem; max-width: min(92vw, 440px);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-l); }
+.confirm-dialog::backdrop { background: rgba(13, 23, 44, .45); }
+.confirm-dialog h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+.confirm-dialog .confirm-msg { color: var(--text-2); margin: 0 0 1.25rem; }
+.confirm-dialog .btn-row { justify-content: flex-end; }
+.handover-step.is-done { border-color: var(--ok); }
+.handover-step.is-locked { opacity: .6; }

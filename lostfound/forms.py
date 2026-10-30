@@ -299,7 +299,8 @@ class ScheduleHandoverForm(forms.Form):
 
 
 class CompleteHandoverForm(forms.Form):
-    id_type = forms.ChoiceField(choices=[("", "Select the ID you checked")] + list(Handover.IdType.choices), label="Photo ID checked")
+    id_type = forms.ChoiceField(choices=list(Handover.IdType.choices), label="Photo ID checked",
+                                initial=Handover.IdType.choices[0][0])
     id_name_matches = forms.BooleanField(label="The name and photo on the ID match the claimant's account")
     otp_code = forms.CharField(max_length=6, required=False, label="Code shown on the claimant's phone",
                                widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off", "pattern": "[0-9]{6}"}))
@@ -307,6 +308,18 @@ class CompleteHandoverForm(forms.Form):
     proof_photo = forms.FileField(required=False, label="Proof photo (optional)",
                                   widget=forms.ClearableFileInput(attrs={"accept": "image/*", "capture": "environment"}))
     notes = forms.CharField(max_length=500, required=False)
+
+
+class CollectionCodeForm(forms.Form):
+    code = forms.CharField(max_length=6, min_length=6, label="Collection code from the claimant",
+                           widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off",
+                                                         "pattern": "[0-9]{6}"}))
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        if not code.isdigit():
+            raise ValidationError("Enter the 6 digits the claimant shows you.")
+        return code
 
 
 class DisposalForm(forms.Form):

@@ -83,6 +83,10 @@ class Handover(models.Model):
     otp_expires_at = models.DateTimeField(null=True, blank=True)
     otp_attempts = models.PositiveSmallIntegerField(default=0)
     otp_used_at = models.DateTimeField(null=True, blank=True)
+    code_verified_at = models.DateTimeField(null=True, blank=True,
+                                            help_text="When an officer confirmed the claimant's collection code.")
+    code_verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+                                         related_name="+")
 
     # Completion evidence (no ID numbers or document images are stored).
     id_type_checked = models.CharField(max_length=12, choices=IdType.choices, blank=True)
