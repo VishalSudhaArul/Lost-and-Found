@@ -274,8 +274,8 @@ def user_edit(request, pk):
             messages.success(request, f"A new activation link was sent to {target.email}.")
         return redirect("admin_user_edit", pk=target.pk)
     elif action == "reset":
-        from django.contrib.auth.forms import PasswordResetForm
-        reset = PasswordResetForm({"email": target.email})
+        from ..forms import AccountPasswordResetForm
+        reset = AccountPasswordResetForm({"email": target.username})
         if target.email and target.is_active and reset.is_valid():
             reset.save(request=request, use_https=request.is_secure(),
                        email_template_name="accounts/password_reset_email.txt",

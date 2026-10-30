@@ -10,6 +10,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     member_type = models.CharField(max_length=10, choices=MemberType.choices, default=MemberType.STUDENT)
     department = models.CharField(max_length=120, blank=True)
+    two_step_enabled = models.BooleanField(default=False, help_text="Ask for a code emailed to the registered address at every sign-in.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

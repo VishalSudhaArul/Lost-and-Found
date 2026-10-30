@@ -14,6 +14,10 @@
       {% field form.display_name %}
       <p class="small muted">The leaderboard never shows your email, username or anything about your reports and claims.</p>
     </fieldset>
+    <fieldset><legend>{% icon "shield" %} Sign-in security</legend>
+      {% field form.two_step_enabled %}
+      <p class="small muted">Codes go only to the email registered on your account and expire after 10 minutes.</p>
+    </fieldset>
     <div class="btn-row"><button class="btn btn-primary" type="submit">Save profile</button><a class="btn btn-quiet" href="{% url 'password_change' %}">{% icon "key" %}Change password</a></div>
   </form>
   <aside class="panel">

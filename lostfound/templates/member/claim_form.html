@@ -2,12 +2,13 @@
 {% block title %}Claim {{ card.reference }}{% endblock %}
 {% block content %}
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'board' %}">Board</a><span class="sep" aria-hidden="true">/</span><a href="{% url 'item_detail' card.id %}">{{ card.reference }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Claim</span></nav>
-<div class="page-head"><div><h1>Claim this item</h1><p>Step 1 of 2: tell security why it's yours. Next you'll answer verification questions.</p></div></div>
+<div class="page-head"><div><h1>Claim this item</h1><p>Tell campus security a little about your item. A member of the Lost &amp; Found team will compare it with the finder's record.</p></div></div>
 <div class="split">
-  <form method="post" class="panel" novalidate>{% csrf_token %}
-    <div class="notice callout small">{% icon "info" %}<span>After this step you'll answer questions about details the finder kept private. Attempts are limited and you won't be told which answer was wrong.</span></div>
-    {% field form.statement %}{% field form.lost_report %}
-    <button class="btn btn-primary" type="submit">Continue to verification {% icon "arrow-right" %}</button>
+  <form method="post" enctype="multipart/form-data" class="panel" novalidate>{% csrf_token %}
+    <div class="notice callout small">{% icon "info" %}<span>Answer in your own words. There are no trick questions. Security may ask you for more information before deciding, and you'll collect the item in person with photo ID.</span></div>
+    {% field form.statement %}{% field form.where_when %}{% field form.extra_info %}{% field form.attachment %}
+    {% if form.lost_report.field.queryset.exists %}{% field form.lost_report %}{% endif %}
+    <button class="btn btn-primary" type="submit">{% icon "check-circle" %}Submit Claim for Review</button>
   </form>
   <aside><div class="tags" style="grid-template-columns:1fr">{% with item=card %}{% include "partials/item_card.html" %}{% endwith %}</div></aside>
 </div>

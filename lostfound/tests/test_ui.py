@@ -116,7 +116,7 @@ class PrivateDetailIsolationTests(UIFixture):
 
     def test_verification_page_shows_questions_not_answers(self):
         claim = __import__("lostfound.services.claims", fromlist=["x"]).submit_claim(
-            self.found_item(title="Grey backpack"), self.other, "This grey backpack is mine, lost it on Monday.")
+            self.found_item(title="Grey backpack"), self.other, "This grey backpack is mine, lost it on Monday.", with_challenge=True)
         r = self.get(self.other, "claim_verify", claim.pk)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "What sticker is on the front?")

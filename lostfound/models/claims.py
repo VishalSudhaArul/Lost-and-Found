@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from ..services.storage import private_storage_factory
+
 
 def _claim_ref():
     return "C-" + secrets.token_hex(4).upper()
@@ -12,7 +14,8 @@ def _claim_ref():
 class Claim(models.Model):
     class Status(models.TextChoices):
         PENDING_VERIFICATION = "pending_verification", "Pending verification"
-        UNDER_REVIEW = "under_review", "Under security review"
+        UNDER_REVIEW = "under_review", "Pending review"
+        INFO_REQUESTED = "info_requested", "More information requested"
         APPROVED = "approved", "Approved — awaiting handover"
         REJECTED = "rejected", "Rejected"
         WITHDRAWN = "withdrawn", "Withdrawn"
@@ -23,7 +26,7 @@ class Claim(models.Model):
         PASSED = "passed", "Passed"
         FAILED = "failed", "Failed"
 
-    ACTIVE_STATUSES = (Status.PENDING_VERIFICATION, Status.UNDER_REVIEW, Status.APPROVED)
+    ACTIVE_STATUSES = (Status.PENDING_VERIFICATION, Status.UNDER_REVIEW, Status.INFO_REQUESTED, Status.APPROVED)
     DECIDED_STATUSES = (Status.APPROVED, Status.COMPLETED)
 
     reference = models.CharField(max_length=12, unique=True, default=_claim_ref, editable=False)
@@ -32,7 +35,11 @@ class Claim(models.Model):
     lost_report = models.ForeignKey(
         "lostfound.Item", null=True, blank=True, on_delete=models.SET_NULL, related_name="claims_as_lost_report",
         help_text="The claimant's own lost report, if any.")
-    statement = models.TextField(max_length=1500, help_text="Claimant's description; visible to the claimant and security only.")
+    statement = models.TextField(max_length=1500, help_text="What the item looks like, in the claimant's words. Visible to the claimant and security only.")
+    lost_where_when = models.CharField(max_length=300, blank=True, help_text="Where and roughly when it was lost.")
+    extra_info = models.TextField(max_length=1500, blank=True, help_text="Anything else the claimant remembers.")
+    attachment = models.ImageField(storage=private_storage_factory, upload_to="claims/%Y/%m/", blank=True,
+                                   help_text="Optional supporting photo; private to security staff.")
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDING_VERIFICATION, db_index=True)
     verification_status = models.CharField(max_length=12, choices=Verification.choices, default=Verification.NOT_STARTED)
     decision_reason = models.TextField(blank=True, help_text="Visible to the claimant and security only.")
@@ -47,7 +54,7 @@ class Claim(models.Model):
             # One live claim per person per item.
             models.UniqueConstraint(
                 fields=["item", "claimant"],
-                condition=models.Q(status__in=["pending_verification", "under_review", "approved"]),
+                condition=models.Q(status__in=["pending_verification", "under_review", "info_requested", "approved"]),
                 name="uniq_active_claim_per_claimant"),
             # Never two approved/completed claims for the same item.
             models.UniqueConstraint(
@@ -62,6 +69,21 @@ class Claim(models.Model):
     @property
     def is_active(self):
         return self.status in self.ACTIVE_STATUSES
+
+
+class ClaimMessage(models.Model):
+    """Conversation between security staff and the claimant (requests for more information)."""
+    claim = models.ForeignKey(Claim, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    from_staff = models.BooleanField()
+    body = models.TextField(max_length=1500)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"Message on {self.claim.reference}"
 
 
 class VerificationChallenge(models.Model):

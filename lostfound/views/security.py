@@ -8,7 +8,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from ..forms import (ApproveForm, CompleteHandoverForm, CorrectionForm, DisposalForm, ExtendRetentionForm,
+from ..forms import (ApproveForm, RequestInfoForm, CompleteHandoverForm, CorrectionForm, DisposalForm, ExtendRetentionForm,
                      PrivateDetailForm, ReceiveItemForm, RejectForm, ScheduleHandoverForm, TransferForm)
 from ..models import Claim, CustodyRecord, DisposalRecord, Handover, Item, PrivateDetail
 from ..permissions import any_perm_required, perm_required
@@ -16,7 +16,7 @@ from ..services import analytics, claims, custody, disposal, verification
 from ..services.errors import WorkflowError
 
 
-def _flash(request, fn, *args, success=None, **kwargs):
+def _flash(request, fn, /, *args, success=None, **kwargs):
     try:
         result = fn(*args, **kwargs)
     except WorkflowError as exc:
@@ -127,7 +127,8 @@ def private_detail_add(request, pk):
 @perm_required("review_claims")
 def claims_queue(request):
     tab = request.GET.get("tab", "review")
-    statuses = {"review": [Claim.Status.UNDER_REVIEW], "pending": [Claim.Status.PENDING_VERIFICATION],
+    statuses = {"review": [Claim.Status.UNDER_REVIEW],
+                "pending": [Claim.Status.PENDING_VERIFICATION, Claim.Status.INFO_REQUESTED],
                 "approved": [Claim.Status.APPROVED], "closed": [Claim.Status.REJECTED, Claim.Status.WITHDRAWN, Claim.Status.COMPLETED]}
     qs = Claim.objects.filter(status__in=statuses.get(tab, statuses["review"])).select_related("item", "claimant")
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
@@ -143,7 +144,8 @@ def claim_review(request, pk):
     context = {
         "claim": claim, "competing": competing, "handover": handover,
         "evidence": verification.review_data(claim, request.user, request=request),
-        "approve_form": ApproveForm(), "reject_form": RejectForm(),
+        "approve_form": ApproveForm(), "reject_form": RejectForm(), "info_form": RequestInfoForm(),
+        "thread": claim.messages.select_related("author"),
         "schedule_form": ScheduleHandoverForm(initial={"officer": request.user.pk}),
     }
     return render(request, "security/claim_review.html", context)
@@ -153,9 +155,24 @@ def claim_review(request, pk):
 @require_POST
 def claim_approve(request, pk):
     form = ApproveForm(request.POST)
-    form.is_valid()
+    if not form.is_valid():
+        messages.error(request, "Confirm that you compared the claim with the finder's report and private details.")
+        return redirect("security_claim", pk=pk)
     _flash(request, claims.approve_claim, pk, request.user, form.cleaned_data.get("reason", ""),
-           form.cleaned_data.get("confirm_competing", False), request=request, success="Claim approved.")
+           form.cleaned_data.get("confirm_competing", False), request=request, verified_by_staff=True,
+           success="Claim approved.")
+    return redirect("security_claim", pk=pk)
+
+
+@perm_required("review_claims")
+@require_POST
+def claim_request_info(request, pk):
+    form = RequestInfoForm(request.POST)
+    if form.is_valid():
+        _flash(request, claims.request_info, pk, request.user, form.cleaned_data["message"], request=request,
+               success="Question sent to the claimant.")
+    else:
+        messages.error(request, "Write the question for the claimant.")
     return redirect("security_claim", pk=pk)
 
 
@@ -276,10 +293,11 @@ PRIVATE_FILES = {
     "signature": (Handover, "signature_image", "conduct_handover"),
     "proof": (Handover, "proof_photo", "conduct_handover"),
     "disposal": (DisposalRecord, "evidence", "review_disposal"),
+    "claim": (Claim, "attachment", "review_claims"),
 }
 
 
-@any_perm_required("conduct_handover", "review_disposal")
+@any_perm_required("conduct_handover", "review_disposal", "review_claims")
 def private_file(request, kind, pk):
     if kind not in PRIVATE_FILES:
         raise Http404

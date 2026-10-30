@@ -26,7 +26,7 @@ class VerificationFlowTests(LFTestCase):
     def setUp(self):
         super().setUp()
         self.item = self.found_item()
-        self.claim = claims.submit_claim(self.item, self.student, "It is my backpack, lost in the library yesterday.")
+        self.claim = claims.submit_claim(self.item, self.student, "It is my backpack, lost in the library yesterday.", with_challenge=True)
 
     def test_challenge_page_shows_questions_but_never_answers(self):
         self.client.force_login(self.student)
@@ -94,7 +94,7 @@ class VerificationFlowTests(LFTestCase):
 
     def test_claim_without_private_details_waits_then_gets_challenge(self):
         item = self.found_item(title="Umbrella", details=False)
-        claim = claims.submit_claim(item, self.other, "That is my black umbrella from the library.")
+        claim = claims.submit_claim(item, self.other, "That is my black umbrella from the library.", with_challenge=True)
         self.assertFalse(VerificationChallenge.objects.filter(claim=claim).exists())
         verification.add_private_detail(item, self.guard, "mark", "What colour is the handle?", "wooden brown")
         issued = verification.issue_pending_challenges(item)

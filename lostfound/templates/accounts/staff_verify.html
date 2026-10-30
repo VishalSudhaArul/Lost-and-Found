@@ -2,7 +2,7 @@
 {% block title %}Enter your sign-in code{% endblock %}
 {% block content %}
 <div class="auth-split">
-  {% include "partials/auth_aside.html" with variant="staff" %}
+  {% if is_staff_flow %}{% include "partials/auth_aside.html" with variant="staff" %}{% else %}{% include "partials/auth_aside.html" %}{% endif %}
   <div class="auth-main"><div class="inner">
     <span class="eyebrow">{% icon "mail" %}Check your email</span>
     <h1>Enter your sign-in code</h1>
@@ -14,7 +14,7 @@
     </form>
     <div class="auth-foot">
       <form method="post">{% csrf_token %}<input type="hidden" name="action" value="resend">Didn't get it? Check spam, or <button type="submit" class="btn btn-quiet btn-small" style="padding:0 .2rem;min-height:auto;color:var(--indigo);text-decoration:underline">send a new code</button>.</form>
-      <p><a href="{% url 'staff_login' %}">Start again</a></p>
+      <p><a href="{% url back %}">Start again</a></p>
     </div>
   </div></div>
 </div>

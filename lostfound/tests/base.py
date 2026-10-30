@@ -115,7 +115,7 @@ class LFTestCase(TestCase):
     def verified_claim(self, item=None, claimant=None):
         item = item or self.found_item()
         claimant = claimant or self.student
-        claim = claims.submit_claim(item, claimant, "It is my backpack, I lost it yesterday in the library.")
+        claim = claims.submit_claim(item, claimant, "It is my backpack, I lost it yesterday in the library.", with_challenge=True)
         verification.submit_attempt(claim.challenge.pk, claimant, self.correct_answers(claim))
         claim.refresh_from_db()
         return claim

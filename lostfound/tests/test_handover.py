@@ -56,7 +56,7 @@ class HandoverTests(LFTestCase):
     def test_otp_success_completes_custody_chain(self):
         lost = self.lost_item()
         item = self.found_item()
-        claim = claims.submit_claim(item, self.student, "This is my backpack from the reading hall.", lost_report=lost)
+        claim = claims.submit_claim(item, self.student, "This is my backpack from the reading hall.", lost_report=lost, with_challenge=True)
         from lostfound.services import verification
         verification.submit_attempt(claim.challenge.pk, self.student, self.correct_answers(claim))
         claims.approve_claim(claim.pk, self.guard)

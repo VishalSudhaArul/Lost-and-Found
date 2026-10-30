@@ -25,7 +25,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_de
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
-from ..forms import (RateLimitedLoginForm, RegistrationForm, StaffCodeForm, StaffLoginForm, StudentLoginForm,
+from ..forms import (AccountPasswordResetForm, RateLimitedLoginForm, RegistrationForm, StaffCodeForm, StaffLoginForm, StudentLoginForm,
                      TeacherLoginForm)
 from ..models import OperationalSettings, UserProfile
 from ..services import audit
@@ -40,12 +40,25 @@ PORTAL_SLUGS = {"student": UserProfile.MemberType.STUDENT, "teacher": UserProfil
 
 
 class SignInView(LoginView):
-    """Landing sign-in: lets people pick their portal (still accepts student/teacher sign-in)."""
+    """Landing sign-in: lets people pick their portal (still accepts student/teacher sign-in).
+    Members who turned on two-step sign-in get an emailed code before the session starts."""
     template_name = "accounts/login.html"
     authentication_form = RateLimitedLoginForm
     redirect_authenticated_user = True
+    back_url = "login"
 
     def form_valid(self, form):
+        user = form.get_user()
+        if getattr(getattr(user, "profile", None), "two_step_enabled", False):
+            if not user.email:
+                form.add_error(None, "Two-step sign-in needs an email address on your account. Contact the "
+                                     "campus security office.")
+                return self.form_invalid(form)
+            if not _send_code(self.request, user, self.get_redirect_url(), back=self.back_url):
+                form.add_error(None, "We couldn't send your sign-in code by email. Please try again in a moment.")
+                return self.form_invalid(form)
+            messages.info(self.request, f"We emailed a 6-digit code to {_mask(user.email)}.")
+            return redirect("login_verify")
         response = super().form_valid(form)
         audit.record(self.request.user, "auth.login", "Signed in", request=self.request)
         return response
@@ -57,6 +70,10 @@ class PortalSignInView(SignInView):
 
     def get_form_class(self):
         return PORTALS[self.portal]["form"]
+
+    @property
+    def back_url(self):
+        return "student_login" if self.portal == UserProfile.MemberType.STUDENT else "teacher_login"
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -111,17 +128,20 @@ def _mask(email):
     return f"{name[:1]}{'•' * max(len(name) - 1, 2)}@{domain}"
 
 
-def _send_code(request, user, next_url):
+def _send_code(request, user, next_url, back="staff_login"):
+    """Email a single-use 6-digit code to the account's own registered address.
+    Only a salted digest is kept (in the server-side session)."""
     code = f"{secrets.randbelow(10 ** 6):06d}"
     request.session[SESSION_KEY] = {
         "uid": user.pk, "digest": _digest(user.pk, code), "exp": time.time() + settings.STAFF_CODE_TTL_SECONDS,
-        "attempts": 0, "sent": time.time(), "next": next_url}
+        "attempts": 0, "sent": time.time(), "next": next_url, "back": back}
     minutes = settings.STAFF_CODE_TTL_SECONDS // 60
+    kind = "staff sign-in code" if back == "staff_login" else "sign-in code"
     from ..services import mailer
-    if not mailer.send("Your Campus Lost & Found staff sign-in code",
-                       f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes. If you didn't try "
-                       f"to sign in, ignore this email and tell your administrator.",
-                       user.email, purpose="staff sign-in code"):
+    if not mailer.send(f"Your Campus Lost & Found {kind}",
+                       f"Your one-time sign-in code is {code}.\n\nIt expires in {minutes} minutes and works once. "
+                       f"If you didn't try to sign in, ignore this email and change your password.",
+                       user.email, purpose=kind):
         # SMTP down or misconfigured: never sign in without the code
         request.session.pop(SESSION_KEY, None)
         audit.record(user, "auth.staff_code_failed_to_send", "Staff sign-in code could not be emailed", request=request)
@@ -164,28 +184,32 @@ def staff_login_verify(request):
     if not pending:
         messages.error(request, "Start by entering your username and password.")
         return redirect("staff_login")
+    back = pending.get("back", "staff_login")
+    if back not in ("staff_login", "login", "student_login", "teacher_login"):
+        back = "staff_login"
     user = User.objects.filter(pk=pending["uid"], is_active=True).first()
     if user is None or time.time() > pending["exp"]:
         request.session.pop(SESSION_KEY, None)
         messages.error(request, "That code has expired. Sign in again to get a new one.")
-        return redirect("staff_login")
+        return redirect(back)
     if request.method == "POST" and request.POST.get("action") == "resend":
         if time.time() - pending.get("sent", 0) < 30:
             messages.error(request, "Please wait 30 seconds before asking for another code.")
         else:
-            if _send_code(request, user, pending.get("next", "")):
+            if _send_code(request, user, pending.get("next", ""), back=back):
                 messages.info(request, f"A new code was sent to {_mask(user.email)}.")
             else:
                 messages.error(request, "We couldn't send a new code. Sign in again in a moment.")
-                return redirect("staff_login")
-        return redirect("staff_login_verify")
+                return redirect(back)
+        return redirect(request.path)
     form = StaffCodeForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         if constant_time_compare(_digest(user.pk, form.cleaned_data["code"]), pending["digest"]):
             next_url = pending.get("next", "")
             request.session.pop(SESSION_KEY, None)
             login(request, user, backend=BACKEND)
-            audit.record(user, "auth.login", "Signed in to the staff console (password + email code)", request=request)
+            audit.record(user, "auth.login", "Signed in (password + email code)" if back != "staff_login"
+                         else "Signed in to the staff console (password + email code)", request=request)
             if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()},
                                                    require_https=request.is_secure()):
                 next_url = _staff_home(user)
@@ -196,12 +220,13 @@ def staff_login_verify(request):
         if pending["attempts"] >= settings.STAFF_CODE_MAX_ATTEMPTS:
             request.session.pop(SESSION_KEY, None)
             messages.error(request, "Too many incorrect codes. Sign in again to get a new one.")
-            return redirect("staff_login")
+            return redirect(back)
         request.session[SESSION_KEY] = pending
         left = settings.STAFF_CODE_MAX_ATTEMPTS - pending["attempts"]
         form.add_error("code", f"That code isn't right. {left} attempt{'s' if left != 1 else ''} left.")
     return render(request, "accounts/staff_verify.html", {
-        "form": form, "email": _mask(user.email), "minutes": settings.STAFF_CODE_TTL_SECONDS // 60})
+        "form": form, "email": _mask(user.email), "minutes": settings.STAFF_CODE_TTL_SECONDS // 60,
+        "back": back, "is_staff_flow": back == "staff_login"})
 
 
 def admin_site_login(request, extra_context=None):
@@ -241,6 +266,7 @@ def activate(request, uidb64, token):
 class SafePasswordResetView(PasswordResetView):
     """Password reset that shows a friendly error instead of crashing if email can't be sent."""
     template_name = "accounts/password_reset.html"
+    form_class = AccountPasswordResetForm
     email_template_name = "accounts/password_reset_email.txt"
     subject_template_name = "accounts/password_reset_subject.txt"
 

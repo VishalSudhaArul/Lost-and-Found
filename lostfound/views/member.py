@@ -11,7 +11,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from ..forms import ClaimForm, ItemReportForm, PrivateDetailFormSet, VerificationForm
+from ..forms import ClaimForm, ClaimReplyForm, ItemReportForm, PrivateDetailFormSet, VerificationForm
 from ..models import Claim, Handover, Item, ItemCategory, MatchSuggestion, Notification, VerificationChallenge
 from ..services import analytics, audit, claims, custody, matching, public, verification
 from ..services.errors import WorkflowError
@@ -123,17 +123,18 @@ def claim_create(request, item_pk):
     if card is None or not ok:
         messages.error(request, reason or "This item is not open for claims.")
         return redirect("board")
-    form = ClaimForm(request.POST or None, user=request.user, initial={"lost_report": request.GET.get("lost")})
+    form = ClaimForm(request.POST or None, request.FILES or None, user=request.user, initial={"lost_report": request.GET.get("lost")})
     if request.method == "POST" and form.is_valid():
         try:
-            claim = claims.submit_claim(item, request.user, form.cleaned_data["statement"],
-                                        form.cleaned_data.get("lost_report"), request=request)
+            d = form.cleaned_data
+            claim = claims.submit_claim(item, request.user, d["statement"], d.get("lost_report"), request=request,
+                                        where_when=d["where_when"], extra_info=d.get("extra_info", ""),
+                                        attachment=d.get("attachment"))
         except WorkflowError as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, f"Claim {claim.reference} started.")
-            if VerificationChallenge.objects.filter(claim=claim).exists():
-                return redirect("claim_verify", pk=claim.pk)
+            messages.success(request, f"Claim {claim.reference} submitted for review. Campus security will compare it "
+                                      f"with the finder's record and let you know.")
             return redirect("claim_detail", pk=claim.pk)
     return render(request, "member/claim_form.html", {"form": form, "card": card})
 
@@ -150,7 +151,25 @@ def claim_detail(request, pk):
     challenge = VerificationChallenge.objects.filter(claim=claim).first()
     handover = Handover.objects.filter(claim=claim).select_related("location").first()
     return render(request, "member/claim_detail.html", {
-        "claim": claim, "card": public.summary(claim.item_id), "challenge": challenge, "handover": handover})
+        "claim": claim, "card": public.summary(claim.item_id), "challenge": challenge, "handover": handover,
+        "thread": claim.messages.all(), "reply_form": ClaimReplyForm()})
+
+
+@login_required
+@require_POST
+def claim_respond(request, pk):
+    claim = get_object_or_404(Claim, pk=pk, claimant=request.user)
+    form = ClaimReplyForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Write a short answer.")
+    else:
+        try:
+            claims.respond_to_request(claim.pk, request.user, form.cleaned_data["message"], request=request)
+        except WorkflowError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Thanks, your answer was sent to campus security.")
+    return redirect("claim_detail", pk=claim.pk)
 
 
 @login_required

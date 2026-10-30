@@ -1,9 +1,10 @@
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.db.models import Q as models_Q
 from django.utils import timezone
 
 from . import roles
@@ -205,15 +206,37 @@ PrivateDetailFormSet = forms.formset_factory(PrivateDetailForm, formset=BasePriv
 
 class ClaimForm(forms.Form):
     statement = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 4}), max_length=1500, min_length=20,
-        label="Why is this yours?",
-        help_text="Describe the item and when and where you lost it. Only campus security sees this.")
+        widget=forms.Textarea(attrs={"rows": 4}), max_length=1500, min_length=10,
+        label="What does the item look like?",
+        help_text="Colour, brand, size, marks, stickers, contents... in your own words. Only campus security sees this.")
+    where_when = forms.CharField(max_length=300, min_length=3, label="Where and approximately when did you lose it?",
+                                 help_text="For example: Library 2nd floor, Tuesday afternoon.")
+    extra_info = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), max_length=1500, required=False,
+                                 label="Any additional information? (optional)")
+    attachment = forms.ImageField(required=False, label="Supporting photo (optional)",
+                                  help_text="E.g. an old photo of you with the item or its receipt. JPEG, PNG or WebP. "
+                                            "Only campus security can see it.")
     lost_report = forms.ModelChoiceField(queryset=Item.objects.none(), required=False,
                                          label="Link one of your lost reports (optional)")
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["lost_report"].queryset = Item.objects.lost().filter(reporter=user, status=Item.Status.OPEN)
+
+    def clean_attachment(self):
+        f = self.cleaned_data.get("attachment")
+        return images.process_upload(f) if f else None
+
+
+class RequestInfoForm(forms.Form):
+    message = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), max_length=1500, min_length=5,
+                              label="Question for the claimant",
+                              help_text="Ask for evidence or detail. Never reveal the private details you are checking.")
+
+
+class ClaimReplyForm(forms.Form):
+    message = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), max_length=1500, min_length=3,
+                              label="Your answer")
 
 
 class VerificationForm(forms.Form):
@@ -251,6 +274,8 @@ class CorrectionForm(forms.Form):
 class ApproveForm(forms.Form):
     reason = forms.CharField(max_length=500, required=False, label="Note for the claimant (optional)")
     confirm_competing = forms.BooleanField(required=False, label="I reviewed the competing claims; they will be rejected")
+    confirm_compared = forms.BooleanField(
+        required=True, label="I compared the claim with the finder's report and the private identifying details")
 
 
 class RejectForm(forms.Form):
@@ -390,6 +415,9 @@ class ProfileForm(forms.Form):
     display_name = forms.CharField(max_length=40, required=False, label="Leaderboard nickname",
                                    help_text="Shown instead of your name on the leaderboard. Leave blank to use your first name and initial.")
     show_on_leaderboard = forms.BooleanField(required=False, label="Show me on the community leaderboard")
+    two_step_enabled = forms.BooleanField(
+        required=False, label="Two-step sign-in",
+        help_text="After your password, we email a 6-digit code to your registered address.")
 
     def clean_display_name(self):
         name = self.cleaned_data["display_name"].strip()
@@ -515,6 +543,34 @@ class PortalLoginForm(RateLimitedLoginForm):
             other = "teacher" if here == "student" else "student"
             raise ValidationError(f"This is the {here} sign-in. Your account is registered as a "
                                   f"{other}; please use the {other} sign-in.", code="wrong_portal")
+
+
+class AccountPasswordResetForm(PasswordResetForm):
+    """Reset by username or email. The link only ever goes to the matching account's
+    *registered* address (read from the database), never to the text that was typed."""
+    email = forms.CharField(max_length=254, label="Username or email",
+                            widget=forms.TextInput(attrs={"autocomplete": "username"}))
+
+    def get_users(self, identifier):
+        identifier = (identifier or "").strip()
+        if not identifier:
+            return []
+        model = get_user_model()
+        users = model._default_manager.filter(
+            models_Q(username__iexact=identifier) | models_Q(email__iexact=identifier), is_active=True)
+        return [u for u in users if u.has_usable_password() and u.email]
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email,
+                  html_email_template_name=None):
+        from django.template import loader
+
+        from .services import mailer
+        user = context["user"]
+        # Defence in depth: always the stored address of the account, whatever was submitted.
+        recipient = user.email
+        subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
+        body = loader.render_to_string(email_template_name, context)
+        mailer.send(subject, body, recipient, purpose="password reset")
 
 
 class StudentLoginForm(PortalLoginForm):
