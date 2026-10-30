@@ -41,7 +41,10 @@ class VerificationFlowTests(LFTestCase):
         self.assertTrue(result["passed"])
         self.claim.refresh_from_db()
         self.assertEqual(self.claim.status, Claim.Status.UNDER_REVIEW)
-        self.assertEqual(self.claim.verification_status, Claim.Verification.PASSED)
+        # the optional quiz is supporting information only: it never marks ownership as verified
+        self.assertEqual(self.claim.verification_status, Claim.Verification.NOT_STARTED)
+        with self.assertRaises(WorkflowError):
+            claims.approve_claim(self.claim.pk, self.guard, "Quiz passed")  # no in-person check recorded
 
     def test_failure_does_not_reveal_which_answer_was_wrong(self):
         answers = self.correct_answers(self.claim)
@@ -61,15 +64,19 @@ class VerificationFlowTests(LFTestCase):
         self.assertTrue(result["locked"])
         self.claim.refresh_from_db()
         self.assertEqual(self.claim.challenge.status, VerificationChallenge.Status.LOCKED)
-        self.assertEqual(self.claim.verification_status, Claim.Verification.FAILED)
+        self.assertEqual(self.claim.status, Claim.Status.UNDER_REVIEW)  # wrong answers never reject
+        self.assertEqual(self.claim.verification_status, Claim.Verification.NOT_STARTED)
         with self.assertRaises(WorkflowError):
             verification.submit_attempt(self.claim.challenge.pk, self.student, self.correct_answers(self.claim))
 
-    def test_failed_claim_cannot_be_approved(self):
+    def test_failed_quiz_still_needs_and_allows_an_in_person_decision(self):
         for _ in range(self.claim.challenge.max_attempts):
             verification.submit_attempt(self.claim.challenge.pk, self.student, {})
         with self.assertRaises(WorkflowError):
             claims.approve_claim(self.claim.pk, self.guard)
+        claims.approve_claim(self.claim.pk, self.guard, reason="Verified at the desk", verified_in_person=True)
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.status, Claim.Status.APPROVED)
 
     def test_rate_limit_applies_across_claims(self):
         with self.settings(VERIFY_RATE_LIMIT=(1, 3600)):

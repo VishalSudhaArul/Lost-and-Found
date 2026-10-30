@@ -127,22 +127,28 @@ def _require(user, perm):
         raise PermissionDenied
 
 
-def approve_claim(claim_id, actor, reason="", confirm_competing=False, request=None, verified_by_staff=False):
+def approve_claim(claim_id, actor, reason="", confirm_competing=False, request=None, verified_in_person=False,
+                  verified_by_staff=None):
+    """Approve after an authorised officer verified ownership face to face at the Lost & Found desk.
+    Optional quiz answers are supporting information only and never approve or reject anything."""
     _require(actor, "decide_claims")
+    verified_in_person = bool(verified_in_person or verified_by_staff)
+    reason = (reason or "").strip()
     with transaction.atomic():
         claim = Claim.objects.select_for_update().get(pk=claim_id)
         item = Item.objects.select_for_update().get(pk=claim.item_id)
         others = list(Claim.objects.select_for_update().filter(item=item, status__in=Claim.ACTIVE_STATUSES).exclude(pk=claim.pk))
         if claim.claimant_id == actor.pk:
             raise PermissionDenied("You cannot decide your own claim.")
+        if not verified_in_person:
+            raise WorkflowError("Record that you verified ownership in person against the private details before approving.")
+        if len(reason) < 5:
+            raise WorkflowError("Give a short reason for the decision; it is kept in the audit history.")
         if claim.status not in (Claim.Status.UNDER_REVIEW, Claim.Status.PENDING_VERIFICATION):
             raise WorkflowError("Only claims under review can be approved (not while waiting for the claimant).")
-        # A legacy quiz result never blocks manual review: staff compare the evidence themselves.
-        override = verified_by_staff and claim.verification_status != Claim.Verification.PASSED
-        legacy_result = claim.verification_status
+        challenge = VerificationChallenge.objects.filter(claim=claim).first()
+        quiz_result = challenge.status if challenge else "not_used"  # advisory, recorded for the audit only
         _cancel_open_challenge(claim)
-        if not verified_by_staff and claim.verification_status != Claim.Verification.PASSED:
-            raise WorkflowError("Confirm that you compared the claim with the item's private identifying details.")
         if any(o.status == Claim.Status.APPROVED for o in others):
             raise WorkflowError("Another claim on this item is already approved.")
         if item.status not in (Item.Status.IN_CUSTODY, Item.Status.DISPOSAL_REVIEW):
@@ -157,15 +163,15 @@ def approve_claim(claim_id, actor, reason="", confirm_competing=False, request=N
             other.save()
             _cancel_open_challenge(other)
         claim.status = Claim.Status.APPROVED
-        if verified_by_staff:
-            claim.verification_status = Claim.Verification.PASSED
+        claim.verification_status = Claim.Verification.PASSED  # verified in person by an authorised officer
         claim.decision_reason = reason
         claim.decided_by, claim.decided_at = actor, now
         claim.save()
         item.transition_to(Item.Status.AWAITING_HANDOVER)
     audit.record(actor, "claim.approved", f"Claim {claim.reference} approved", target=claim, request=request,
-                 competing_rejected=[o.reference for o in others], manual_review=bool(verified_by_staff),
-                 legacy_quiz_override=override, legacy_quiz_result=legacy_result)
+                 competing_rejected=[o.reference for o in others], verification="in_person", reason=reason[:300],
+                 decided_at=now.isoformat(), optional_quiz=quiz_result,
+                 legacy_quiz_override=quiz_result not in ("not_used", VerificationChallenge.Status.PASSED))
     notifications.notify([claim.claimant], "claim", "Claim approved",
                          f"Your claim {claim.reference} was approved. Security will schedule a supervised handover.",
                          link=f"/my/claims/{claim.pk}/")
@@ -204,7 +210,8 @@ def reject_claim(claim_id, actor, reason, request=None):
         claim.decision_reason = reason.strip()
         claim.decided_by, claim.decided_at = actor, timezone.now()
         claim.save()
-    audit.record(actor, "claim.rejected", f"Claim {claim.reference} rejected", target=claim, request=request)
+    audit.record(actor, "claim.rejected", f"Claim {claim.reference} rejected", target=claim, request=request,
+                 verification="in_person", reason=claim.decision_reason[:300], decided_at=claim.decided_at.isoformat())
     notifications.notify([claim.claimant], "claim", "Claim not approved",
                          f"Your claim {claim.reference} was not approved. See the claim page for the reason.",
                          link=f"/my/claims/{claim.pk}/")

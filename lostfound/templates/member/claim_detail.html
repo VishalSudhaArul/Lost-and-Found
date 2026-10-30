@@ -10,7 +10,7 @@
 {% with s=claim.display_code %}
 <ol class="track" style="--n:5" aria-label="Claim progress">
   <li class="done">Submitted</li>
-  <li class="{% if s == 'under_review' or s == 'info_requested' %}current{% elif s == 'withdrawn' or s == 'rejected' %}stopped{% else %}done{% endif %}">Under review</li>
+  <li class="{% if s == 'under_review' or s == 'info_requested' %}current{% elif s == 'withdrawn' or s == 'rejected' %}stopped{% else %}done{% endif %}">Pending review</li>
   <li class="{% if s == 'approved' %}current{% elif s == 'awaiting_collection' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Approved</li>
   <li class="{% if s == 'awaiting_collection' %}current{% elif s == 'completed' %}done{% endif %}">Awaiting collection</li>
   <li class="{% if s == 'completed' %}done{% endif %}">Returned</li>
@@ -20,7 +20,7 @@
 <div class="split">
   <div>
     {% if claim.status == "under_review" or claim.status == "pending_verification" %}
-      <div class="panel callout"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><h2>Under review by campus security</h2><p class="small muted mb-0">Your claim has been submitted successfully. A member of the Lost &amp; Found team will compare it with the finder's record. Claims are never approved automatically; you'll be notified of the decision here and by email.</p></div></div>
+      <div class="panel callout"><span class="figure-icon amber">{% icon "user-check" "icon-lg" %}</span><div><h2>Pending review: visit the Lost &amp; Found desk</h2><p class="small muted mb-0">Your claim has been submitted successfully. Next, visit the Campus Lost &amp; Found / Security Desk with your photo ID. A member of staff will ask you a few questions in person and decide; there is no online quiz to pass. You'll be notified of the decision here and by email.</p></div></div>
     {% elif claim.status == "info_requested" %}
       <div class="panel notice warn callout">{% icon "info" %}<div><h2>Campus security needs a little more information</h2><p class="small mb-0">Answer the question below. Your claim goes back for review as soon as you reply.</p></div></div>
     {% elif claim.status == "approved" %}

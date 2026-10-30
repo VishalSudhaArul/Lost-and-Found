@@ -177,10 +177,10 @@ def claim_review(request, pk):
 def claim_approve(request, pk):
     form = ApproveForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Confirm that you compared the claim with the finder's report and private details.")
+        messages.error(request, "Tick the in-person verification box and give a reason for the decision.")
         return redirect("security_claim", pk=pk)
     _flash(request, claims.approve_claim, pk, request.user, form.cleaned_data.get("reason", ""),
-           form.cleaned_data.get("confirm_competing", False), request=request, verified_by_staff=True,
+           form.cleaned_data.get("confirm_competing", False), request=request, verified_in_person=True,
            success="Claim approved.")
     return redirect("security_claim", pk=pk)
 

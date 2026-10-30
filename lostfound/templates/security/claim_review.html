@@ -4,7 +4,7 @@
 <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'security_claims' %}">Verification review</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">{{ claim.reference }}</span></nav>
 <div class="page-head"><div><h1>Claim <span class="mono">{{ claim.reference }}</span></h1><p>{{ claim.item.title }} (<a href="{% url 'security_item' claim.item.pk %}">{{ claim.item.reference }}</a>), {{ claim.item.get_status_display|lower }}</p></div>
 <div class="btn-row">{% badge claim.display_code claim.display_status %}</div></div>
-{% if claim.verification_status == "failed" %}<p class="notice small callout">{% icon "info" %}<span>This claimant did not pass the old verification quiz. That no longer blocks the claim: review the evidence below and decide manually (recorded as a manual decision in the audit log).</span></p>{% endif %}
+<p class="notice small callout">{% icon "user-check" %}<span><strong>In-person verification.</strong> Ask the claimant to come to the desk with photo ID, question them face to face using the private details below (never read them out), then record your decision here. Online question answers, if any, are supporting information only and never decide a claim.</span></p>
 {% with s=claim.status %}<ol class="track" style="--n:4" aria-label="Claim progress">
   <li class="{% if s == 'pending_verification' or s == 'under_review' or s == 'info_requested' %}current{% elif s == 'rejected' or s == 'withdrawn' %}stopped{% else %}done{% endif %}">Ownership review{% if s == 'info_requested' %} (waiting for claimant){% endif %}</li>
   <li class="{% if s == 'approved' or s == 'completed' %}done{% elif s == 'rejected' %}stopped{% endif %}">Decision</li>
@@ -38,7 +38,7 @@
       {% else %}<p class="notice warn">The item has no private details recorded. Add one from the <a href="{% url 'security_item' claim.item.pk %}">item page</a>, or rely on the finder's report and the claimant's evidence.</p>{% endif %}
     </section>
     {% if thread %}<section class="panel"><h2>Messages with the claimant</h2><ol class="timeline">{% for m in thread %}<li class="{% if m.from_staff %}pending{% else %}done{% endif %}"><strong>{% if m.from_staff %}{{ m.author.username }} (security){% else %}Claimant{% endif %}</strong><div class="muted small">{{ m.created_at|date:"j M Y, H:i" }}</div><p class="small mb-0">{{ m.body|linebreaksbr }}</p></li>{% endfor %}</ol></section>{% endif %}
-    {% if evidence.challenge %}<section class="private-box"><h2>{% icon "lock" %}Legacy verification answers</h2>
+    {% if evidence.challenge %}<section class="private-box"><h2>{% icon "lock" %}Optional online answers (supporting information only)</h2>
       {% if evidence.challenge %}<p class="small">{{ evidence.challenge.attempts_used }} of {{ evidence.challenge.max_attempts }} attempts used; best score {{ evidence.challenge.best_score|pct }}% (pass mark {{ evidence.challenge.pass_threshold|pct }}%).</p>
         {% for a in evidence.attempts %}
         <h3>Attempt {{ forloop.counter }} — {{ a.attempt.score|pct }}% {% if a.attempt.passed %}<span class="badge badge-ok">passed</span>{% else %}<span class="badge badge-bad">failed</span>{% endif %}</h3>

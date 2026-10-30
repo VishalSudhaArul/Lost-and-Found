@@ -13,8 +13,8 @@ def _claim_ref():
 
 class Claim(models.Model):
     class Status(models.TextChoices):
-        PENDING_VERIFICATION = "pending_verification", "Under review"  # legacy quiz state
-        UNDER_REVIEW = "under_review", "Under review"
+        PENDING_VERIFICATION = "pending_verification", "Pending review"  # legacy quiz state
+        UNDER_REVIEW = "under_review", "Pending review"
         INFO_REQUESTED = "info_requested", "More information requested"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
@@ -22,9 +22,11 @@ class Claim(models.Model):
         COMPLETED = "completed", "Returned"
 
     class Verification(models.TextChoices):
-        NOT_STARTED = "not_started", "Not started"
-        PASSED = "passed", "Passed"
-        FAILED = "failed", "Failed"
+        # Set only by an authorised officer's in-person decision. Optional quiz results live on the
+        # VerificationChallenge and are supporting information, never the decision.
+        NOT_STARTED = "not_started", "Not yet verified in person"
+        PASSED = "passed", "Verified in person by staff"
+        FAILED = "failed", "Old quiz not passed (advisory)"
 
     ACTIVE_STATUSES = (Status.PENDING_VERIFICATION, Status.UNDER_REVIEW, Status.INFO_REQUESTED, Status.APPROVED)
     DECIDED_STATUSES = (Status.APPROVED, Status.COMPLETED)
@@ -73,7 +75,7 @@ class Claim(models.Model):
 
 
 def _display_status(claim):
-    """Simple status shown to people: Submitted / Under review / More information requested /
+    """Simple status shown to people: Submitted / Pending review / More information requested /
     Approved / Awaiting collection / Returned / Rejected / Withdrawn."""
     if claim.status == Claim.Status.APPROVED:
         handover = getattr(claim, "handover", None)
@@ -81,7 +83,7 @@ def _display_status(claim):
             return "awaiting_collection", "Awaiting collection"
         return "approved", "Approved"
     if claim.status == Claim.Status.PENDING_VERIFICATION:
-        return "under_review", "Under review"
+        return "under_review", "Pending review"
     return claim.status, claim.get_status_display()
 
 

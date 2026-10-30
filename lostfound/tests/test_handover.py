@@ -59,7 +59,7 @@ class HandoverTests(LFTestCase):
         claim = claims.submit_claim(item, self.student, "This is my backpack from the reading hall.", lost_report=lost, with_challenge=True)
         from lostfound.services import verification
         verification.submit_attempt(claim.challenge.pk, self.student, self.correct_answers(claim))
-        claims.approve_claim(claim.pk, self.guard)
+        claims.approve_claim(claim.pk, self.guard, reason="Verified at the desk", verified_in_person=True)
         handover = custody.schedule_handover(claim.pk, self.guard, timezone.now() + timedelta(hours=1), self.office, self.guard)
         code, _ = custody.issue_otp(handover.pk, self.student)
         handover.refresh_from_db()

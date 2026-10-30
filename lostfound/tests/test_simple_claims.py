@@ -27,7 +27,7 @@ class SimpleClaimTests(LFTestCase):
         self.assertTrue(claim.attachment)
         self.assertFalse(VerificationChallenge.objects.filter(claim=claim).exists())
         page = self.client.get(reverse("claim_detail", args=[claim.pk]))
-        self.assertContains(page, "Under review by campus security")
+        self.assertContains(page, "visit the Lost &amp; Found desk")
         self.assertNotContains(page, SECRET_ANSWER)
         self.assertNotContains(page, SECRET_SERIAL)
 
@@ -48,7 +48,8 @@ class SimpleClaimTests(LFTestCase):
         self.client.post(reverse("security_claim_approve", args=[claim.pk]), {"reason": "ok"})
         claim.refresh_from_db()
         self.assertEqual(claim.status, Claim.Status.UNDER_REVIEW)
-        self.client.post(reverse("security_claim_approve", args=[claim.pk]), {"confirm_compared": "on"})
+        self.client.post(reverse("security_claim_approve", args=[claim.pk]), {"confirm_compared": "on",
+                                                                            "reason": "Verified at the desk"})
         claim.refresh_from_db()
         self.assertEqual(claim.status, Claim.Status.APPROVED)
         self.assertEqual(claim.decided_by, self.guard)

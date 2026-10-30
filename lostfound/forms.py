@@ -274,10 +274,13 @@ class CorrectionForm(forms.Form):
 
 
 class ApproveForm(forms.Form):
-    reason = forms.CharField(max_length=500, required=False, label="Note for the claimant (optional)")
+    reason = forms.CharField(max_length=500, min_length=5, label="Decision reason",
+                             help_text="Kept in the audit history and shown to the claimant. Do not write the private "
+                                       "details themselves.")
     confirm_competing = forms.BooleanField(required=False, label="I reviewed the competing claims; they will be rejected")
     confirm_compared = forms.BooleanField(
-        required=True, label="I compared the claim with the finder's report and the private identifying details")
+        required=True, label="I met the claimant in person, checked their photo ID and verified ownership against "
+                             "the private identifying details")
 
 
 class RejectForm(forms.Form):

@@ -161,21 +161,20 @@ def submit_attempt(challenge_id, user, responses, request=None):
         if passed:
             challenge.status = VerificationChallenge.Status.PASSED
             challenge.completed_at = timezone.now()
-            claim.status = Claim.Status.UNDER_REVIEW
-            claim.verification_status = Claim.Verification.PASSED
-            notifications.notify(reviewers, "verification", "Claim ready for review",
-                                 f"Claim {claim.reference} on {claim.item.reference} passed verification.",
+            claim.status = Claim.Status.UNDER_REVIEW  # still needs the in-person check; never approved here
+            notifications.notify(reviewers, "verification", "Claim ready for in-person review",
+                                 f"Claim {claim.reference} on {claim.item.reference}: optional questions answered.",
                                  link=f"/security/claims/{claim.pk}/")
         elif challenge.attempts_used >= challenge.max_attempts:
             challenge.status = VerificationChallenge.Status.LOCKED
             challenge.completed_at = timezone.now()
-            claim.status = Claim.Status.UNDER_REVIEW
-            claim.verification_status = Claim.Verification.FAILED
-            notifications.notify(reviewers, "verification", "Claim failed verification",
-                                 f"Claim {claim.reference} on {claim.item.reference} used all verification attempts.",
+            claim.status = Claim.Status.UNDER_REVIEW  # wrong answers never reject a claim
+            notifications.notify(reviewers, "verification", "Claim ready for in-person review",
+                                 f"Claim {claim.reference} on {claim.item.reference}: optional questions not matched "
+                                 f"(supporting information only).",
                                  link=f"/security/claims/{claim.pk}/")
         challenge.save()
-        claim.save(update_fields=["status", "verification_status", "updated_at"])
+        claim.save(update_fields=["status", "updated_at"])
         audit.record(user, "verification.attempt", f"Verification attempt on {claim.reference}", target=claim,
                      request=request, passed=passed, attempt_number=challenge.attempts_used)
         if claim.status == Claim.Status.UNDER_REVIEW:

@@ -122,7 +122,7 @@ class LFTestCase(TestCase):
 
     def approved_claim(self, **kw):
         claim = self.verified_claim(**kw)
-        claims.approve_claim(claim.pk, self.guard)
+        claims.approve_claim(claim.pk, self.guard, reason="Verified at the desk", verified_in_person=True)
         claim.refresh_from_db()
         return claim
 

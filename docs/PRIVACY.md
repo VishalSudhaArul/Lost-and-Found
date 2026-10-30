@@ -35,7 +35,7 @@ Returned, disposed and closed items leave the public board.
 | Information | Reporter | Claimant | Security Personnel | Campus / System Admin |
 |---|---|---|---|---|
 | Own report, incl. exact spot | yes | — | yes | via security role only |
-| Private detail questions | no (count only) | only the questions drawn for their challenge | yes, on the claim review screen (audited) | only if also Security |
+| Private detail questions | no (count only) | only the questions drawn for an optional online question set (never the answers) | yes, on the claim review screen, to question the claimant in person (audited) | only if also Security |
 | Private detail answers | no | never | yes, on the claim review screen (audited) | only if also Security |
 | Claimant's answers and per-question result | no | no (only pass/fail) | yes (audited) | only if also Security |
 | Claim decision reason | no | yes | yes | — |

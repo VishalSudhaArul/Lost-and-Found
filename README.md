@@ -2,7 +2,7 @@
 
 **EduRev P09 — Campus Lost and Found Platform with Ownership Verification and Custody Chain (Track P: Python + Django + PostgreSQL).**
 
-One place to report lost and found items on campus. Finders record identifying details that are **never shown publicly**; campus security checks every claim against those hidden details before anything is released, and every handover is supervised and recorded in an append-only custody chain.
+One place to report lost and found items on campus. Finders record identifying details that are **never shown publicly**; the claimant then visits the Lost & Found / Security Desk, where staff question them face to face against those hidden details and record their decision in the portal. Every handover is supervised and recorded in an append-only custody chain.
 
 ## Problem statement
 
@@ -24,8 +24,8 @@ Lost property on campus is handled through notice boards and WhatsApp groups: th
 | M1 Item reporting | Separate lost/found flows, mobile-first form, camera capture, photo upload (Pillow resize + EXIF/GPS stripping), category attributes, validation |
 | M2 Taxonomy | Two-level categories with public attributes and retention overrides; campus location tree (area › building › floor › room), custody points, searchable selector, optional Leaflet map picker |
 | M3 Matching | Weighted, explainable score from category, text (PostgreSQL `pg_trgm`), attributes, location tree/distance and time; suggestions on create/update and a nightly refresh command |
-| M4 Private details & verification | Separate `PrivateDetail` model with its own `vault` manager, Fernet-encrypted, no reverse accessor. Ownership is verified by security against these hidden details (every view of them is audited); the scored question challenge (exact/keyword/fuzzy, attempt + rate limits, no hint about which answer failed) remains available |
-| M5 Claims | Short claim form (description, where, when, extra info, optional private photo), statuses Under review / More information requested / Approved / Awaiting collection / Returned / Rejected, staff information requests and claimant replies, never auto-approved, duplicate prevention, competing claims resolved explicitly, one approved claim per item (row locking + partial unique constraint) |
+| M4 Private details & verification | Separate `PrivateDetail` model with its own `vault` manager, Fernet-encrypted, no reverse accessor. **Staff-led, in-person verification**: authorised Lost & Found staff open the private details (every view audited), question the claimant at the desk and record the decision. An optional scored online question set (exact/keyword/fuzzy, attempt + rate limits, no hint about which answer failed) is supporting information only |
+| M5 Claims | Short claim form (description, where, when, extra info, optional private photo), statuses Pending review / More information requested / Approved / Awaiting collection / Returned / Rejected, staff information requests and claimant replies, never auto-approved, duplicate prevention, competing claims resolved explicitly, one approved claim per item (row locking + partial unique constraint) |
 | M6 Custody & handover | Receive/transfer/correct (append-only, PostgreSQL trigger), scheduling with email + in-app notice, three-step handover page: confirm claimant → verify a collection code emailed to the claimant's registered address (hashed, 10-minute, attempt-limited, single-use) or a drawn signature → Complete Handover with ID check and optional proof photo; item becomes Returned only then, in one transaction with the custody release and the finder's reward |
 | M7 Ageing & disposal | Configurable retention, warnings, disposal-review queue, escalation, two-person disposal (security review + authorised decision), protection for claimed/returned items |
 | M8 Public board | Redacted board built from a public DTO, PostgreSQL full-text + `pg_trgm` search, filters, sorting, infinite scroll (numbered pages without JavaScript), live filtering, cached with Django's cache framework (invalidated on any item change), JSON endpoint `/api/board/` |
@@ -58,8 +58,8 @@ lostfound/
   static/          app.css (design system), app.js (progressive enhancement only)
   management/commands/  refresh_matches, check_ageing, check_email, purge_demo_data,
                    import_sqlite_export, rotate_encryption_keys
-  migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers, 0003–0009 later features
-  tests/           227 tests (run against PostgreSQL)
+  migrations/      0001 schema, 0002 PostgreSQL extension/indexes/triggers, 0003–0010 later features
+  tests/           234 tests (run against PostgreSQL)
 scripts/           setup_postgres.ps1 (one-time role + database creation)
 docs/              data model, workflows, matching, privacy statement, custody, scheduled jobs
 ```
@@ -149,6 +149,16 @@ It keeps primary keys, timestamps, password hashes and encrypted details (no re-
 
 See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler and cron examples. No Celery/Redis is required.
 
+## Ownership verification (staff-led, in person)
+
+1. The student or staff member submits a short claim in the portal; it starts as **Pending review**. Nothing is approved or rejected automatically.
+2. The claimant visits the Campus Lost & Found / Security Desk with photo ID.
+3. An authorised officer (`decide_claims`) opens the claim, reviews the finder's report and the encrypted private details (shown only to staff; every view is audited) and questions the claimant face to face. They can inspect evidence and ask for more information through the portal.
+4. The officer approves or rejects in the portal. Approval requires ticking *"I met the claimant in person, checked their photo ID and verified ownership against the private identifying details"* and a reason; rejection requires a reason. The officer, time, reason and `verification: in_person` go into the append-only audit log, and the claimant is notified in-app and by email.
+5. Only then can the supervised handover (collection code + ID check + Complete Handover) take place.
+
+**Automated question-answer verification is not the final authority.** The optional online questions drawn from the private details are kept as supporting information for the officer. Correct answers never approve a claim or mark it verified; wrong or missing answers never reject it. A claimant can never decide their own claim, and staff cannot decide claims on items they claimed themselves.
+
 ## Accounts and sign-in
 
 | Who | Sign-in | How the account is created |
@@ -186,7 +196,7 @@ See [docs/SCHEDULED_JOBS.md](docs/SCHEDULED_JOBS.md) for Windows Task Scheduler 
 python manage.py test lostfound            # against PostgreSQL (recommended)
 ```
 
-The suite needs PostgreSQL (the test runner creates and drops its own `test_lostfound` database, so the role needs `CREATEDB`, which `scripts/setup_postgres.ps1` grants). Latest results (31 Oct 2026): 227 tests, all passing on PostgreSQL 18 locally and PostgreSQL 16 on GitHub Actions, none skipped. The workflow runs `check`, `makemigrations --check` and the suite on every push (`.github/workflows/ci.yml`).
+The suite needs PostgreSQL (the test runner creates and drops its own `test_lostfound` database, so the role needs `CREATEDB`, which `scripts/setup_postgres.ps1` grants). Latest results (31 Oct 2026): 234 tests, all passing on PostgreSQL 18 locally and PostgreSQL 16 on GitHub Actions, none skipped. The workflow runs `check`, `makemigrations --check` and the suite on every push (`.github/workflows/ci.yml`).
 
 ## Security and privacy design
 
@@ -215,7 +225,7 @@ Set `DJANGO_DEBUG=False`, a long `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `D
 | Handover recorded with custody chain and proof; handover requires the security role | Implemented and tested |
 | Unclaimed items age into the disposal queue at the configured interval | Implemented and tested |
 | Notifications: possible match, claim on your found item, verification, handover scheduled, ageing warning | Implemented (in-app and email) |
-| Claim requires passing verification before handover | Handover is blocked until ownership is verified. By default security verifies the claim against the hidden details (a deliberate usability choice for genuine owners who forget a detail); the claimant-answered question challenge is implemented but not the default path |
+| Claim requires passing verification before handover | Implemented as staff-led, in-person verification: handover is blocked until an authorised officer records that they verified ownership face to face against the hidden details. Automated question answers are **not** the final authority (see below) |
 | API endpoints `/items`, `/claims`, `/handovers` | Provided as server-rendered Django pages; only the public board also has a JSON endpoint (`/api/board/`) |
 
 ## Current limitations

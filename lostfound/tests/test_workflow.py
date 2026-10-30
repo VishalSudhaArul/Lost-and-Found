@@ -42,7 +42,7 @@ class WorkflowTests(LFTestCase):
 
     def test_simple_statuses_follow_the_workflow(self):
         claim = self.claim()
-        self.assertEqual(claim.display_status, "Under review")
+        self.assertEqual(claim.display_status, "Pending review")
         claims.request_info(claim.pk, self.guard, "Any marks on the strap?")
         claim.refresh_from_db()
         self.assertEqual(claim.display_status, "More information requested")
@@ -63,7 +63,7 @@ class WorkflowTests(LFTestCase):
             except WorkflowError:
                 break
         claim.refresh_from_db()
-        self.assertEqual(claim.verification_status, Claim.Verification.FAILED)
+        self.assertEqual(claim.verification_status, Claim.Verification.NOT_STARTED)  # advisory only
         self.assertEqual(claim.status, Claim.Status.UNDER_REVIEW)
         # claimant never sees answers or which one was wrong
         self.client.force_login(self.student)
@@ -76,7 +76,7 @@ class WorkflowTests(LFTestCase):
         self.approve(claim)
         entry = AuditEntry.objects.filter(action="claim.approved").latest("pk")
         self.assertTrue(entry.metadata["legacy_quiz_override"])
-        self.assertEqual(entry.metadata["legacy_quiz_result"], "failed")
+        self.assertEqual(entry.metadata["optional_quiz"], "locked")
 
     def test_open_legacy_quiz_can_be_approved_manually(self):
         claim = claims.submit_claim(self.found_item(), self.student, "Black backpack from the library", with_challenge=True)

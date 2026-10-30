@@ -38,15 +38,15 @@ class ClaimWorkflowTests(LFTestCase):
         b = self.verified_claim(item=item, claimant=self.other)
         pending = claims.submit_claim(item, self.third, "I think this backpack belongs to me as well.")
         with self.assertRaisesMessage(WorkflowError, "competing"):
-            claims.approve_claim(a.pk, self.guard)
-        claims.approve_claim(a.pk, self.guard, confirm_competing=True)
+            claims.approve_claim(a.pk, self.guard, reason="Verified at the desk", verified_in_person=True)
+        claims.approve_claim(a.pk, self.guard, confirm_competing=True, reason="Verified at the desk", verified_in_person=True)
         for c in (b, pending):
             c.refresh_from_db()
             self.assertEqual(c.status, Claim.Status.REJECTED)
         item.refresh_from_db()
         self.assertEqual(item.status, Item.Status.AWAITING_HANDOVER)
         with self.assertRaises(WorkflowError):
-            claims.approve_claim(b.pk, self.guard2, confirm_competing=True)
+            claims.approve_claim(b.pk, self.guard2, confirm_competing=True, reason="Verified at the desk", verified_in_person=True)
 
     def test_database_rejects_two_approved_claims_for_one_item(self):
         item = self.found_item()
@@ -67,7 +67,7 @@ class ClaimWorkflowTests(LFTestCase):
         item = self.found_item(receive=False)
         claim = self.verified_claim(item=item)
         with self.assertRaisesMessage(WorkflowError, "custody"):
-            claims.approve_claim(claim.pk, self.guard)
+            claims.approve_claim(claim.pk, self.guard, reason="Verified at the desk", verified_in_person=True)
 
     def test_rejection_needs_reason_and_is_visible_to_claimant(self):
         claim = self.verified_claim()
