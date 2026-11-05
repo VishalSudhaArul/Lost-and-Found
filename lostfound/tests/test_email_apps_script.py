@@ -93,3 +93,17 @@ class AppsScriptMissingSettingsTests(LFTestCase):
         good, msg = mailer.diagnose()
         self.assertFalse(good)
         self.assertIn("APPS_SCRIPT_MAIL_URL", msg)
+
+
+class UnconfiguredProductionEmailTests(LFTestCase):
+    @override_settings(EMAIL_BACKEND="lostfound.mail_backends.UnconfiguredEmailBackend")
+    def test_codes_are_never_printed_and_sign_in_stays_blocked(self):
+        with self.assertLogs("lostfound.email", level="ERROR") as logs:
+            r = self.client.post(reverse("staff_login"), {"username": "guard", "password": "pw-Long-enough-1"})
+        self.assertContains(r, "send your sign-in code")
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertIn("not configured", " ".join(logs.output))
+        self.assertNotIn("guard@uni.test", " ".join(logs.output))
+        good, msg = mailer.diagnose()
+        self.assertFalse(good)
+        self.assertIn("nothing is sent or printed", msg)

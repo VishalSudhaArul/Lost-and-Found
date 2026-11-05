@@ -117,6 +117,10 @@ def settings_view(request):
 
 def _email_status():
     from django.conf import settings as dj
+    if dj.EMAIL_BACKEND.endswith("UnconfiguredEmailBackend"):
+        return {"ok": False, "label": "Email delivery is not configured",
+                "detail": "No working email backend is set on this server, so emails are not sent (and are never "
+                          "printed to the log). Set EMAIL_BACKEND and its settings, then redeploy."}
     if getattr(dj, "EMAIL_SMTP_INCOMPLETE", False):
         return {"ok": False, "label": "Waiting for the app password",
                 "detail": "SMTP is selected in .env but EMAIL_HOST_PASSWORD is empty, so emails are printed in the "

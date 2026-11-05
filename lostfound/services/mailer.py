@@ -30,8 +30,12 @@ def send(subject, body, recipient, purpose):
         logger.error("Email (%s) not sent: SMTP error %s (%s).", purpose, type(exc).__name__,
                      getattr(exc, "smtp_code", "-"))
     except EmailApiError as exc:
-        logger.error("Email (%s) not sent: the email API returned HTTP %s (%s).", purpose,
-                     exc.status or "no response", exc.code)
+        if exc.code == "email_not_configured":
+            logger.error("Email (%s) not sent: email delivery is not configured on this server "
+                         "(see EMAIL_BACKEND and its settings).", purpose)
+        else:
+            logger.error("Email (%s) not sent: the email API returned HTTP %s (%s).", purpose,
+                         exc.status or "no response", exc.code)
     except OSError as exc:
         logger.error("Email (%s) not sent: could not reach %s:%s (%s).", purpose, settings.EMAIL_HOST,
                      settings.EMAIL_PORT, type(exc).__name__)
@@ -44,6 +48,11 @@ def diagnose():
     instead of the "connection closed" that smtplib shows after a rejection."""
     import base64
     backend = settings.EMAIL_BACKEND
+    if backend.endswith("UnconfiguredEmailBackend"):
+        reason = ("its key or URL is missing" if getattr(settings, "EMAIL_API_INCOMPLETE", False) else
+                  "EMAIL_HOST_PASSWORD is missing" if getattr(settings, "EMAIL_SMTP_INCOMPLETE", False) else
+                  "no delivery backend is set")
+        return False, f"Email delivery is not configured on this server ({reason}); nothing is sent or printed."
     if backend.endswith("BrevoEmailBackend"):
         return check_brevo()
     if backend.endswith("AppsScriptEmailBackend"):

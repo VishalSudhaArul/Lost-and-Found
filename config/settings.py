@@ -314,6 +314,13 @@ EMAIL_API_INCOMPLETE = ((EMAIL_BACKEND.endswith("BrevoEmailBackend") and not BRE
                          and not (APPS_SCRIPT_MAIL_URL and APPS_SCRIPT_MAIL_SECRET)))
 if EMAIL_SMTP_INCOMPLETE or EMAIL_API_INCOMPLETE:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Never print emails in production: they contain sign-in codes and reset links, and the console is
+# the hosting provider's log. With DEBUG off, an unconfigured or console backend refuses to send
+# (the failure is logged without the message) unless EMAIL_ALLOW_CONSOLE=True is set explicitly.
+EMAIL_DELIVERY_DISABLED = (not DEBUG and EMAIL_BACKEND.endswith("console.EmailBackend")
+                           and not env_bool("EMAIL_ALLOW_CONSOLE", False))
+if EMAIL_DELIVERY_DISABLED:
+    EMAIL_BACKEND = "lostfound.mail_backends.UnconfiguredEmailBackend"
 
 LOGGING = {
     "version": 1,

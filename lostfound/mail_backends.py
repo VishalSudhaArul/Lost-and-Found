@@ -102,6 +102,16 @@ def check_brevo():
                   "sender in Brevo.")
 
 
+class UnconfiguredEmailBackend(BaseEmailBackend):
+    """Production stand-in when no real delivery is configured: refuses to send instead of
+    printing codes and reset links into the server log."""
+
+    def send_messages(self, email_messages):
+        if email_messages and not self.fail_silently:
+            raise EmailApiError(0, "email_not_configured")
+        return 0
+
+
 # --- Google Apps Script relay: sends from your own Gmail, free, over HTTPS -------------------
 #
 #     EMAIL_BACKEND=lostfound.mail_backends.AppsScriptEmailBackend
@@ -179,4 +189,5 @@ def check_apps_script():
     return True, "Apps Script mail relay is reachable" + (f"; {quota} emails left today." if quota is not None else ".")
 
 
-__all__ = ["AppsScriptEmailBackend", "BrevoEmailBackend", "EmailApiError", "check_apps_script", "check_brevo"]
+__all__ = ["AppsScriptEmailBackend", "BrevoEmailBackend", "EmailApiError", "UnconfiguredEmailBackend",
+           "check_apps_script", "check_brevo"]
