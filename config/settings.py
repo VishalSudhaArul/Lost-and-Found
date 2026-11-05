@@ -56,6 +56,13 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1" if DEBUG else "")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+# On Render the service's own hostname (e.g. lost-and-found.onrender.com) is provided automatically.
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    if f"https://{RENDER_EXTERNAL_HOSTNAME}" not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -71,6 +78,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # serves collected static files in production
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -108,16 +116,37 @@ DB_BACKEND = env("DB_BACKEND", "postgres").lower()
 if DB_BACKEND != "postgres":
     raise ImproperlyConfigured(f"DB_BACKEND={DB_BACKEND!r} is not supported: this project runs on PostgreSQL only. "
                                "Set DB_BACKEND=postgres in .env.")
+
+
+def _postgres_from_url(url):
+    """postgres://user:password@host:port/dbname?sslmode=require  ->  Django settings (no extra package)."""
+    from urllib.parse import parse_qs, unquote, urlparse
+    parts = urlparse(url)
+    if parts.scheme not in ("postgres", "postgresql"):
+        raise ImproperlyConfigured("DATABASE_URL must be a postgres:// URL (PostgreSQL only).")
+    query = {k: v[-1] for k, v in parse_qs(parts.query).items()}
+    return {"NAME": unquote(parts.path.lstrip("/")), "USER": unquote(parts.username or ""),
+            "PASSWORD": unquote(parts.password or ""), "HOST": parts.hostname or "",
+            "PORT": str(parts.port or 5432), "SSLMODE": query.get("sslmode")}
+
+
+_db_url = env("DATABASE_URL")
+_db = _postgres_from_url(_db_url) if _db_url else {
+    "NAME": env("POSTGRES_DB", "lostfound"), "USER": env("POSTGRES_USER", "lostfound"),
+    "PASSWORD": env("POSTGRES_PASSWORD", ""), "HOST": env("POSTGRES_HOST", "localhost"),
+    "PORT": env("POSTGRES_PORT", "5432"), "SSLMODE": None}
+_db_options = {"connect_timeout": int(env("POSTGRES_CONNECT_TIMEOUT", "5"))}
+_sslmode = env("POSTGRES_SSLMODE") or _db.pop("SSLMODE")
+_db.pop("SSLMODE", None)
+if _sslmode:
+    _db_options["sslmode"] = _sslmode
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB", "lostfound"),
-        "USER": env("POSTGRES_USER", "lostfound"),
-        "PASSWORD": env("POSTGRES_PASSWORD", ""),
-        "HOST": env("POSTGRES_HOST", "localhost"),
-        "PORT": env("POSTGRES_PORT", "5432"),
+        **_db,
         "CONN_MAX_AGE": int(env("POSTGRES_CONN_MAX_AGE", "60")),
-        "OPTIONS": {"connect_timeout": int(env("POSTGRES_CONNECT_TIMEOUT", "5"))},
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": _db_options,
     }
 }
 
@@ -142,12 +171,23 @@ USE_TZ = True
 # --- Static & media -------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Compressed, cache-busted static files served by WhiteNoise. Requires `collectstatic`, so it is
+# switched on by STATIC_MANIFEST=True in production (render.yaml) and off for local work and tests.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+                    if env_bool("STATIC_MANIFEST", False) else
+                    "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 MEDIA_URL = "media/"
 # Public, processed (EXIF-stripped) item photos only.
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")))
 # Proof photos, signatures, disposal evidence: never served by MEDIA_URL,
 # only through permission-checked views.
 PRIVATE_MEDIA_ROOT = Path(env("PRIVATE_MEDIA_ROOT", str(BASE_DIR / "private_media")))
+# Serve the public photos in MEDIA_ROOT from Django itself (production on a single Render
+# instance with a persistent disk). PRIVATE_MEDIA_ROOT is never served this way.
+SERVE_MEDIA = env_bool("SERVE_MEDIA", DEBUG)
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
@@ -213,7 +253,7 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
     SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    if env_bool("DJANGO_BEHIND_PROXY"):
+    if env_bool("DJANGO_BEHIND_PROXY", bool(env("RENDER"))):  # Render terminates HTTPS at its proxy
         SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
@@ -230,7 +270,7 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@loc
 # Every system email (reset links, sign-in codes, activation, claim/handover notices) goes
 # from this one platform account through lostfound.services.mailer.
 EMAIL_NOTIFICATIONS = env_bool("EMAIL_NOTIFICATIONS", True)
-SITE_URL = env("SITE_URL", "http://127.0.0.1:8000")
+SITE_URL = env("SITE_URL", f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTERNAL_HOSTNAME else "http://127.0.0.1:8000")
 # SMTP selected but no password yet: keep printing emails in the console instead of failing.
 EMAIL_SMTP_INCOMPLETE = EMAIL_BACKEND.endswith("smtp.EmailBackend") and not EMAIL_HOST_PASSWORD
 if EMAIL_SMTP_INCOMPLETE:

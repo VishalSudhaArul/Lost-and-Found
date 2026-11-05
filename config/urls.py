@@ -1,7 +1,9 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.db import connection
+from django.http import HttpResponse
+from django.urls import include, path, re_path
+from django.views.static import serve
 
 admin.site.site_header = "Campus Lost & Found administration"
 admin.site.site_title = "Lost & Found admin"
@@ -11,14 +13,25 @@ from lostfound.views.accounts import admin_site_login  # noqa: E402
 
 admin.site.login = admin_site_login
 
+def healthz(request):
+    """Load-balancer health check: the app is up and PostgreSQL answers. Reveals nothing else."""
+    with connection.cursor() as cur:
+        cur.execute("SELECT 1")
+    return HttpResponse("ok", content_type="text/plain")
+
+
 urlpatterns = [
+    path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
     path("", include("lostfound.urls")),
 ]
 
-if settings.DEBUG:
-    # Development only; only processed public item photos live under MEDIA_ROOT.
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.SERVE_MEDIA:
+    # Only processed, EXIF-stripped public item photos live under MEDIA_ROOT. Private files
+    # (proof photos, signatures, claim attachments) are in PRIVATE_MEDIA_ROOT and are only
+    # served by permission-checked views.
+    urlpatterns += [re_path(r"^%s(?P<path>.*)$" % settings.MEDIA_URL.lstrip("/"), serve,
+                            {"document_root": settings.MEDIA_ROOT})]
 
 handler400 = "lostfound.views.errors.bad_request"
 handler403 = "lostfound.views.errors.permission_denied"
