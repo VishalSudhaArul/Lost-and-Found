@@ -41,6 +41,8 @@ services:
         fromDatabase:
           name: lostfound-db
           property: connectionString
+      - key: POSTGRES_SSLMODE
+        value: "require"
       - key: STATIC_MANIFEST
         value: "True"
       - key: SERVE_MEDIA
@@ -89,6 +91,8 @@ services:
         fromDatabase:
           name: lostfound-db
           property: connectionString
+      - key: POSTGRES_SSLMODE
+        value: "require"
       - key: DJANGO_SECRET_KEY
         fromService: {type: web, name: lost-and-found, envVarKey: DJANGO_SECRET_KEY}
       - key: FIELD_ENCRYPTION_KEYS

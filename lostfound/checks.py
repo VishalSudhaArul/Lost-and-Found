@@ -24,9 +24,16 @@ def postgres_available(app_configs, **kwargs):
             cur.execute("SELECT to_regclass('django_migrations') IS NOT NULL")
             migrated = cur.fetchone()[0]
     except DatabaseError as exc:
+        import re
         first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+        # Ensure credentials (passwords in URLs or DSN strings) are never leaked in error messages
+        db = settings.DATABASES.get("default", {})
+        pw = db.get("PASSWORD")
+        if pw and pw in first_line:
+            first_line = first_line.replace(pw, "******")
+        first_line = re.sub(r"://([^:]+):([^@]+)@", r"://\1:******@", first_line)
         return [Error(f"Cannot connect to PostgreSQL {describe_target()}: {first_line}",
-                      hint="Start the PostgreSQL service and check POSTGRES_* in .env "
+                      hint="Start the PostgreSQL service and check DATABASE_URL or POSTGRES_* in environment / .env "
                            "(first-time setup: scripts\\setup_postgres.ps1). There is no SQLite fallback.",
                       id="lostfound.E002")]
     if migrated and not has_trgm:

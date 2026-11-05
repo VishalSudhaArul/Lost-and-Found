@@ -121,25 +121,55 @@ if DB_BACKEND != "postgres":
 def _postgres_from_url(url):
     """postgres://user:password@host:port/dbname?sslmode=require  ->  Django settings (no extra package)."""
     from urllib.parse import parse_qs, unquote, urlparse
+    url = (url or "").strip()
     parts = urlparse(url)
     if parts.scheme not in ("postgres", "postgresql"):
-        raise ImproperlyConfigured("DATABASE_URL must be a postgres:// URL (PostgreSQL only).")
+        raise ImproperlyConfigured(f"DATABASE_URL scheme '{parts.scheme}' is not supported: must be a postgres:// or postgresql:// URL (PostgreSQL only).")
     query = {k: v[-1] for k, v in parse_qs(parts.query).items()}
-    return {"NAME": unquote(parts.path.lstrip("/")), "USER": unquote(parts.username or ""),
-            "PASSWORD": unquote(parts.password or ""), "HOST": parts.hostname or "",
-            "PORT": str(parts.port or 5432), "SSLMODE": query.get("sslmode")}
+    return {
+        "NAME": unquote(parts.path.lstrip("/")),
+        "USER": unquote(parts.username or ""),
+        "PASSWORD": unquote(parts.password or ""),
+        "HOST": parts.hostname or "",
+        "PORT": str(parts.port or 5432),
+        "SSLMODE": query.get("sslmode"),
+    }
+
+
+def _resolve_sslmode(db_conf, get_env=os.environ.get):
+    """Render PostgreSQL SSL requirements:
+    Cloud databases on Render (and remote PostgreSQL instances) require or expect SSL.
+    If POSTGRES_SSLMODE or ?sslmode=... was not explicitly specified, default to 'require'
+    when running on Render or when connecting to a remote host (e.g. *.render.com).
+    For local development (localhost / 127.0.0.1), keep SSL disabled.
+    """
+    sslmode = get_env("POSTGRES_SSLMODE") or db_conf.pop("SSLMODE", None)
+    db_conf.pop("SSLMODE", None)
+    if not sslmode:
+        host = db_conf.get("HOST", "")
+        if host and host not in ("localhost", "127.0.0.1"):
+            if get_env("RENDER") or host.endswith(".render.com"):
+                sslmode = "require"
+    return sslmode
 
 
 _db_url = env("DATABASE_URL")
+if _db_url:
+    _db_url = _db_url.strip()
+
 _db = _postgres_from_url(_db_url) if _db_url else {
-    "NAME": env("POSTGRES_DB", "lostfound"), "USER": env("POSTGRES_USER", "lostfound"),
-    "PASSWORD": env("POSTGRES_PASSWORD", ""), "HOST": env("POSTGRES_HOST", "localhost"),
-    "PORT": env("POSTGRES_PORT", "5432"), "SSLMODE": None}
+    "NAME": env("POSTGRES_DB", "lostfound"),
+    "USER": env("POSTGRES_USER", "lostfound"),
+    "PASSWORD": env("POSTGRES_PASSWORD", ""),
+    "HOST": env("POSTGRES_HOST", "localhost"),
+    "PORT": env("POSTGRES_PORT", "5432"),
+    "SSLMODE": None,
+}
 _db_options = {"connect_timeout": int(env("POSTGRES_CONNECT_TIMEOUT", "5"))}
-_sslmode = env("POSTGRES_SSLMODE") or _db.pop("SSLMODE")
-_db.pop("SSLMODE", None)
+_sslmode = _resolve_sslmode(_db, env)
 if _sslmode:
     _db_options["sslmode"] = _sslmode
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
