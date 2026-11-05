@@ -49,12 +49,14 @@ services:
         value: "True"
       - key: CACHE_BACKEND
         value: database          # shared by all gunicorn workers (rate limits, board cache)
-      # Free web services cannot open SMTP ports (25/465/587), so email goes over HTTPS
-      # through Brevo's transactional API (lostfound/mail_backends.py). On a paid instance
-      # you can switch back to Gmail SMTP (EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend).
+      # Free web services cannot open SMTP ports (25/465/587), so email goes over HTTPS to a
+      # Google Apps Script web app that sends from your own Gmail (docs/apps-script/Code.gs).
+      # On a paid instance you can switch back to Gmail SMTP.
       - key: EMAIL_BACKEND
-        value: lostfound.mail_backends.BrevoEmailBackend
-      - key: BREVO_API_KEY
-        sync: false              # Brevo > SMTP & API > API keys
+        value: lostfound.mail_backends.AppsScriptEmailBackend
+      - key: APPS_SCRIPT_MAIL_URL
+        sync: false              # the Web app URL ending in /exec
+      - key: APPS_SCRIPT_MAIL_SECRET
+        generateValue: true      # copy this value into the script property SECRET
       - key: DEFAULT_FROM_EMAIL
-        sync: false              # e.g. Campus Lost & Found <address verified as a Brevo sender>
+        sync: false              # e.g. Campus Lost & Found <your Gmail address>

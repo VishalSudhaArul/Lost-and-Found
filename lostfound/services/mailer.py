@@ -10,7 +10,7 @@ import ssl
 from django.conf import settings
 from django.core.mail import send_mail
 
-from ..mail_backends import EmailApiError, check_brevo
+from ..mail_backends import EmailApiError, check_apps_script, check_brevo
 
 logger = logging.getLogger("lostfound.email")
 
@@ -46,8 +46,10 @@ def diagnose():
     backend = settings.EMAIL_BACKEND
     if backend.endswith("BrevoEmailBackend"):
         return check_brevo()
+    if backend.endswith("AppsScriptEmailBackend"):
+        return check_apps_script()
     if getattr(settings, "EMAIL_API_INCOMPLETE", False):
-        return False, "The Brevo email API is selected but BREVO_API_KEY is empty, so emails go to the console."
+        return False, "An HTTPS email backend is selected but its key or URL is missing, so emails go to the console."
     if not backend.endswith("smtp.EmailBackend"):
         if getattr(settings, "EMAIL_SMTP_INCOMPLETE", False):
             return False, "SMTP is selected but EMAIL_HOST_PASSWORD is empty, so emails go to the console."

@@ -122,9 +122,12 @@ def _email_status():
                 "detail": "SMTP is selected in .env but EMAIL_HOST_PASSWORD is empty, so emails are printed in the "
                           "server console. Paste the Google App password into .env and restart the server."}
     if getattr(dj, "EMAIL_API_INCOMPLETE", False):
-        return {"ok": False, "label": "Waiting for the Brevo API key",
-                "detail": "The Brevo email API is selected but BREVO_API_KEY is empty, so emails are printed in "
-                          "the server log. Add the key to the environment and restart."}
+        return {"ok": False, "label": "Waiting for the email relay settings",
+                "detail": "An HTTPS email backend is selected but its key or URL is missing (BREVO_API_KEY, or "
+                          "APPS_SCRIPT_MAIL_URL and APPS_SCRIPT_MAIL_SECRET), so emails are printed in the server log."}
+    if dj.EMAIL_BACKEND.endswith("AppsScriptEmailBackend"):
+        return {"ok": True, "label": "Sending from your Gmail through Google Apps Script (HTTPS)",
+                "detail": "Use “Send test email” to confirm delivery (about 100 emails a day)."}
     if dj.EMAIL_BACKEND.endswith("BrevoEmailBackend"):
         return {"ok": True, "label": "Sending through the Brevo email API (HTTPS)",
                 "detail": "Use “Send test email” to confirm delivery."}

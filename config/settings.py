@@ -304,9 +304,14 @@ SITE_URL = env("SITE_URL", f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTER
 # HTTPS email API for hosts that block SMTP ports (Render free web services):
 # EMAIL_BACKEND=lostfound.mail_backends.BrevoEmailBackend with BREVO_API_KEY.
 BREVO_API_KEY = env("BREVO_API_KEY", "").strip()
+# Or a Google Apps Script web app that sends from your own Gmail (free): see docs/apps-script/Code.gs.
+APPS_SCRIPT_MAIL_URL = env("APPS_SCRIPT_MAIL_URL", "").strip()
+APPS_SCRIPT_MAIL_SECRET = env("APPS_SCRIPT_MAIL_SECRET", "").strip()
 # Delivery selected but its credential missing: keep printing emails in the console instead of failing.
 EMAIL_SMTP_INCOMPLETE = EMAIL_BACKEND.endswith("smtp.EmailBackend") and not EMAIL_HOST_PASSWORD
-EMAIL_API_INCOMPLETE = EMAIL_BACKEND.endswith("BrevoEmailBackend") and not BREVO_API_KEY
+EMAIL_API_INCOMPLETE = ((EMAIL_BACKEND.endswith("BrevoEmailBackend") and not BREVO_API_KEY) or
+                        (EMAIL_BACKEND.endswith("AppsScriptEmailBackend")
+                         and not (APPS_SCRIPT_MAIL_URL and APPS_SCRIPT_MAIL_SECRET)))
 if EMAIL_SMTP_INCOMPLETE or EMAIL_API_INCOMPLETE:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
