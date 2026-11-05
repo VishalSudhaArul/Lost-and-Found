@@ -17,8 +17,16 @@ class DatabaseUnavailableMiddleware:
     def process_exception(self, request, exception):
         if not isinstance(exception, (OperationalError, InterfaceError)):
             return None
-        # Log the type only: driver messages can include host and user names.
-        logger.error("PostgreSQL unavailable while serving a request (%s).", type(exception).__name__)
+        import re
+        from django.conf import settings
+        first_line = str(exception).strip().splitlines()[0] if str(exception).strip() else type(exception).__name__
+        # Redact any passwords or credentials before logging
+        pw = settings.DATABASES.get("default", {}).get("PASSWORD")
+        if pw and pw in first_line:
+            first_line = first_line.replace(pw, "******")
+        first_line = re.sub(r"://([^:]+):([^@]+)@", r"://\1:******@", first_line)
+        first_line = re.sub(r"password=([^\s]+)", "password=******", first_line)
+        logger.error("PostgreSQL unavailable while serving a request (%s: %s).", type(exception).__name__, first_line)
         return render(request, "errors/error.html", {
             "code": 503, "title": "The database is not available",
             "message": "Campus Lost & Found cannot reach its PostgreSQL database right now. Please try again in a "
