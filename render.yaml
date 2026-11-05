@@ -1,58 +1,54 @@
 # Render Blueprint for Campus Lost & Found (EduRev P09, Track P: Python + Django + PostgreSQL).
-# Secrets are NOT stored here: every `sync: false` value is entered once in the Render dashboard.
-# Review before applying: the persistent disk and pre-deploy command need a paid instance type.
+# FREE TIER. Secrets are NOT stored here: every `sync: false` value is entered once in the Render form.
+#
+# Free-tier limits (accepted for this deployment):
+#   * Free PostgreSQL expires 30 days after creation -> upgrade it or export the data before then.
+#   * No persistent disk: photos uploaded on the live site are lost on each redeploy/restart.
+#   * No pre-deploy command: migrations run at start-up (safe to repeat; they are idempotent).
+#   * No cron jobs: run `refresh_matches` / `check_ageing` manually or upgrade to add them.
+#   * The service sleeps after ~15 minutes without traffic; the first request then takes ~1 minute.
 
 databases:
-  - name: lostfound-db
+  - name: campus-lostfound-db
     databaseName: lostfound
     user: lostfound
-    plan: basic-256mb          # paid: Render's free PostgreSQL expires after 30 days
-    region: singapore
-    postgresMajorVersion: "16" # the CI suite runs on PostgreSQL 16
+    plan: free
+    region: oregon               # must match the web service so the internal hostname resolves
+    postgresMajorVersion: "16"   # the CI suite runs on PostgreSQL 16
 
 services:
   - type: web
-    name: lost-and-found
+    name: campus-lost-and-found
     runtime: python
-    plan: starter              # paid: required for the persistent disk below
-    region: singapore
+    plan: free
+    region: oregon
     branch: main
-    autoDeploy: false          # deploy manually after reviewing each release
+    autoDeploy: false            # deploy manually after reviewing each release
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    # Runs before each release goes live; a failed migration stops the deploy.
-    # Creates pg_trgm, GIN indexes and the append-only triggers on first run (migration 0002).
-    preDeployCommand: python manage.py migrate --noinput && python manage.py createcachetable
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile -
+    # Migrations create pg_trgm, the GIN indexes and the append-only triggers (migration 0002).
+    startCommand: python manage.py migrate --noinput && python manage.py createcachetable && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile -
     healthCheckPath: /healthz/
-    disk:
-      name: lostfound-media
-      mountPath: /var/data     # item photos + private evidence survive deploys and restarts
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_SECRET_KEY
-        generateValue: true    # session/CSRF signing only; NOT the encryption key
+        generateValue: true      # session/CSRF signing only; NOT the encryption key
       - key: FIELD_ENCRYPTION_KEYS
-        sync: false            # paste the SAME value as in your local .env, or imported private details cannot be decrypted
+        sync: false              # paste the SAME value as in your local .env, or private details cannot be decrypted
       - key: DATABASE_URL
-        fromDatabase:
-          name: lostfound-db
+        fromDatabase:            # linked by Render: the internal URL is never copied by hand
+          name: campus-lostfound-db
           property: connectionString
       - key: POSTGRES_SSLMODE
-        value: "require"
+        value: "prefer"          # encrypt when the server offers it; works on Render's private network
       - key: STATIC_MANIFEST
         value: "True"
       - key: SERVE_MEDIA
         value: "True"
-      - key: MEDIA_ROOT
-        value: /var/data/media
-      - key: PRIVATE_MEDIA_ROOT
-        value: /var/data/private_media
       - key: CACHE_BACKEND
-        value: database        # shared by all gunicorn workers (rate limits, board cache)
+        value: database          # shared by all gunicorn workers (rate limits, board cache)
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
       - key: EMAIL_HOST
@@ -64,63 +60,6 @@ services:
       - key: EMAIL_HOST_USER
         sync: false
       - key: EMAIL_HOST_PASSWORD
-        sync: false            # Gmail App password
+        sync: false              # Gmail App password
       - key: DEFAULT_FROM_EMAIL
         sync: false
-      - key: DJANGO_ALLOWED_HOSTS
-        sync: false            # optional: a custom domain; the onrender.com host is added automatically
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        sync: false            # optional: https://your-custom-domain
-
-  # Scheduled jobs from docs/SCHEDULED_JOBS.md (times in UTC; 20:30 UTC = 02:00 IST).
-  - type: cron
-    name: lostfound-refresh-matches
-    runtime: python
-    plan: starter
-    region: singapore
-    schedule: "30 20 * * *"
-    branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: python manage.py refresh_matches
-    envVars: &cron_env
-      - key: PYTHON_VERSION
-        value: "3.12.8"
-      - key: DJANGO_DEBUG
-        value: "False"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: lostfound-db
-          property: connectionString
-      - key: POSTGRES_SSLMODE
-        value: "require"
-      - key: DJANGO_SECRET_KEY
-        fromService: {type: web, name: lost-and-found, envVarKey: DJANGO_SECRET_KEY}
-      - key: FIELD_ENCRYPTION_KEYS
-        fromService: {type: web, name: lost-and-found, envVarKey: FIELD_ENCRYPTION_KEYS}
-      - key: EMAIL_BACKEND
-        value: django.core.mail.backends.smtp.EmailBackend
-      - key: EMAIL_HOST
-        value: smtp.gmail.com
-      - key: EMAIL_PORT
-        value: "587"
-      - key: EMAIL_USE_TLS
-        value: "True"
-      - key: EMAIL_HOST_USER
-        fromService: {type: web, name: lost-and-found, envVarKey: EMAIL_HOST_USER}
-      - key: EMAIL_HOST_PASSWORD
-        fromService: {type: web, name: lost-and-found, envVarKey: EMAIL_HOST_PASSWORD}
-      - key: DEFAULT_FROM_EMAIL
-        fromService: {type: web, name: lost-and-found, envVarKey: DEFAULT_FROM_EMAIL}
-      - key: SITE_URL
-        sync: false            # https://<your-service>.onrender.com, used in email links
-
-  - type: cron
-    name: lostfound-check-ageing
-    runtime: python
-    plan: starter
-    region: singapore
-    schedule: "0 21 * * *"
-    branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: python manage.py check_ageing
-    envVars: *cron_env

@@ -235,13 +235,12 @@ The field-by-field public/private statement for the security office is in [docs/
 
 ## Deployment on Render (production)
 
-The repository contains a Render Blueprint, [`render.yaml`](render.yaml): a Python web service run by Gunicorn, a Render PostgreSQL database, a persistent disk for uploaded photos, and two cron jobs (`refresh_matches`, `check_ageing`). Static files are served by WhiteNoise. PostgreSQL stays the only database.
+The repository contains a Render Blueprint, [`render.yaml`](render.yaml), set up for Render's **free tier**: a Python web service run by Gunicorn and a free Render PostgreSQL database linked to it (`fromDatabase`, so the connection string is never copied by hand). Static files are served by WhiteNoise. PostgreSQL stays the only database. Free-tier limits are listed below; the paid upgrade path (persistent disk, pre-deploy migrations, cron jobs, non-expiring database) is described at the end of this section.
 
 | Step | Command / setting |
 |---|---|
 | Build | `pip install -r requirements.txt && python manage.py collectstatic --noinput` |
-| Pre-deploy (each release) | `python manage.py migrate --noinput && python manage.py createcachetable` |
-| Start | `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile -` |
+| Start (free tier: migrations run here, they are idempotent) | `python manage.py migrate --noinput && python manage.py createcachetable && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile -` |
 | Health check | `/healthz/` (returns `ok` when Django and PostgreSQL respond) |
 | Python | `PYTHON_VERSION=3.12.8` |
 
@@ -255,20 +254,21 @@ The repository contains a Render Blueprint, [`render.yaml`](render.yaml): a Pyth
 | `DATABASE_URL` | from the Render database (`fromDatabase` in the blueprint) |
 | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS` | Gmail SMTP (`smtp.gmail.com`, `587`, `True`) |
 | `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` | the platform Gmail address and its App password |
-| `MEDIA_ROOT`, `PRIVATE_MEDIA_ROOT` | `/var/data/media`, `/var/data/private_media` (on the persistent disk) |
+| `POSTGRES_SSLMODE` | `prefer` |
 | `SERVE_MEDIA`, `STATIC_MANIFEST`, `CACHE_BACKEND` | `True`, `True`, `database` |
 | `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` | only for a custom domain (the `*.onrender.com` host is trusted automatically via `RENDER_EXTERNAL_HOSTNAME`) |
-| `SITE_URL` (cron jobs) | `https://<service>.onrender.com`, used in email links |
 
 **What the settings do in production.** `DEBUG=False`; HTTPS redirect, HSTS, secure session and CSRF cookies; Render's proxy header is trusted so Django knows requests arrived over HTTPS; `DATABASE_URL` is parsed into the PostgreSQL settings (any non-`postgres://` URL is refused); connection health checks are on. `python manage.py check --deploy` passes apart from the optional HSTS-preload warning.
 
 **Database.** Migrations create the `pg_trgm` extension, the GIN full-text and trigram indexes and the append-only triggers on the Render database, exactly as locally (Render PostgreSQL allows `pg_trgm`). The first deploy starts with an **empty** database.
 
-**Moving existing data (later, after review).** Not part of the deploy. When approved: take a fresh `pg_dump -Fc` of the local database, restore it into the empty Render database with `pg_restore --no-owner --no-privileges` using the external connection string, verify row counts, then copy `media/` and `private_media/` to the disk. Use the same `FIELD_ENCRYPTION_KEYS`.
+**Moving existing data.** Take a fresh `pg_dump -Fc` of the local database, restore it into the new Render database with `pg_restore --clean --if-exists --no-owner --no-privileges` using the database's *external* connection string, and verify row counts table by table. Use the same `FIELD_ENCRYPTION_KEYS`, or existing private details cannot be decrypted.
 
-**Media storage.** Uploaded item photos (`MEDIA_ROOT`) and private evidence (`PRIVATE_MEDIA_ROOT`) live on a Render persistent disk mounted at `/var/data`, so they survive deploys and restarts. Public photos are served by Django from `/media/` (they are EXIF-stripped and contain nothing private); private files are only ever served through permission-checked views. A disk limits the service to one instance; for several instances, move uploads to object storage (e.g. S3 through `django-storages`).
+**Media storage.** On the free tier there is no persistent disk: photos uploaded on the live site are stored on the instance and **lost on every redeploy or restart**. For lasting uploads, add a Render disk (paid, mounted at `/var/data` with `MEDIA_ROOT=/var/data/media`, `PRIVATE_MEDIA_ROOT=/var/data/private_media`) or object storage. Public photos are served by Django from `/media/` (they are EXIF-stripped and contain nothing private); private files are only ever served through permission-checked views. A disk limits the service to one instance; for several instances, move uploads to object storage (e.g. S3 through `django-storages`).
 
-**Risks to check before going live.** Persistent disks, pre-deploy commands and non-expiring PostgreSQL need paid Render plans; Render's free PostgreSQL is deleted after 30 days. Run `python manage.py check_email --send-to you@example.com` in the Render shell to confirm the host allows outbound SMTP to Gmail. Back up the disk and database regularly (Render takes daily database backups on paid plans; the disk has snapshots).
+**Free-tier limits.** Render's free PostgreSQL is **deleted 30 days after creation** (export the data or upgrade before then); no persistent disk; no pre-deploy command or cron jobs (run `refresh_matches` and `check_ageing` by hand, or upgrade); the service sleeps after about 15 idle minutes. **Paid upgrade** (about $13.55/month on a Hobby workspace): Starter web service ($7), Basic-256MB PostgreSQL ($6 + storage), 1 GB disk ($0.25), cron jobs billed per minute.
+
+**Checks after deploying.** Confirm that a staff sign-in code email arrives (this proves Render allows outbound SMTP to Gmail), and back up the database regularly.
 
 ## Specification coverage (EduRev P09, Track P)
 
