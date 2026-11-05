@@ -301,9 +301,13 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@loc
 # from this one platform account through lostfound.services.mailer.
 EMAIL_NOTIFICATIONS = env_bool("EMAIL_NOTIFICATIONS", True)
 SITE_URL = env("SITE_URL", f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTERNAL_HOSTNAME else "http://127.0.0.1:8000")
-# SMTP selected but no password yet: keep printing emails in the console instead of failing.
+# HTTPS email API for hosts that block SMTP ports (Render free web services):
+# EMAIL_BACKEND=lostfound.mail_backends.BrevoEmailBackend with BREVO_API_KEY.
+BREVO_API_KEY = env("BREVO_API_KEY", "").strip()
+# Delivery selected but its credential missing: keep printing emails in the console instead of failing.
 EMAIL_SMTP_INCOMPLETE = EMAIL_BACKEND.endswith("smtp.EmailBackend") and not EMAIL_HOST_PASSWORD
-if EMAIL_SMTP_INCOMPLETE:
+EMAIL_API_INCOMPLETE = EMAIL_BACKEND.endswith("BrevoEmailBackend") and not BREVO_API_KEY
+if EMAIL_SMTP_INCOMPLETE or EMAIL_API_INCOMPLETE:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 LOGGING = {

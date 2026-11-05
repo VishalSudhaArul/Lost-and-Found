@@ -121,6 +121,13 @@ def _email_status():
         return {"ok": False, "label": "Waiting for the app password",
                 "detail": "SMTP is selected in .env but EMAIL_HOST_PASSWORD is empty, so emails are printed in the "
                           "server console. Paste the Google App password into .env and restart the server."}
+    if getattr(dj, "EMAIL_API_INCOMPLETE", False):
+        return {"ok": False, "label": "Waiting for the Brevo API key",
+                "detail": "The Brevo email API is selected but BREVO_API_KEY is empty, so emails are printed in "
+                          "the server log. Add the key to the environment and restart."}
+    if dj.EMAIL_BACKEND.endswith("BrevoEmailBackend"):
+        return {"ok": True, "label": "Sending through the Brevo email API (HTTPS)",
+                "detail": "Use “Send test email” to confirm delivery."}
     if dj.EMAIL_BACKEND.endswith("smtp.EmailBackend"):
         return {"ok": True, "label": f"Sending through {dj.EMAIL_HOST} as {dj.EMAIL_HOST_USER}",
                 "detail": "Use “Send test email” to confirm delivery."}

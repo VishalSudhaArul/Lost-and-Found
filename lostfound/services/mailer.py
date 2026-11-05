@@ -10,6 +10,8 @@ import ssl
 from django.conf import settings
 from django.core.mail import send_mail
 
+from ..mail_backends import EmailApiError, check_brevo
+
 logger = logging.getLogger("lostfound.email")
 
 
@@ -27,6 +29,9 @@ def send(subject, body, recipient, purpose):
     except smtplib.SMTPException as exc:
         logger.error("Email (%s) not sent: SMTP error %s (%s).", purpose, type(exc).__name__,
                      getattr(exc, "smtp_code", "-"))
+    except EmailApiError as exc:
+        logger.error("Email (%s) not sent: the email API returned HTTP %s (%s).", purpose,
+                     exc.status or "no response", exc.code)
     except OSError as exc:
         logger.error("Email (%s) not sent: could not reach %s:%s (%s).", purpose, settings.EMAIL_HOST,
                      settings.EMAIL_PORT, type(exc).__name__)
@@ -39,6 +44,10 @@ def diagnose():
     instead of the "connection closed" that smtplib shows after a rejection."""
     import base64
     backend = settings.EMAIL_BACKEND
+    if backend.endswith("BrevoEmailBackend"):
+        return check_brevo()
+    if getattr(settings, "EMAIL_API_INCOMPLETE", False):
+        return False, "The Brevo email API is selected but BREVO_API_KEY is empty, so emails go to the console."
     if not backend.endswith("smtp.EmailBackend"):
         if getattr(settings, "EMAIL_SMTP_INCOMPLETE", False):
             return False, "SMTP is selected but EMAIL_HOST_PASSWORD is empty, so emails go to the console."
