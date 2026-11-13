@@ -40,18 +40,25 @@ def report_item(request, report_type):
     if request.method == "POST":
         valid = form.is_valid() and (formset.is_valid() if formset else True)
         if valid:
-            with transaction.atomic():
-                item = form.save(reporter=request.user)
-                if formset:
-                    for row in formset.cleaned_data:
-                        if row and row.get("question") and row.get("answer"):
-                            verification.add_private_detail(item, request.user, row["kind"], row["question"],
-                                                            row["answer"], row["match_mode"])
-                audit.record(request.user, "item.reported", f"{item.get_report_type_display()} report {item.reference}",
-                             target=item, request=request)
-            matching.refresh_for_item(item)
-            messages.success(request, f"Report {item.reference} saved.")
-            return redirect("report_detail", pk=item.pk)
+            from ..services.cloud_storage import MediaStorageError
+            try:
+                with transaction.atomic():
+                    item = form.save(reporter=request.user)
+                    if formset:
+                        for row in formset.cleaned_data:
+                            if row and row.get("question") and row.get("answer"):
+                                verification.add_private_detail(item, request.user, row["kind"], row["question"],
+                                                                row["answer"], row["match_mode"])
+                    audit.record(request.user, "item.reported",
+                                 f"{item.get_report_type_display()} report {item.reference}", target=item, request=request)
+            except MediaStorageError:
+                # Photo storage unreachable: the transaction rolled back, so no half-saved report exists.
+                form.add_error("photo", "The photo couldn't be uploaded right now, so the report was not saved. "
+                                        "Please try again (your other answers are kept).")
+            else:
+                matching.refresh_for_item(item)
+                messages.success(request, f"Report {item.reference} saved.")
+                return redirect("report_detail", pk=item.pk)
     from ..services import rewards
     return render(request, "member/report_form.html", {
         "policy": rewards.policy(),

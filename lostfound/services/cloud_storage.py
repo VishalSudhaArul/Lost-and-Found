@@ -24,6 +24,12 @@ from django.core.files.storage import Storage
 from django.utils.deconstruct import deconstructible
 
 
+class MediaStorageError(OSError):
+    """Cloud media could not be stored or fetched (network error, rejected request).
+    Raised instead of the SDK's own errors so callers and the middleware can respond cleanly;
+    the message never contains credentials or signed URLs."""
+
+
 def cloudinary_enabled():
     """True when the site itself stores uploads on Cloudinary (production)."""
     return bool(getattr(settings, "CLOUDINARY_URL", ""))
@@ -84,8 +90,11 @@ class _CloudinaryStorage(Storage):
         public_id, fmt = _split(name)
         if hasattr(content, "seek"):
             content.seek(0)
-        cld.uploader.upload(content, public_id=public_id, resource_type="image", type=self.delivery_type,
-                            overwrite=False, unique_filename=False, use_filename=False, invalidate=False)
+        try:
+            cld.uploader.upload(content, public_id=public_id, resource_type="image", type=self.delivery_type,
+                                overwrite=False, unique_filename=False, use_filename=False, invalidate=False)
+        except Exception as exc:  # cloudinary.exceptions.Error, network errors, timeouts
+            raise MediaStorageError(f"upload failed ({type(exc).__name__})") from None
         return name.replace("\\", "/")
 
     def get_available_name(self, name, max_length=None):
@@ -131,7 +140,9 @@ class _CloudinaryStorage(Storage):
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 raise FileNotFoundError(name) from None
-            raise
+            raise MediaStorageError(f"fetch failed (HTTP {exc.code})") from None
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise MediaStorageError(f"fetch failed ({type(exc).__name__})") from None
         f = ContentFile(data, name=posixpath.basename(name))
         return f
 

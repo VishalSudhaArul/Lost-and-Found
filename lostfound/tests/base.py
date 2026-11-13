@@ -44,8 +44,15 @@ def upload(name="photo.jpg", data=None, content_type="image/jpeg"):
     return SimpleUploadedFile(name, data if data is not None else jpeg_bytes(), content_type=content_type)
 
 
+# Tests never use real cloud credentials from a developer's .env: media goes to temporary local
+# folders unless a test explicitly opts into (mocked) Cloudinary storage.
+LOCAL_STORAGES = {"default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+                  "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}}
+
+
 @override_settings(FIELD_ENCRYPTION_KEYS=[TEST_KEY], MEDIA_ROOT=TMP_MEDIA, PRIVATE_MEDIA_ROOT=TMP_PRIVATE,
-                   PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"], ALLOWED_HOSTS=["testserver"])
+                   PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"], ALLOWED_HOSTS=["testserver"],
+                   CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL="", STORAGES=LOCAL_STORAGES)
 class LFTestCase(TestCase):
     @classmethod
     def tearDownClass(cls):

@@ -87,7 +87,7 @@ class CloudStorageTests(LFTestCase):
 
 class UploadCommandTests(LFTestCase):
     def test_refuses_without_cloudinary_url(self):
-        with override_settings(CLOUDINARY_URL=""), self.assertRaises(CommandError):
+        with override_settings(CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL=""), self.assertRaises(CommandError):
             call_command("upload_media_to_cloud", stdout=StringIO())
 
     @override_settings(CLOUDINARY_URL=CLOUD)
@@ -165,3 +165,59 @@ class MigrationSafetyTests(LFTestCase):
             self.assertIn("Backup verified", out.getvalue())
             with self.assertRaises(CommandError):
                 call_command("upload_media_to_cloud", "--verify-backup", str(bad), stdout=StringIO())
+
+
+@override_settings(**CLOUD_SETTINGS)
+class CloudFailureTests(LFTestCase):
+    def payload(self, **kw):
+        from datetime import timedelta
+        from django.utils import timezone
+        data = {"title": "Blue water bottle", "category": self.backpacks.pk, "description": "Blue bottle with a dent.",
+                "occurred_at": (timezone.localtime() - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+                "location": self.hall.pk, "location_note": "", "attr_colour": "blue"}
+        data.update(kw)
+        return data
+
+    def test_upload_failure_saves_nothing_and_keeps_the_form(self):
+        import cloudinary
+        from lostfound.models import Item
+        self.client.force_login(self.student)
+        before = Item.objects.count()
+        with mock.patch("cloudinary.uploader.upload", side_effect=cloudinary.exceptions.Error("network down")):
+            r = self.client.post(reverse("report_item", args=["lost"]), {**self.payload(), "photo": upload()})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "photo couldn")
+        self.assertContains(r, "Blue water bottle")  # input kept
+        self.assertEqual(Item.objects.count(), before)  # no half-saved report / broken reference
+
+    def test_successful_cloud_upload_shows_on_detail_and_board(self):
+        from lostfound.models import Item
+        self.client.force_login(self.student)
+        with mock.patch("cloudinary.uploader.upload") as up:
+            r = self.client.post(reverse("report_item", args=["lost"]), {**self.payload(), "photo": upload()})
+        up.assert_called_once()
+        item = Item.objects.latest("pk")
+        self.assertRedirects(r, reverse("report_detail", args=[item.pk]))
+        self.assertTrue(item.photo.name.startswith("items/"))
+        detail = self.client.get(reverse("report_detail", args=[item.pk]))
+        self.assertContains(detail, "res.cloudinary.com/democloud/image/upload/")
+
+    def test_invalid_file_type_is_rejected_before_any_upload(self):
+        self.client.force_login(self.student)
+        with mock.patch("cloudinary.uploader.upload") as up:
+            r = self.client.post(reverse("report_item", args=["lost"]),
+                                 {**self.payload(), "photo": upload("notes.txt", b"not an image", "text/plain")})
+        up.assert_not_called()
+        self.assertEqual(r.status_code, 200)
+
+    def test_private_fetch_failure_gives_clean_503_not_a_crash(self):
+        import urllib.error
+        item = self.found_item()
+        with mock.patch("cloudinary.uploader.upload"):
+            claim = claims.submit_claim(item, self.student, "My black backpack", where_when="Library",
+                                        attachment=__import__("lostfound.services.images", fromlist=["x"]).process_upload(upload()))
+        self.client.force_login(self.guard)
+        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
+            r = self.client.get(reverse("security_private_file", args=["claim", claim.pk]))
+        self.assertEqual(r.status_code, 503)
+        self.assertNotIn(b"cloudinary", r.content.lower().replace(b"res.cloudinary", b""))
