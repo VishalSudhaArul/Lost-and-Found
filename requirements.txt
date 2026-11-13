@@ -6,3 +6,5 @@ cryptography==50.0.2
 # Production (Render)
 gunicorn==23.0.0
 whitenoise==6.12.0
+# Persistent media on hosts without a disk (used only when CLOUDINARY_URL is set)
+cloudinary==1.47.0

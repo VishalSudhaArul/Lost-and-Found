@@ -203,8 +203,14 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 # Compressed, cache-busted static files served by WhiteNoise. Requires `collectstatic`, so it is
 # switched on by STATIC_MANIFEST=True in production (render.yaml) and off for local work and tests.
+# Uploaded media: on hosts without a lasting disk (Render free tier) set CLOUDINARY_URL
+# (cloudinary://<api key>:<api secret>@<cloud name>). Public item photos then go to Cloudinary's
+# CDN and private evidence to Cloudinary "authenticated" storage (lostfound/services/cloud_storage.py).
+# Without it, files stay in MEDIA_ROOT / PRIVATE_MEDIA_ROOT on the local disk.
+CLOUDINARY_URL = env("CLOUDINARY_URL", "").strip()
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": "lostfound.services.cloud_storage.PublicCloudinaryStorage" if CLOUDINARY_URL
+                else "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
                     if env_bool("STATIC_MANIFEST", False) else
                     "django.contrib.staticfiles.storage.StaticFilesStorage"},

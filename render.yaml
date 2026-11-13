@@ -47,6 +47,8 @@ services:
         value: "True"
       - key: SERVE_MEDIA
         value: "True"
+      - key: CLOUDINARY_URL
+        sync: false              # cloudinary://<api key>:<api secret>@<cloud name>; keeps uploads across restarts
       - key: CACHE_BACKEND
         value: database          # shared by all gunicorn workers (rate limits, board cache)
       # Free web services cannot open SMTP ports (25/465/587), so email goes over HTTPS to a
