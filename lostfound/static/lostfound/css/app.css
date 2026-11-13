@@ -559,3 +559,20 @@ a[aria-disabled="true"] { pointer-events: none; opacity: .55; }
 .confirm-dialog .btn-row { justify-content: flex-end; }
 .handover-step.is-done { border-color: var(--ok); }
 .handover-step.is-locked { opacity: .6; }
+
+/* Claim review: claimant and finder panels side by side with identical photo size and row order */
+.compare-photo { height: 280px; min-height: 0; }
+.compare-photo a { display: block; width: 100%; height: 100%; }
+.compare-photo img { width: 100%; height: 100%; max-height: none; object-fit: contain; }
+dl.facts.compare-facts { display: block; }
+.compare-row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 1.5rem; padding: .35rem 0; border-top: 1px solid var(--line); }
+.compare-row dd { overflow-wrap: anywhere; }
+/* Side by side: one shared row grid, so each claimant row lines up with the matching finder row
+   however long either answer is. Stacks on narrow screens. */
+@media (min-width: 900px) {
+  .compare-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(9, auto); }
+  .compare-panel { display: grid; grid-row: span 9; grid-template-rows: subgrid; row-gap: .5rem; align-content: start; }
+  .compare-panel > h2, .compare-panel > h3 { margin: 0; }
+  .compare-panel > dl.compare-facts { display: contents; }
+}
+@media (max-width: 520px) { .compare-row { grid-template-columns: minmax(0, 1fr); gap: .15rem; } }

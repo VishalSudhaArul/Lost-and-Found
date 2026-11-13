@@ -18,23 +18,31 @@
       <dl class="facts"><dt>Name</dt><dd>{{ claim.claimant.get_full_name|default:"—" }}</dd><dt>Account</dt><dd>{{ claim.claimant.username }} ({{ claim.claimant.email }})</dd>
       <dt>Submitted</dt><dd>{{ claim.created_at|date:"j M Y, H:i" }}</dd>{% if claim.lost_report %}<dt>Lost report</dt><dd>{{ claim.lost_report.reference }}: {{ claim.lost_report.title }}, {{ claim.lost_report.location.name }}, {{ claim.lost_report.occurred_at|date:"j M Y" }}</dd>{% endif %}</dl>
     </section>
-    <div class="grid grid-2">
-    <section class="panel"><h2>{% icon "user" %} Claimant's description</h2>
-      <h3>What it looks like</h3><p>{{ claim.statement|linebreaksbr }}</p>
-      <h3>Where it was lost</h3><p>{{ claim.lost_where_when|default:"Not given" }}</p>
-      <h3>Approximately when</h3><p>{{ claim.lost_when|default:"Not given" }}</p>
-      {% if claim.extra_info %}<h3>Additional information</h3><p>{{ claim.extra_info|linebreaksbr }}</p>{% endif %}
-      <h3>Claimant's supporting photo</h3>
-      {% if claim.attachment %}<a href="{% url 'security_private_file' 'claim' claim.pk %}" target="_blank" rel="noopener"><img src="{% url 'security_private_file' 'claim' claim.pk %}" alt="Photo supplied by the claimant" style="max-width:100%;border-radius:8px"></a>
-      {% else %}<div class="photo-frame"><div class="placeholder"><span class="ph-icon">{% icon "image" %}</span><span>No supporting photo provided</span></div></div>{% endif %}
+    <div class="grid grid-2 compare-grid">
+    {# Both panels use the same photo frame and the same rows in the same order, so each line can be compared across. #}
+    <section class="panel compare-panel"><h2>{% icon "user" %} Claimant's description</h2>
+      <h3>Photo</h3>
+      <div class="photo-frame compare-photo">{% if claim.attachment %}<a href="{% url 'security_private_file' 'claim' claim.pk %}" target="_blank" rel="noopener"><img src="{% url 'security_private_file' 'claim' claim.pk %}" alt="Photo supplied by the claimant"></a>{% else %}<div class="placeholder"><span class="ph-icon">{% icon "image" %}</span><span>No supporting photo provided</span></div>{% endif %}</div>
+      <dl class="facts compare-facts">
+        <div class="compare-row"><dt>Item</dt><dd>{{ claim.item.title }} <span class="muted small">(claimed)</span></dd></div>
+        <div class="compare-row"><dt>Looks like</dt><dd>{{ claim.statement|linebreaksbr }}</dd></div>
+        <div class="compare-row"><dt>Where</dt><dd>{{ claim.lost_where_when|default:"Not given" }} <span class="muted small">(lost)</span></dd></div>
+        <div class="compare-row"><dt>When</dt><dd>{{ claim.lost_when|default:"Not given" }} <span class="muted small">(lost)</span></dd></div>
+        <div class="compare-row"><dt>Person</dt><dd>{{ claim.claimant.get_full_name|default:claim.claimant.username }} <span class="muted small">(claimant)</span></dd></div>
+        <div class="compare-row"><dt>More details</dt><dd>{{ claim.extra_info|default:"None"|linebreaksbr }}</dd></div>
+      </dl>
     </section>
-    <section class="panel"><h2>{% icon "search" %} Finder's original report</h2>
-      <h3>Finder's photo</h3>
-      <div class="photo-frame">{% if claim.item.photo %}<a href="{{ claim.item.photo.url }}" target="_blank" rel="noopener"><img src="{{ claim.item.photo.url }}" alt="Photo of {{ claim.item.title }} taken by the finder"></a>{% else %}<div class="placeholder"><span class="ph-icon">{% icon claim.item.category|category_icon %}</span><span>No photo provided by the finder</span></div>{% endif %}</div>
-      <dl class="facts"><dt>Item</dt><dd>{{ claim.item.title }}</dd><dt>Category</dt><dd>{{ claim.item.category }}</dd>
-      <dt>Found at</dt><dd>{{ claim.item.location.name }}</dd><dt>Found on</dt><dd>{{ claim.item.occurred_at|date:"j M Y, H:i" }}</dd>
-      <dt>Reported by</dt><dd>{{ claim.item.reporter.get_full_name|default:claim.item.reporter.username }}</dd></dl>
-      <h3>Description</h3><p>{{ claim.item.description|linebreaksbr }}</p>
+    <section class="panel compare-panel"><h2>{% icon "search" %} Finder's original report</h2>
+      <h3>Photo</h3>
+      <div class="photo-frame compare-photo">{% if claim.item.photo %}<a href="{{ claim.item.photo.url }}" target="_blank" rel="noopener"><img src="{{ claim.item.photo.url }}" alt="Photo of {{ claim.item.title }} taken by the finder"></a>{% else %}<div class="placeholder"><span class="ph-icon">{% icon claim.item.category|category_icon %}</span><span>No photo provided by the finder</span></div>{% endif %}</div>
+      <dl class="facts compare-facts">
+        <div class="compare-row"><dt>Item</dt><dd>{{ claim.item.title }} <span class="muted small">({{ claim.item.category }})</span></dd></div>
+        <div class="compare-row"><dt>Looks like</dt><dd>{{ claim.item.description|linebreaksbr }}</dd></div>
+        <div class="compare-row"><dt>Where</dt><dd>{{ claim.item.location.name }}{% if claim.item.location_note %} ({{ claim.item.location_note }}){% endif %} <span class="muted small">(found)</span></dd></div>
+        <div class="compare-row"><dt>When</dt><dd>{{ claim.item.occurred_at|date:"j M Y, H:i" }} <span class="muted small">(found)</span></dd></div>
+        <div class="compare-row"><dt>Person</dt><dd>{{ claim.item.reporter.get_full_name|default:claim.item.reporter.username }} <span class="muted small">(finder)</span></dd></div>
+        <div class="compare-row"><dt>More details</dt><dd>{% for k, v in claim.item.attributes.items %}{% if v %}{{ k|capfirst }}: {{ v }}{% if not forloop.last %}; {% endif %}{% endif %}{% empty %}None{% endfor %}</dd></div>
+      </dl>
     </section>
     </div>
     <section class="private-box"><h2>{% icon "lock" %}Private identifying details (compare, never disclose)</h2>
