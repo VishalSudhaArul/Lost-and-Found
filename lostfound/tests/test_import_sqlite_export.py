@@ -62,9 +62,12 @@ class ImportSqliteExportTests(LFTestCase):
 
     def run_cmd(self, *extra, groups=None, data=None):
         out = StringIO()
-        call_command("import_sqlite_export", "--groups", str(groups or self.groups_path),
-                     "--data", str(data or self.data_path), "--sqlite", "", "--backup-dir", str(self.tmp),
-                     *extra, stdout=out)
+        try:
+            call_command("import_sqlite_export", "--groups", str(groups or self.groups_path),
+                         "--data", str(data or self.data_path), "--sqlite", "", "--backup-dir", str(self.tmp),
+                         *extra, stdout=out)
+        except CommandError as exc:  # keep the command's report (e.g. which row conflicted) in the failure
+            raise CommandError(f"{exc}\n{out.getvalue()}") from None
         return out.getvalue()
 
     def exported(self, label):
@@ -112,6 +115,19 @@ class ImportSqliteExportTests(LFTestCase):
             out = self.run_cmd("--apply")
         self.assertIn("Nothing to import", out)
         self.assertEqual(counts, {m: apps.get_model(m)._base_manager.count() for m in EXPORT_MODELS})
+
+    def test_rerun_is_idempotent_with_sub_millisecond_timestamps(self):
+        # 06:03:12.000400 is exported as "...12.000Z" but re-serialized after import as "...12Z".
+        def tiny_micro(records):
+            for r in records:
+                if r["model"] == "lostfound.item":
+                    r["fields"]["created_at"] = "2026-10-31T06:03:12.000Z"
+            return records
+        _, data = self.write_export(tiny_micro)
+        with mock.patch(TARGET, return_value=self.tmp / "x.dump"):
+            self.run_cmd("--apply", data=data)
+            out = self.run_cmd("--apply", data=data)
+        self.assertIn("Nothing to import", out)
 
     def test_conflicting_existing_row_stops_before_writing(self):
         def clash(records):
@@ -173,3 +189,12 @@ class ImportSqliteExportTests(LFTestCase):
             out = StringIO()
             call_command("import_sqlite_export", "--groups", str(self.groups_path), "--data", str(self.data_path),
                          "--sqlite", str(empty), stdout=out)
+
+
+class CanonTimestampTests(LFTestCase):
+    def test_millisecond_truncated_timestamps_compare_equal(self):
+        from lostfound.management.commands.import_sqlite_export import _canon
+        self.assertEqual(_canon("2026-11-13T12:00:00.000Z"), _canon("2026-11-13T12:00:00Z"))
+        self.assertEqual(_canon("2026-11-13T12:00:00.123Z"), _canon("2026-11-13T12:00:00.123Z"))
+        self.assertNotEqual(_canon("2026-11-13T12:00:00.123Z"), _canon("2026-11-13T12:00:00.124Z"))
+        self.assertEqual(_canon("plain text"), "plain text")

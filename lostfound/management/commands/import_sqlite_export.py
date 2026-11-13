@@ -44,11 +44,23 @@ class DryRun(Exception):
 
 
 def _canon(value):
-    """Comparable form of a serialized field value (m2m lists are order-insensitive)."""
+    """Comparable form of a serialized field value (m2m lists are order-insensitive).
+
+    Timestamps are compared as times, not strings: Django's serializer cuts them to
+    milliseconds, so 12:00:00.000500 is exported as "12:00:00.000" but re-serialized
+    after import as "12:00:00" (no fraction). Both mean the same instant."""
     if isinstance(value, list):
         return sorted(json.dumps(v, sort_keys=True) for v in value)
     if isinstance(value, dict):
         return json.dumps(value, sort_keys=True)
+    if isinstance(value, str) and len(value) >= 19 and value[4:5] == "-" and value[10:11] == "T":
+        from django.utils.dateparse import parse_datetime
+        try:
+            parsed = parse_datetime(value)
+        except ValueError:
+            parsed = None
+        if parsed is not None:
+            return ("datetime", parsed.replace(microsecond=parsed.microsecond // 1000 * 1000))
     return value
 
 
