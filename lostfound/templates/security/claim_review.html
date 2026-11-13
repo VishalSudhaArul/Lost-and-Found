@@ -24,9 +24,13 @@
       <h3>Where it was lost</h3><p>{{ claim.lost_where_when|default:"Not given" }}</p>
       <h3>Approximately when</h3><p>{{ claim.lost_when|default:"Not given" }}</p>
       {% if claim.extra_info %}<h3>Additional information</h3><p>{{ claim.extra_info|linebreaksbr }}</p>{% endif %}
-      {% if claim.attachment %}<h3>Supporting photo</h3><a href="{% url 'security_private_file' 'claim' claim.pk %}" target="_blank" rel="noopener"><img src="{% url 'security_private_file' 'claim' claim.pk %}" alt="Photo supplied by the claimant" style="max-width:100%;border-radius:8px"></a>{% endif %}
+      <h3>Claimant's supporting photo</h3>
+      {% if claim.attachment %}<a href="{% url 'security_private_file' 'claim' claim.pk %}" target="_blank" rel="noopener"><img src="{% url 'security_private_file' 'claim' claim.pk %}" alt="Photo supplied by the claimant" style="max-width:100%;border-radius:8px"></a>
+      {% else %}<div class="photo-frame"><div class="placeholder"><span class="ph-icon">{% icon "image" %}</span><span>No supporting photo provided</span></div></div>{% endif %}
     </section>
     <section class="panel"><h2>{% icon "search" %} Finder's original report</h2>
+      <h3>Finder's photo</h3>
+      <div class="photo-frame">{% if claim.item.photo %}<a href="{{ claim.item.photo.url }}" target="_blank" rel="noopener"><img src="{{ claim.item.photo.url }}" alt="Photo of {{ claim.item.title }} taken by the finder"></a>{% else %}<div class="placeholder"><span class="ph-icon">{% icon claim.item.category|category_icon %}</span><span>No photo provided by the finder</span></div>{% endif %}</div>
       <dl class="facts"><dt>Item</dt><dd>{{ claim.item.title }}</dd><dt>Category</dt><dd>{{ claim.item.category }}</dd>
       <dt>Found at</dt><dd>{{ claim.item.location.name }}</dd><dt>Found on</dt><dd>{{ claim.item.occurred_at|date:"j M Y, H:i" }}</dd>
       <dt>Reported by</dt><dd>{{ claim.item.reporter.get_full_name|default:claim.item.reporter.username }}</dd></dl>
