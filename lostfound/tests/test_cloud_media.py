@@ -97,10 +97,12 @@ class UploadCommandTests(LFTestCase):
         local = item.photo.path
         data = open(local, "rb").read()
         out = StringIO()
-        call_command("upload_media_to_cloud", stdout=out)
+        with mock.patch("cloudinary.api.ping"):
+            call_command("upload_media_to_cloud", stdout=out)
         self.assertIn("DRY RUN", out.getvalue())
         self.assertIn(item.photo.name, out.getvalue())
-        with mock.patch("cloudinary.api.resource", side_effect=__import__("cloudinary").exceptions.NotFound("x")), \
+        with mock.patch("cloudinary.api.ping"), \
+                mock.patch("cloudinary.api.resource", side_effect=__import__("cloudinary").exceptions.NotFound("x")), \
                 mock.patch("cloudinary.uploader.upload") as up, \
                 mock.patch("urllib.request.urlopen", return_value=_Resp(data)):
             out = StringIO()
@@ -112,3 +114,54 @@ class UploadCommandTests(LFTestCase):
     def tmp_backup(self):
         import tempfile
         return tempfile.mkdtemp(prefix="lf-mediabackup-")
+
+
+class MigrationSafetyTests(LFTestCase):
+    @override_settings(CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL=CLOUD)
+    def test_migration_key_does_not_switch_the_local_site_to_cloudinary(self):
+        from lostfound.services.cloud_storage import cloudinary_enabled
+        from lostfound.services.storage import PrivateStorage
+        self.assertFalse(cloudinary_enabled())
+        self.assertIsInstance(private_storage_factory()._target(), PrivateStorage)
+
+    @override_settings(CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL=CLOUD)
+    def test_failed_authentication_stops_before_any_upload(self):
+        import cloudinary
+        item = self.found_item(title="With photo")
+        item.photo.save("p.jpg", ContentFile(jpeg_bytes(), name="p.jpg"))
+        with mock.patch("cloudinary.api.ping", side_effect=cloudinary.exceptions.AuthorizationRequired("no")), \
+                mock.patch("cloudinary.uploader.upload") as up, self.assertRaises(CommandError):
+            call_command("upload_media_to_cloud", "--apply", stdout=StringIO())
+        up.assert_not_called()
+
+    @override_settings(CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL=CLOUD)
+    def test_check_only_pings(self):
+        out = StringIO()
+        with mock.patch("cloudinary.api.ping") as ping, mock.patch("cloudinary.uploader.upload") as up:
+            call_command("upload_media_to_cloud", "--check", stdout=out)
+        ping.assert_called_once()
+        up.assert_not_called()
+        self.assertIn("authentication succeeded", out.getvalue())
+        self.assertNotIn("secret456", out.getvalue())
+
+    @override_settings(CLOUDINARY_URL="", CLOUDINARY_MIGRATION_URL=CLOUD)
+    def test_backup_is_verified_against_local_files(self):
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        item = self.found_item(title="With photo")
+        item.photo.save("p.jpg", ContentFile(jpeg_bytes(), name="p.jpg"))
+        with open(item.photo.path, "rb") as fh:
+            original = fh.read()
+        good = Path(tempfile.mkdtemp()) / "good.zip"
+        with zipfile.ZipFile(good, "w") as z:
+            z.writestr("media/" + item.photo.name, original)
+        bad = Path(tempfile.mkdtemp()) / "bad.zip"
+        with zipfile.ZipFile(bad, "w") as z:
+            z.writestr("media/" + item.photo.name, b"different")
+        with mock.patch("cloudinary.api.ping"):
+            out = StringIO()
+            call_command("upload_media_to_cloud", "--verify-backup", str(good), stdout=out)
+            self.assertIn("Backup verified", out.getvalue())
+            with self.assertRaises(CommandError):
+                call_command("upload_media_to_cloud", "--verify-backup", str(bad), stdout=StringIO())

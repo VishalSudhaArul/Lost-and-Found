@@ -18,7 +18,8 @@ from django.core.files import File
 from django.core.management.base import BaseCommand, CommandError
 
 from lostfound.models import Claim, DisposalRecord, Handover, Item
-from lostfound.services.cloud_storage import PrivateCloudinaryStorage, PublicCloudinaryStorage, cloudinary_enabled
+from lostfound.services.cloud_storage import (PrivateCloudinaryStorage, PublicCloudinaryStorage, check_credentials,
+                                              cloudinary_credentials_available)
 
 FIELDS = [  # (model, field, private?)
     (Item, "photo", False),
@@ -27,6 +28,10 @@ FIELDS = [  # (model, field, private?)
     (Handover, "proof_photo", True),
     (DisposalRecord, "evidence", True),
 ]
+
+
+def _zip_name(is_private, name):
+    return f"{'private_media' if is_private else 'media'}/{name}"
 
 
 def sha256(data):
@@ -38,11 +43,19 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--apply", action="store_true")
+        parser.add_argument("--check", action="store_true", help="Only test Cloudinary authentication (no uploads).")
+        parser.add_argument("--verify-backup", help="Zip backup to verify against the local files before uploading.")
         parser.add_argument("--backup-dir", default=str(Path(settings.BASE_DIR) / "backups"))
 
     def handle(self, *args, **opts):
-        if not cloudinary_enabled():
-            raise CommandError("CLOUDINARY_URL is not set for this run; nothing was uploaded.")
+        if not cloudinary_credentials_available():
+            raise CommandError("Neither CLOUDINARY_URL nor CLOUDINARY_MIGRATION_URL is set; nothing was uploaded.")
+        ok, message = check_credentials()
+        self.stdout.write(("Auth check: " if ok else "Auth check FAILED: ") + message)
+        if not ok:
+            raise CommandError("Stopped before any upload.")
+        if opts["check"]:
+            return
         public, private = PublicCloudinaryStorage(), PrivateCloudinaryStorage()
         roots = {False: Path(settings.MEDIA_ROOT), True: Path(settings.PRIVATE_MEDIA_ROOT)}
 
@@ -53,6 +66,8 @@ class Command(BaseCommand):
                 local = roots[is_private] / name
                 (jobs if local.is_file() else missing).append((model.__name__, field, name, is_private, local))
 
+        if opts.get("verify_backup"):
+            self.verify_backup(Path(opts["verify_backup"]), jobs, roots)
         self.stdout.write(f"Mode: {'APPLY' if opts['apply'] else 'DRY RUN'}")
         self.stdout.write(f"Files referenced by the database: {len(jobs) + len(missing)} "
                           f"({len(jobs)} found locally, {len(missing)} missing locally)")
@@ -97,3 +112,19 @@ class Command(BaseCommand):
         self.stdout.write(f"Uploaded {uploaded}, already present {skipped}, failed {failed}. Local files unchanged.")
         if failed:
             raise CommandError(f"{failed} file(s) did not verify.")
+
+    def verify_backup(self, backup, jobs, roots):
+        if not backup.is_file():
+            raise CommandError(f"Backup not found: {backup}")
+        with zipfile.ZipFile(backup) as z:
+            bad = z.testzip()
+            if bad:
+                raise CommandError(f"Backup is damaged at {bad}.")
+            names = set(z.namelist())
+            for _, _, name, is_private, local in jobs:
+                entry = _zip_name(is_private, name)
+                if entry not in names:
+                    raise CommandError(f"Backup does not contain {entry}.")
+                if sha256(z.read(entry)) != sha256(local.read_bytes()):
+                    raise CommandError(f"Backup copy of {entry} differs from the local file.")
+        self.stdout.write(f"Backup verified: {backup.name} holds identical copies of all {len(jobs)} file(s).")

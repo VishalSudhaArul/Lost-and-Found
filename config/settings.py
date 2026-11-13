@@ -208,6 +208,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # CDN and private evidence to Cloudinary "authenticated" storage (lostfound/services/cloud_storage.py).
 # Without it, files stay in MEDIA_ROOT / PRIVATE_MEDIA_ROOT on the local disk.
 CLOUDINARY_URL = env("CLOUDINARY_URL", "").strip()
+# Used only by `manage.py upload_media_to_cloud` on a developer machine, so the local site keeps
+# storing its own uploads on disk while existing files are copied to the production Cloudinary.
+CLOUDINARY_MIGRATION_URL = env("CLOUDINARY_MIGRATION_URL", "").strip()
 STORAGES = {
     "default": {"BACKEND": "lostfound.services.cloud_storage.PublicCloudinaryStorage" if CLOUDINARY_URL
                 else "django.core.files.storage.FileSystemStorage"},

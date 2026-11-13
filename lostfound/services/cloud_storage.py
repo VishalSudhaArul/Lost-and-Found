@@ -25,7 +25,29 @@ from django.utils.deconstruct import deconstructible
 
 
 def cloudinary_enabled():
+    """True when the site itself stores uploads on Cloudinary (production)."""
     return bool(getattr(settings, "CLOUDINARY_URL", ""))
+
+
+def cloudinary_credentials_available():
+    """True when Cloudinary can be called: the site setting, or the migration-only setting."""
+    return bool(getattr(settings, "CLOUDINARY_URL", "") or getattr(settings, "CLOUDINARY_MIGRATION_URL", ""))
+
+
+def check_credentials():
+    """Harmless authentication check (Admin API ping). Returns (ok, message); never prints secrets."""
+    try:
+        cld = _cloudinary()
+    except ValueError as exc:
+        return False, str(exc)
+    try:
+        cld.api.ping()
+    except cld.exceptions.AuthorizationRequired:
+        return False, ("Cloudinary rejected the API key or secret (AuthorizationRequired). Copy the value again after "
+                       "clicking the reveal (eye) icon, so the secret is not '*****'.")
+    except Exception as exc:  # network etc.
+        return False, f"Could not reach Cloudinary ({type(exc).__name__})."
+    return True, f"Cloudinary authentication succeeded for cloud '{cld.config().cloud_name}'."
 
 
 def _cloudinary():
@@ -34,7 +56,7 @@ def _cloudinary():
     import cloudinary.uploader
     import cloudinary.utils
     from urllib.parse import unquote, urlparse
-    raw = settings.CLOUDINARY_URL.strip()
+    raw = (getattr(settings, "CLOUDINARY_URL", "") or getattr(settings, "CLOUDINARY_MIGRATION_URL", "")).strip()
     if raw.startswith("CLOUDINARY_URL="):  # the dashboard copies "CLOUDINARY_URL=cloudinary://..."
         raw = raw.split("=", 1)[1]
     parts = urlparse(raw)
